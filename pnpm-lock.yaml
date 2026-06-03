@@ -143,6 +143,9 @@ importers:
       '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators
+      '@coderyo/pine-lite':
+        specifier: workspace:*
+        version: link:../pine-lite
       '@coderyo/renderer-lite':
         specifier: workspace:*
         version: link:../renderer-lite
@@ -274,6 +277,13 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(happy-dom@20.9.0)(tsx@4.22.4)
 
   packages/pine-lite:
+    dependencies:
+      '@coderyo/data':
+        specifier: workspace:*
+        version: link:../data
+      '@coderyo/indicators':
+        specifier: workspace:*
+        version: link:../indicators
     devDependencies:
       '@coderyo/eslint-config':
         specifier: workspace:*

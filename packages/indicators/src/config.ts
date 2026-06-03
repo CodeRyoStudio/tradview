@@ -3,6 +3,11 @@ export type IndicatorSource = 'close' | 'hlc3';
 export interface IndicatorConfig {
   source: IndicatorSource;
   maPeriod: number;
+  showEma: boolean;
+  emaPeriod: number;
+  showBoll: boolean;
+  bollPeriod: number;
+  bollMult: number;
   volMaPeriod: number;
   macdFast: number;
   macdSlow: number;
@@ -19,6 +24,11 @@ export interface IndicatorConfig {
 export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
   source: 'close',
   maPeriod: 20,
+  showEma: false,
+  emaPeriod: 12,
+  showBoll: false,
+  bollPeriod: 20,
+  bollMult: 2,
   volMaPeriod: 5,
   macdFast: 12,
   macdSlow: 26,

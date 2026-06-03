@@ -14,3 +14,11 @@ export {
 } from './create-chart.js';
 export { ChartController, type ChartOptions, type ChartEvent } from './chart-controller.js';
 export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';
+export {
+  compilePineLite,
+  runPineLite,
+  PINE_SAMPLE_SCRIPT,
+  type PineCompileResult,
+  type PineIrProgram,
+  type PinePlotSeries,
+} from '@coderyo/pine-lite';

@@ -18,7 +18,13 @@ import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
 import type { IndicatorConfig } from '@coderyo/indicators';
 
-import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
+import {
+  IndicatorPaneStack,
+  bollOverlayLines,
+  emaOverlayLine,
+  maOverlayLine,
+  volMaOverlayLine,
+} from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
 import { BarSmoothAnimator } from './bar-smooth-animator.js';
@@ -31,6 +37,12 @@ export interface CrosshairPayload {
   ohlcv: { o: number; h: number; l: number; c: number; v?: number } | null;
 }
 
+export interface PinePlotLine {
+  title: string;
+  color?: string;
+  values: (number | null)[];
+}
+
 export interface PaneOrchestratorOptions {
   container: HTMLElement;
   indicatorRoot?: HTMLElement;
@@ -41,6 +53,8 @@ export interface PaneOrchestratorOptions {
   showGrid?: boolean;
   /** null = no MA overlays and no MACD/RSI/KDJ panes. */
   indicatorConfig?: IndicatorConfig | null;
+  /** Pine-lite plot lines on main chart (when pineEnabled). */
+  pinePlots?: PinePlotLine[] | null;
   /** Animate last candle + price line toward new OHLC (~150ms). */
   smoothPriceUpdate?: boolean;
   smoothPriceDurationMs?: number;
@@ -65,9 +79,15 @@ export class PaneOrchestrator {
   private readonly mainSeries: ISeriesApi<'Candlestick'>;
   private readonly volumeSeries: ISeriesApi<'Histogram'>;
   private readonly maSeries: ISeriesApi<'Line'>;
+  private readonly emaSeries: ISeriesApi<'Line'>;
+  private readonly bollUpper: ISeriesApi<'Line'>;
+  private readonly bollMiddle: ISeriesApi<'Line'>;
+  private readonly bollLower: ISeriesApi<'Line'>;
   private readonly volMaSeries: ISeriesApi<'Line'>;
   private readonly indicatorRoot?: HTMLElement;
   private indicators: IndicatorPaneStack | null;
+  private pinePlotSeries: ISeriesApi<'Line'>[] = [];
+  private pinePlots: PinePlotLine[] | null = null;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
   private showGrid = false;
@@ -118,7 +138,32 @@ export class PaneOrchestrator {
     this.maSeries = this.mainChart.addSeries(LineSeries, {
       color: '#f0b429',
       lineWidth: 1,
-      title: 'MA20',
+      title: 'MA',
+    });
+    this.emaSeries = this.mainChart.addSeries(LineSeries, {
+      color: '#7ee787',
+      lineWidth: 1,
+      title: 'EMA',
+      visible: false,
+    });
+    this.bollUpper = this.mainChart.addSeries(LineSeries, {
+      color: '#8b949e',
+      lineWidth: 1,
+      title: 'BOLL↑',
+      visible: false,
+    });
+    this.bollMiddle = this.mainChart.addSeries(LineSeries, {
+      color: '#8b949e88',
+      lineWidth: 1,
+      lineStyle: 2,
+      title: 'BOLL',
+      visible: false,
+    });
+    this.bollLower = this.mainChart.addSeries(LineSeries, {
+      color: '#8b949e',
+      lineWidth: 1,
+      title: 'BOLL↓',
+      visible: false,
     });
     this.volumeSeries = this.volumeChart.addSeries(HistogramSeries, {
       color: '#26a69a55',
@@ -135,6 +180,7 @@ export class PaneOrchestrator {
 
     this.indicatorRoot = opts.indicatorRoot;
     this.indicatorConfig = opts.indicatorConfig ?? null;
+    this.pinePlots = opts.pinePlots ?? null;
     this.indicators = this.createIndicatorStack();
 
     this.initOverlay(mainEl);
@@ -180,10 +226,7 @@ export class PaneOrchestrator {
     this.ensurePriceLine(bar.c);
     if (this.indicatorConfig) {
       const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
-      this.maSeries.setData(
-        maOverlayLine(bars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
-      );
-      this.volMaSeries.setData(volMaOverlayLine(bars, this.indicatorConfig.volMaPeriod));
+      this.applyMainOverlays(bars);
       this.indicators?.setBars(bars);
     }
   }
@@ -217,16 +260,87 @@ export class PaneOrchestrator {
     if (!config) {
       this.indicators = null;
       this.maSeries.setData([]);
+      this.emaSeries.setData([]);
+      this.bollUpper.setData([]);
+      this.bollMiddle.setData([]);
+      this.bollLower.setData([]);
       this.volMaSeries.setData([]);
+      this.emaSeries.applyOptions({ visible: false });
+      this.bollUpper.applyOptions({ visible: false });
+      this.bollMiddle.applyOptions({ visible: false });
+      this.bollLower.applyOptions({ visible: false });
       return;
     }
     if (!this.indicators) this.indicators = this.createIndicatorStack();
     const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
     this.indicators?.setConfig(config);
     if (bars.length > 0) {
-      this.maSeries.setData(maOverlayLine(bars, config.maPeriod, config.source));
-      this.volMaSeries.setData(volMaOverlayLine(bars, config.volMaPeriod));
+      this.applyMainOverlays(bars);
       this.indicators?.setBars(bars);
+    }
+  }
+
+  setPinePlots(plots: PinePlotLine[] | null): void {
+    this.pinePlots = plots;
+    const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
+    this.syncPinePlotSeries(bars);
+  }
+
+  private applyMainOverlays(bars: Bar[]): void {
+    const cfg = this.indicatorConfig;
+    if (!cfg) return;
+    this.maSeries.applyOptions({ title: `MA${cfg.maPeriod}` });
+    this.maSeries.setData(maOverlayLine(bars, cfg.maPeriod, cfg.source));
+    this.volMaSeries.setData(volMaOverlayLine(bars, cfg.volMaPeriod));
+
+    if (cfg.showEma) {
+      this.emaSeries.applyOptions({ visible: true, title: `EMA${cfg.emaPeriod}` });
+      this.emaSeries.setData(emaOverlayLine(bars, cfg.emaPeriod, cfg.source));
+    } else {
+      this.emaSeries.applyOptions({ visible: false });
+      this.emaSeries.setData([]);
+    }
+
+    if (cfg.showBoll) {
+      const bands = bollOverlayLines(bars, cfg.bollPeriod, cfg.bollMult, cfg.source);
+      this.bollUpper.applyOptions({ visible: true });
+      this.bollMiddle.applyOptions({ visible: true });
+      this.bollLower.applyOptions({ visible: true });
+      this.bollUpper.setData(bands.upper);
+      this.bollMiddle.setData(bands.middle);
+      this.bollLower.setData(bands.lower);
+    } else {
+      this.bollUpper.applyOptions({ visible: false });
+      this.bollMiddle.applyOptions({ visible: false });
+      this.bollLower.applyOptions({ visible: false });
+      this.bollUpper.setData([]);
+      this.bollMiddle.setData([]);
+      this.bollLower.setData([]);
+    }
+    this.syncPinePlotSeries(bars);
+  }
+
+  private syncPinePlotSeries(bars: Bar[]): void {
+    for (const s of this.pinePlotSeries) this.mainChart.removeSeries(s);
+    this.pinePlotSeries = [];
+    if (!this.pinePlots?.length || bars.length === 0) return;
+
+    const palette = ['#58a6ff', '#d2a8ff', '#ff7b72', '#ffa657'];
+    for (let i = 0; i < this.pinePlots.length; i++) {
+      const plot = this.pinePlots[i]!;
+      const series = this.mainChart.addSeries(LineSeries, {
+        color: plot.color ?? palette[i % palette.length]!,
+        lineWidth: 1,
+        title: plot.title,
+      });
+      const out: { time: UTCTimestamp; value: number }[] = [];
+      for (let j = 0; j < bars.length; j++) {
+        const v = plot.values[j];
+        if (v == null) continue;
+        out.push({ time: toUtcSeconds(bars[j]!.t), value: v });
+      }
+      series.setData(out);
+      this.pinePlotSeries.push(series);
     }
   }
 
@@ -262,14 +376,16 @@ export class PaneOrchestrator {
     this.mainSeries.setData(candles);
     this.volumeSeries.setData(vols);
     if (this.indicatorConfig) {
-      this.maSeries.setData(
-        maOverlayLine(renderBars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
-      );
-      this.volMaSeries.setData(volMaOverlayLine(renderBars, this.indicatorConfig.volMaPeriod));
+      this.applyMainOverlays(renderBars);
       this.indicators?.setBars(renderBars);
     } else {
       this.maSeries.setData([]);
+      this.emaSeries.setData([]);
+      this.bollUpper.setData([]);
+      this.bollMiddle.setData([]);
+      this.bollLower.setData([]);
       this.volMaSeries.setData([]);
+      this.syncPinePlotSeries(renderBars);
     }
 
     if (renderBars.length > 0) {

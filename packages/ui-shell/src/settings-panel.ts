@@ -150,6 +150,30 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
       src.appendChild(sel);
       content.appendChild(src);
       content.appendChild(
+        checkbox(t('settings.ind.ema', 'EMA 疊加'), indicatorConfig.showEma, (v) => {
+          indicatorConfig = { ...indicatorConfig, showEma: v };
+          opts.onIndicatorConfigChange?.(indicatorConfig);
+        }),
+      );
+      content.appendChild(
+        numberField('EMA', indicatorConfig.emaPeriod, (n) => {
+          indicatorConfig = { ...indicatorConfig, emaPeriod: n };
+          opts.onIndicatorConfigChange?.(indicatorConfig);
+        }),
+      );
+      content.appendChild(
+        checkbox(t('settings.ind.boll', 'BOLL 通道'), indicatorConfig.showBoll, (v) => {
+          indicatorConfig = { ...indicatorConfig, showBoll: v };
+          opts.onIndicatorConfigChange?.(indicatorConfig);
+        }),
+      );
+      content.appendChild(
+        numberField('BOLL', indicatorConfig.bollPeriod, (n) => {
+          indicatorConfig = { ...indicatorConfig, bollPeriod: n };
+          opts.onIndicatorConfigChange?.(indicatorConfig);
+        }),
+      );
+      content.appendChild(
         numberField('MA', indicatorConfig.maPeriod, (n) => {
           indicatorConfig = { ...indicatorConfig, maPeriod: n };
           opts.onIndicatorConfigChange?.(indicatorConfig);

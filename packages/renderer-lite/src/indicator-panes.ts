@@ -13,10 +13,12 @@ import type { Bar } from '@coderyo/data';
 import {
   type IndicatorConfig,
   DEFAULT_INDICATOR_CONFIG,
+  boll,
   kdj,
   macd,
   rsi,
   sma,
+  ema,
 } from '@coderyo/indicators';
 import { gridOptions } from './chart-grid.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
@@ -246,4 +248,32 @@ export function maOverlayLine(
 export function volMaOverlayLine(bars: Bar[], period = 5): LineData<UTCTimestamp>[] {
   const volBars = bars.map((b) => ({ ...b, c: b.v ?? 0 }));
   return lineData(bars, sma(volBars, period, 'close'));
+}
+
+export function emaOverlayLine(
+  bars: Bar[],
+  period: number,
+  source: IndicatorConfig['source'] = 'close',
+): LineData<UTCTimestamp>[] {
+  const src = barsForSource(bars, source);
+  return lineData(bars, ema(src, period));
+}
+
+export function bollOverlayLines(
+  bars: Bar[],
+  period: number,
+  mult: number,
+  source: IndicatorConfig['source'] = 'close',
+): {
+  upper: LineData<UTCTimestamp>[];
+  middle: LineData<UTCTimestamp>[];
+  lower: LineData<UTCTimestamp>[];
+} {
+  const src = barsForSource(bars, source);
+  const bands = boll(src, period, mult);
+  return {
+    upper: lineData(bars, bands.upper),
+    middle: lineData(bars, bands.middle),
+    lower: lineData(bars, bands.lower),
+  };
 }

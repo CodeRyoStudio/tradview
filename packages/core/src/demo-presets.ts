@@ -1,5 +1,6 @@
 import type { IndicatorConfig } from '@coderyo/indicators';
 import { DEFAULT_INDICATOR_CONFIG } from '@coderyo/indicators';
+import { PINE_SAMPLE_SCRIPT } from '@coderyo/pine-lite';
 import type { Interval } from '@coderyo/data';
 import type { ChartFeatures } from './chart-features.js';
 import type { ChartOptions } from './chart-controller.js';
@@ -19,6 +20,8 @@ export function createDemoChartFeatures(opts: {
     smoothPriceUpdate: true,
     smoothPriceDurationMs: 150,
     tickStream: true,
+    pineEnabled: true,
+    pineScript: PINE_SAMPLE_SCRIPT,
   };
 }
 

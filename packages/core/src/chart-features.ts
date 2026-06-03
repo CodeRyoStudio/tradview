@@ -26,7 +26,9 @@ export interface ChartFeatures {
   /** Ease last candle OHLC + price line to new values (~150ms). */
   smoothPriceUpdate?: boolean;
   smoothPriceDurationMs?: number;
-  /** Post-1.0 hooks — default false, no-op until implemented. */
+  /** Pine-lite script source (requires pineEnabled). */
+  pineScript?: string | null;
+  /** Post-1.0 hooks — default false. */
   pineEnabled?: boolean;
   protobuf?: boolean;
   telemetry?: boolean;
@@ -42,6 +44,7 @@ export interface ResolvedChartFeatures {
   indicatorPersist: boolean;
   smoothPriceUpdate: boolean;
   smoothPriceDurationMs: number;
+  pineScript: string | null;
   pineEnabled: boolean;
   protobuf: boolean;
   telemetry: boolean;
@@ -57,6 +60,7 @@ export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
   indicatorPersist: false,
   smoothPriceUpdate: false,
   smoothPriceDurationMs: 150,
+  pineScript: null,
   pineEnabled: false,
   protobuf: false,
   telemetry: false,
@@ -80,6 +84,7 @@ export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeat
     indicatorPersist: partial?.indicatorPersist ?? d.indicatorPersist,
     smoothPriceUpdate: partial?.smoothPriceUpdate ?? d.smoothPriceUpdate,
     smoothPriceDurationMs: partial?.smoothPriceDurationMs ?? d.smoothPriceDurationMs,
+    pineScript: partial?.pineScript !== undefined ? partial.pineScript : d.pineScript,
     pineEnabled: partial?.pineEnabled ?? d.pineEnabled,
     protobuf: partial?.protobuf ?? d.protobuf,
     telemetry: partial?.telemetry ?? d.telemetry,
@@ -100,6 +105,7 @@ export function mergeChartFeatures(
     indicatorPersist: patch.indicatorPersist ?? current.indicatorPersist,
     smoothPriceUpdate: patch.smoothPriceUpdate ?? current.smoothPriceUpdate,
     smoothPriceDurationMs: patch.smoothPriceDurationMs ?? current.smoothPriceDurationMs,
+    pineScript: patch.pineScript !== undefined ? patch.pineScript : current.pineScript,
     pineEnabled: patch.pineEnabled ?? current.pineEnabled,
     protobuf: patch.protobuf ?? current.protobuf,
     telemetry: patch.telemetry ?? current.telemetry,

@@ -16,6 +16,7 @@ import { parseInterval } from '@coderyo/data';
 import { BarStore } from '@coderyo/series';
 import { VirtualWindow, type FetchPolicy } from '@coderyo/virtual-window';
 import { DrawingManager } from '@coderyo/drawings';
+import { compilePineLite, runPineLite, type PineIrProgram } from '@coderyo/pine-lite';
 import { PaneOrchestrator } from '@coderyo/renderer-lite';
 import {
   mergeChartFeatures,
@@ -80,6 +81,7 @@ export class ChartController {
   private drawingManager: DrawingManager | null = null;
   private offCrosshair: (() => void) | null = null;
   private features: ResolvedChartFeatures;
+  private pineIr: PineIrProgram | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -199,6 +201,38 @@ export class ChartController {
     );
     this.drawingManager?.setPersistence(this.features.drawings.persist);
     this.applyDrawingLayer();
+    this.recompilePine();
+  }
+
+  private recompilePine(): void {
+    if (!this.features.pineEnabled || !this.features.pineScript?.trim()) {
+      this.pineIr = null;
+      this.orchestrator.setPinePlots(null);
+      return;
+    }
+    const compiled = compilePineLite(this.features.pineScript);
+    if (!compiled.ok || !compiled.ir) {
+      this.pineIr = null;
+      this.orchestrator.setPinePlots(null);
+      this.emit('error', { kind: 'pine', errors: compiled.errors });
+      return;
+    }
+    this.pineIr = compiled.ir;
+  }
+
+  private applyPinePlots(bars: Bar[]): void {
+    if (!this.features.pineEnabled || !this.pineIr) {
+      this.orchestrator.setPinePlots(null);
+      return;
+    }
+    const result = runPineLite(this.pineIr, bars);
+    this.orchestrator.setPinePlots(
+      result.plots.map((p) => ({
+        title: p.title,
+        values: p.values,
+        color: undefined,
+      })),
+    );
   }
 
   /** Integrator push: update last candle close (and H/L) without WS. */
@@ -569,6 +603,7 @@ export class ChartController {
     if (bars.length === 0) return;
 
     this.orchestrator.setBars(bars);
+    this.applyPinePlots(bars);
     this.drawingManager?.redraw();
     this.emit('visibleRangeChange', {
       from: bars[0]!.t,

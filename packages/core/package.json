@@ -22,7 +22,8 @@
     "@coderyo/renderer-lite": "workspace:*",
     "@coderyo/bridge": "workspace:*",
     "@coderyo/drawings": "workspace:*",
-    "@coderyo/indicators": "workspace:*"
+    "@coderyo/indicators": "workspace:*",
+    "@coderyo/pine-lite": "workspace:*"
   },
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",

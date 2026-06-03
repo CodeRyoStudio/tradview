@@ -15,6 +15,10 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@coderyo/data": "workspace:*",
+    "@coderyo/indicators": "workspace:*"
+  },
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",
     "@coderyo/tsconfig": "workspace:*",
