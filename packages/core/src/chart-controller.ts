@@ -129,7 +129,9 @@ export class ChartController {
       indicatorConfig: this.features.indicators,
       smoothPriceUpdate: this.features.smoothPriceUpdate,
       smoothPriceDurationMs: this.features.smoothPriceDurationMs,
+      onIndicatorConfigChange: (config) => this.setIndicatorConfig(config),
     });
+    this.orchestrator.setIntervalContext(interval);
 
     if (options.width) container.style.width = `${options.width}px`;
     if (options.height) container.style.height = `${options.height}px`;
@@ -438,6 +440,7 @@ export class ChartController {
   async setSymbol(symbol: string): Promise<void> {
     const trimmed = symbol.trim();
     if (!trimmed) return;
+    this.orchestrator.setIntervalContext(this.store.interval);
     const gen = this.beginDataContextChange();
     await this.teardownSubscription();
     await this.store.setSymbolInterval(trimmed, this.store.interval);
@@ -448,6 +451,7 @@ export class ChartController {
   }
 
   async setInterval(interval: Interval): Promise<void> {
+    this.orchestrator.setIntervalContext(interval);
     const gen = this.beginDataContextChange();
     await this.teardownSubscription();
     await this.store.setSymbolInterval(this.store.symbol, interval);

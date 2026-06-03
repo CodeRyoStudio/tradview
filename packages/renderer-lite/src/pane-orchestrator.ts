@@ -14,7 +14,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Bar } from '@coderyo/data';
+import type { Bar, Interval } from '@coderyo/data';
 import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
 import type { IndicatorConfig } from '@coderyo/indicators';
@@ -28,6 +28,7 @@ import {
 } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus, type ChartVisibleRange } from './time-scale-bus.js';
+import { computeIntervalViewport } from './viewport-fit.js';
 
 export type { ChartVisibleRange };
 import { BarSmoothAnimator } from './bar-smooth-animator.js';
@@ -61,6 +62,7 @@ export interface PaneOrchestratorOptions {
   /** Animate last candle + price line toward new OHLC (~150ms). */
   smoothPriceUpdate?: boolean;
   smoothPriceDurationMs?: number;
+  onIndicatorConfigChange?: (config: IndicatorConfig) => void;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -100,6 +102,8 @@ export class PaneOrchestrator {
   private didInitialFit = false;
   private skipNextInitialFit = false;
   private indicatorConfig: IndicatorConfig | null = null;
+  private onIndicatorConfigChange?: (config: IndicatorConfig) => void;
+  private currentInterval: Interval = '1h';
   private priceLine: IPriceLine | null = null;
   private barAnimator: BarSmoothAnimator | null = null;
   private smoothPriceDurationMs = 150;
@@ -185,6 +189,7 @@ export class PaneOrchestrator {
 
     this.indicatorRoot = opts.indicatorRoot;
     this.indicatorConfig = opts.indicatorConfig ?? null;
+    this.onIndicatorConfigChange = opts.onIndicatorConfigChange;
     this.pinePlots = opts.pinePlots ?? null;
     this.indicators = this.createIndicatorStack();
 
@@ -249,6 +254,10 @@ export class PaneOrchestrator {
     } else {
       this.priceLine.applyOptions({ price });
     }
+  }
+
+  setIntervalContext(interval: Interval): void {
+    this.currentInterval = interval;
   }
 
   setTheme(theme: 'dark' | 'light'): void {
@@ -398,9 +407,7 @@ export class PaneOrchestrator {
     if (renderBars.length > 0) {
       this.syncChartSize();
       if (!this.didInitialFit && !this.skipNextInitialFit) {
-        this.mainChart.timeScale().fitContent();
-        this.volumeChart.timeScale().fitContent();
-        this.indicators?.fitContent();
+        this.fitViewportForBars(this.barTimesOrdered);
         this.didInitialFit = true;
       }
       this.skipNextInitialFit = false;
@@ -451,7 +458,34 @@ export class PaneOrchestrator {
       theme: this.dark ? 'dark' : 'light',
       showGrid: this.showGrid,
       config: this.indicatorConfig,
+      onConfigChange: (config) => {
+        this.indicatorConfig = config;
+        this.onIndicatorConfigChange?.(config);
+      },
     });
+  }
+
+  /** After symbol/interval reload: show a sensible bar count and spacing for the interval. */
+  fitViewportForInterval(interval: Interval, barTimesMs: number[]): void {
+    this.fitViewportForBars(barTimesMs, interval);
+    this.didInitialFit = true;
+  }
+
+  private fitViewportForBars(barTimesMs: number[], interval?: Interval): void {
+    const width = this.mainChart.chartElement().parentElement?.clientWidth ?? 0;
+    const iv = interval ?? this.currentInterval;
+    const fit = computeIntervalViewport(barTimesMs, iv, width);
+
+    if (fit) {
+      this.bus.setVisibleTimeRange(fit.range);
+      this.bus.setBarSpacing(fit.barSpacing);
+      this.scrollToRealtime();
+      return;
+    }
+
+    this.mainChart.timeScale().fitContent();
+    this.volumeChart.timeScale().fitContent();
+    this.indicators?.fitContent();
   }
 
   resetViewState(): void {

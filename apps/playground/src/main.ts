@@ -16,6 +16,7 @@ import {
   saveIndicatorConfig,
   type DrawingToolId,
 } from '@coderyo/ui-shell';
+import type { IndicatorConfig } from '@coderyo/indicators';
 import { PINE_EDITOR_DEFAULT } from '@coderyo/core';
 
 const app = document.getElementById('app')!;
@@ -283,6 +284,14 @@ chart.on('intervalChange', (iv) => {
   setActiveInterval(lastInterval);
   statusBar.update({ interval: lastInterval });
   crosshairLegend.setMeta({ interval: lastInterval });
+});
+
+chart.on('featuresChange', () => {
+  const cfg = chart.getFeatures().indicators;
+  if (!cfg) return;
+  indicatorConfig = cfg as IndicatorConfig;
+  if (shellOpts.settings) shellOpts.settings.indicatorConfig = indicatorConfig;
+  saveIndicatorConfig(lastSymbol, lastInterval, indicatorConfig);
 });
 
 chart.on('error', (err) => showError(err));

@@ -23,10 +23,13 @@ import {
 import { gridOptions } from './chart-grid.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
 
+export type IndicatorPaneId = 'macd' | 'rsi' | 'kdj';
+
 export interface IndicatorPaneStackOptions {
   theme?: 'dark' | 'light';
   showGrid?: boolean;
   config?: IndicatorConfig;
+  onConfigChange?: (config: IndicatorConfig) => void;
 }
 
 function barsForSource(bars: Bar[], source: IndicatorConfig['source']): Bar[] {
@@ -79,6 +82,7 @@ export class IndicatorPaneStack {
   private readonly macdWrap: HTMLElement;
   private readonly rsiWrap: HTMLElement;
   private readonly kdjWrap: HTMLElement;
+  private onConfigChange?: (config: IndicatorConfig) => void;
 
   constructor(
     private readonly root: HTMLElement,
@@ -89,15 +93,16 @@ export class IndicatorPaneStack {
     this.dark = o.theme !== 'light';
     this.showGrid = o.showGrid ?? false;
     this.config = o.config ?? DEFAULT_INDICATOR_CONFIG;
+    this.onConfigChange = o.onConfigChange;
     this.root.style.display = 'flex';
     this.root.style.flexDirection = 'column';
     this.root.style.flex = '2';
     this.root.style.minHeight = '0';
     this.root.style.overflow = 'hidden';
 
-    const macdPane = this.createPaneWrap('MACD');
-    const rsiPane = this.createPaneWrap('RSI');
-    const kdjPane = this.createPaneWrap('KDJ');
+    const macdPane = this.createPaneWrap('MACD', 'macd');
+    const rsiPane = this.createPaneWrap('RSI', 'rsi');
+    const kdjPane = this.createPaneWrap('KDJ', 'kdj');
     this.macdWrap = macdPane.wrap;
     this.rsiWrap = rsiPane.wrap;
     this.kdjWrap = kdjPane.wrap;
@@ -128,10 +133,20 @@ export class IndicatorPaneStack {
     this.applyPaneVisibility();
   }
 
+  private closePane(id: IndicatorPaneId): void {
+    const patch: Partial<IndicatorConfig> =
+      id === 'macd' ? { showMacd: false } : id === 'rsi' ? { showRsi: false } : { showKdj: false };
+    this.config = { ...this.config, ...patch };
+    this.applyPaneVisibility();
+    this.onConfigChange?.(this.config);
+  }
+
   private applyPaneVisibility(): void {
     this.macdWrap.style.display = this.config.showMacd ? '' : 'none';
     this.rsiWrap.style.display = this.config.showRsi ? '' : 'none';
     this.kdjWrap.style.display = this.config.showKdj ? '' : 'none';
+    const anyVisible = this.config.showMacd || this.config.showRsi || this.config.showKdj;
+    this.root.style.display = anyVisible ? 'flex' : 'none';
   }
 
   clearBars(): void {
@@ -214,17 +229,37 @@ export class IndicatorPaneStack {
     this.root.replaceChildren();
   }
 
-  private createPaneWrap(label: string): { wrap: HTMLElement; el: HTMLElement } {
+  private createPaneWrap(
+    label: string,
+    paneId: IndicatorPaneId,
+  ): { wrap: HTMLElement; el: HTMLElement } {
     const wrap = document.createElement('div');
+    wrap.className = `tv-indicator-pane tv-indicator-pane--${paneId}`;
     wrap.style.cssText =
       'flex:1;min-height:72px;width:100%;position:relative;border-top:1px solid #30363d;';
     const tag = document.createElement('span');
     tag.textContent = label;
     tag.style.cssText =
       'position:absolute;left:6px;top:4px;z-index:2;font-size:10px;color:#8b949e;pointer-events:none;';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '×';
+    closeBtn.title = `關閉 ${label}`;
+    closeBtn.setAttribute('aria-label', `Close ${label}`);
+    closeBtn.style.cssText =
+      'position:absolute;right:6px;top:4px;z-index:3;width:22px;height:22px;padding:0;border:1px solid #30363d;border-radius:4px;background:#21262d;color:#8b949e;cursor:pointer;font-size:14px;line-height:1;';
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.color = '#e6edf3';
+      closeBtn.style.borderColor = '#484f58';
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.color = '#8b949e';
+      closeBtn.style.borderColor = '#30363d';
+    };
+    closeBtn.onclick = () => this.closePane(paneId);
     const el = document.createElement('div');
     el.style.cssText = 'width:100%;height:100%;';
-    wrap.append(tag, el);
+    wrap.append(tag, closeBtn, el);
     return { wrap, el };
   }
 
