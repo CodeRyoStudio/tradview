@@ -1,5 +1,5 @@
-import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
-import type { IndicatorConfig } from '@tradview/indicators';
+import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
+import type { IndicatorConfig } from '@coderyo/indicators';
 
 import type {
   DataProvider,
@@ -8,13 +8,13 @@ import type {
   RealtimeStreamMode,
   SubscribeParams,
   SymbolResolver,
-} from '@tradview/data';
-import type { HistoryRequest } from '@tradview/virtual-window';
-import { parseInterval } from '@tradview/data';
-import { BarStore } from '@tradview/series';
-import { VirtualWindow, type FetchPolicy } from '@tradview/virtual-window';
-import { DrawingManager } from '@tradview/drawings';
-import { PaneOrchestrator } from '@tradview/renderer-lite';
+} from '@coderyo/data';
+import type { HistoryRequest } from '@coderyo/virtual-window';
+import { parseInterval } from '@coderyo/data';
+import { BarStore } from '@coderyo/series';
+import { VirtualWindow, type FetchPolicy } from '@coderyo/virtual-window';
+import { DrawingManager } from '@coderyo/drawings';
+import { PaneOrchestrator } from '@coderyo/renderer-lite';
 import {
   mergeChartFeatures,
   PENDING_SYMBOL,
@@ -222,7 +222,7 @@ export class ChartController {
     return this.store.interval;
   }
 
-  async searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]> {
+  async searchSymbols(query: string): Promise<import('@coderyo/data').SymbolSearchHit[]> {
     const resolver = this.options.symbolResolver;
     if (resolver?.search) return resolver.search(query);
     if (this.options.dataProvider.searchSymbols) {
@@ -231,7 +231,7 @@ export class ChartController {
     return [];
   }
 
-  async resolveSymbol(symbol: string): Promise<import('@tradview/data').SymbolInfo | null> {
+  async resolveSymbol(symbol: string): Promise<import('@coderyo/data').SymbolInfo | null> {
     if (this.options.symbolResolver) {
       return this.options.symbolResolver.resolve(symbol);
     }
@@ -256,7 +256,7 @@ export class ChartController {
     return this;
   }
 
-  setDrawingTool(tool: import('@tradview/drawings').DrawingTool): this {
+  setDrawingTool(tool: import('@coderyo/drawings').DrawingTool): this {
     this.drawingManager?.setTool(tool);
     this.syncOverlayPointerEvents();
     return this;

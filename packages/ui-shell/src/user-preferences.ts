@@ -1,5 +1,5 @@
-import type { IndicatorConfig } from '@tradview/indicators';
-import { DEFAULT_INDICATOR_CONFIG, indicatorConfigStorageKey } from '@tradview/indicators';
+import type { IndicatorConfig } from '@coderyo/indicators';
+import { DEFAULT_INDICATOR_CONFIG, indicatorConfigStorageKey } from '@coderyo/indicators';
 
 export const GRID_SETTING_KEY = 'tradview:settings:showGrid';
 export const RETURN_CURSOR_KEY = 'tradview:settings:returnToCursorAfterDraw';

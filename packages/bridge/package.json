@@ -1,5 +1,5 @@
 {
-  "name": "@tradview/bridge",
+  "name": "@coderyo/bridge",
   "version": "1.0.0-rc.2",
   "license": "MIT",
   "type": "module",
@@ -16,8 +16,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@tradview/eslint-config": "workspace:*",
-    "@tradview/tsconfig": "workspace:*",
+    "@coderyo/eslint-config": "workspace:*",
+    "@coderyo/tsconfig": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

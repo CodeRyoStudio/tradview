@@ -1,5 +1,5 @@
 {
-  "name": "@tradview/cdn-bundle",
+  "name": "@coderyo/cdn-bundle",
   "version": "0.0.0",
   "private": true,
   "description": "UMD CDN bundle (PR-19)",
@@ -10,13 +10,13 @@
     "check:size": "node ../../scripts/check-cdn-size.mjs"
   },
   "dependencies": {
-    "@tradview/bridge": "workspace:*",
-    "@tradview/core": "workspace:*",
-    "@tradview/data": "workspace:*",
-    "@tradview/ui-shell": "workspace:*"
+    "@coderyo/bridge": "workspace:*",
+    "@coderyo/core": "workspace:*",
+    "@coderyo/data": "workspace:*",
+    "@coderyo/ui-shell": "workspace:*"
   },
   "devDependencies": {
-    "@tradview/tsconfig": "workspace:*",
+    "@coderyo/tsconfig": "workspace:*",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }

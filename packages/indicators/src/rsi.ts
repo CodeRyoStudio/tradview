@@ -1,4 +1,4 @@
-import type { Bar } from '@tradview/data';
+import type { Bar } from '@coderyo/data';
 
 export function rsi(bars: Bar[], period = 14): (number | null)[] {
   const out: (number | null)[] = [];

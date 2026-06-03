@@ -54,7 +54,7 @@ export interface ChartLayoutOptions extends TopBarOptions {
   showShortcuts?: boolean;
   symbolInput?: 'manual' | 'search' | 'none';
   onDrawingStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;
-  onDrawingSelectionBind?: (bind: (drawing: import('@tradview/drawings').DrawingRecord | null) => void) => void;
+  onDrawingSelectionBind?: (bind: (drawing: import('@coderyo/drawings').DrawingRecord | null) => void) => void;
 }
 
 function mountToolButtons(

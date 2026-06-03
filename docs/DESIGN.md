@@ -18,9 +18,9 @@
 
 | 通道 | 說明 |
 |------|------|
-| npm | `@tradview/core` 等套件，ESM + 型別定義 |
+| npm | `@coderyo/core` 等套件，ESM + 型別定義 |
 | CDN | `tradview.min.js` UMD/IIFE，全域 `TradView.createChart` |
-| 授權 | **雙軌**：`@tradview/core` 等基礎包 **MIT 開源**；`@tradview/ui-shell`、`@tradview/drawings` **私有商業授權** |
+| 授權 | **雙軌**：`@coderyo/core` 等基礎包 **MIT 開源**；`@coderyo/ui-shell`、`@coderyo/drawings` **私有商業授權** |
 
 ### 多平台策略
 
@@ -35,9 +35,9 @@ flowchart LR
     Native["iOS/Android WKWebView"]
   end
   subgraph Bundle["TradView H5 Bundle"]
-    Core["@tradview/core"]
-    UI["@tradview/ui-shell"]
-    Lite["@tradview/renderer-lite"]
+    Core["@coderyo/core"]
+    UI["@coderyo/ui-shell"]
+    Lite["@coderyo/renderer-lite"]
   end
   subgraph Data["整合方後端"]
     REST["REST History"]
@@ -60,7 +60,7 @@ flowchart LR
 - **產品優先級（對外驗收）**：**A 完整 UI 殼層 + 互動** > **B 資料層 + 協議** > 繪圖（可略晚）。
 - **工程實作順序（刻意與 A>B 不同）**：**B 垂直切片先通**（協議 → DataProvider → BarStore → 渲染 → 互動），再於 M2 交付 **A 完整 TV 殼層**；無資料則 UI 無法驗證，此為 **有文件記載的 intentional reorder**。
 - **M1 展示目標**：B + **Minimal Chart Slice**（主圖+量+頂部週期列 stub，見 PR-06b）；**M2** 才為完整 A。
-- 渲染採 **混合路線**：v1 主路徑為 **Canvas 2D（Lightweight Charts）**，非 WebGL；繪圖 overlay 預設 **Canvas**（Pixi 為可選 POC）；v2 自研 **WebGL**（`@tradview/renderer-webgl`）。
+- 渲染採 **混合路線**：v1 主路徑為 **Canvas 2D（Lightweight Charts）**，非 WebGL；繪圖 overlay 預設 **Canvas**（Pixi 為可選 POC）；v2 自研 **WebGL**（`@coderyo/renderer-webgl`）。
 
 ---
 
@@ -124,8 +124,8 @@ flowchart TB
     Persist["storage: localStorage"]
   end
   subgraph Render["Render Layer (hybrid)"]
-    R1["v1: @tradview/renderer-lite (LWC Canvas 2D)"]
-    R2["v2: @tradview/renderer-webgl (native WebGL)"]
+    R1["v1: @coderyo/renderer-lite (LWC Canvas 2D)"]
+    R2["v2: @coderyo/renderer-webgl (native WebGL)"]
   end
   Shell --> ChartAPI
   Input --> ChartAPI
@@ -239,9 +239,9 @@ bridge → core (peer)
 
 | 套件 | 輸出 |
 |------|------|
-| `@tradview/core` | `dist/index.js` ESM + `.d.ts` |
+| `@coderyo/core` | `dist/index.js` ESM + `.d.ts` |
 | CDN | 單檔 `tradview.min.js`，externals 無（內聯必要依賴） |
-| npm 發布 | **所有 `packages/*` 均可獨立發布**（`@tradview/core`、`data`、`ui-shell`、`bridge`…）；CDN 仍為聚合 `tradview.min.js` |
+| npm 發布 | **所有 `packages/*` 均可獨立發布**（`@coderyo/core`、`data`、`ui-shell`、`bridge`…）；CDN 仍為聚合 `tradview.min.js` |
 | 授權標記 | 各包 `package.json` 的 `license` 欄位：`MIT`（開源包）或 `UNLICENSED`（ui-shell、drawings） |
 
 ---
@@ -251,7 +251,7 @@ bridge → core (peer)
 ### 6.1 工廠與鏈式 API
 
 ```typescript
-// @tradview/core
+// @coderyo/core
 
 export interface ChartOptions {
   apiVersion?: 1;           // embed API surface version; formal freeze at RC (PR-19)
@@ -307,7 +307,7 @@ export function createChart(
 ### 6.2 DataProvider
 
 ```typescript
-// @tradview/data
+// @coderyo/data
 
 export type HistoryQuery =
   | { mode: 'range'; symbol: string; interval: Interval; from: number; to: number }
@@ -654,7 +654,7 @@ sequenceDiagram
 | `1D` | 86_400_000 | **日線例外用大寫 D** |
 | `1W` | 604_800_000 | **週線例外用大寫 W** |
 
-- `@tradview/data` 匯出 `INTERVAL_REGISTRY`、`parseInterval(s): Interval`、`intervalMs(i)`；非法字串拋 `INVALID_INTERVAL`。
+- `@coderyo/data` 匯出 `INTERVAL_REGISTRY`、`parseInterval(s): Interval`、`intervalMs(i)`；非法字串拋 `INVALID_INTERVAL`。
 - UI `IntervalSelector` 自訂列表 **必須** 為上述註冊表子集或透過整合方擴展（擴展需在 `SymbolResolver` 側登記）。
 - REST/WS **必須** 使用同一字串；否則 400 / `INVALID_INTERVAL`。
 
@@ -1177,9 +1177,9 @@ flowchart LR
 | **regl / custom WebGL** | WebGL | 極致效能 | 開發量大 | v2 方向 |
 | **uPlot** | Canvas | 極快折線 | K 線蠟燭需自畫 | 僅指標折線備選 |
 
-**v1 決策**：**主序列（蠟燭 + 量 + 指標窗）** 以 **Lightweight Charts（Canvas 2D）** 為底，透過 `@tradview/renderer-lite` 的 **`PaneOrchestrator`** 統一 `IRenderer`；**繪圖 overlay 預設 Canvas 2D**（Pixi 僅在 PR-06 size gate 通過後啟用，見 §16）。
+**v1 決策**：**主序列（蠟燭 + 量 + 指標窗）** 以 **Lightweight Charts（Canvas 2D）** 為底，透過 `@coderyo/renderer-lite` 的 **`PaneOrchestrator`** 統一 `IRenderer`；**繪圖 overlay 預設 Canvas 2D**（Pixi 僅在 PR-06 size gate 通過後啟用，見 §16）。
 
-> **命名澄清**：v1 **不是 WebGL**；`@tradview/renderer-webgl` 保留給 v2 自研渲染器。
+> **命名澄清**：v1 **不是 WebGL**；`@coderyo/renderer-webgl` 保留給 v2 自研渲染器。
 
 ### 10.2 抽象介面（利於 v2 替換）
 
@@ -1276,14 +1276,14 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  V1["v1: @tradview/renderer-lite"] --> Adapter["IRenderer adapter"]
-  V2["v2: @tradview/renderer-webgl"] --> Adapter
+  V1["v1: @coderyo/renderer-lite"] --> Adapter["IRenderer adapter"]
+  V2["v2: @coderyo/renderer-webgl"] --> Adapter
   Adapter --> Core["ChartController"]
 ```
 
 | 階段 | 內容 |
 |------|------|
-| Phase 0 | 定義 `IRenderer`，所有座標/刻度計算抽到 `@tradview/series` |
+| Phase 0 | 定義 `IRenderer`，所有座標/刻度計算抽到 `@coderyo/series` |
 | Phase 1 | 自研蠟燭幾何著色器（單 draw call batch） |
 | Phase 2 | 統一軸、十字線、多 pane 同步 |
 | Phase 3 | 移除 Lightweight Charts 依賴，體積目標 CDN < 180 KB gzip |
@@ -1436,7 +1436,7 @@ warmupMs = warmupBarCount * intervalMs   // hint for fetch scheduling only
      Floating: CrosshairLegend, ContextMenu, DrawingToolbar
 ```
 
-### 12.1 元件清單（`@tradview/ui-shell`）
+### 12.1 元件清單（`@coderyo/ui-shell`）
 
 | 元件 ID | 職責 |
 |---------|------|
@@ -1690,9 +1690,9 @@ window.addEventListener('message', (e) => {
 |------|------|------|
 | 產品形態 | 可嵌入元件，非終端 | 降低範圍，聚焦圖表與資料抽象 |
 | 技術棧 | TS 原生 + WebView 統一 bundle | 最大嵌入性，宿主自選框架 |
-| 渲染 v1 | **`@tradview/renderer-lite`（LWC Canvas 2D）** + Canvas overlay | v1 **非 WebGL**；最快達 TV 級 K 線 |
+| 渲染 v1 | **`@coderyo/renderer-lite`（LWC Canvas 2D）** + Canvas overlay | v1 **非 WebGL**；最快達 TV 級 K 線 |
 | 多 pane v1 | **PaneOrchestrator + N×LWC + TimeScaleBus** | LWC 單實例無法原生多窗格（§10.4） |
-| 渲染 v2 | **`@tradview/renderer-webgl`** 自研 WebGL | 體積、深度客製、統一 pane |
+| 渲染 v2 | **`@coderyo/renderer-webgl`** 自研 WebGL | 體積、深度客製、統一 pane |
 | 資料 | REST + WS JSON v1；`barSeq` **string** 冪等 | 避免 JS Number 精度問題 |
 | 歷史補載 | v1 預設 **`lazy-left-only`**；可選 **`fill-visible-holes`** | 省流量 vs 主動補洞（§11.3、D15） |
 | 授權 | **core MIT 開源；ui-shell/drawings 私有** | 商業分層（OQ5） |
@@ -1780,7 +1780,7 @@ window.addEventListener('message', (e) => {
 ### PR-09: `feat(ui-shell): full TV layout (A — M2)`
 - **範圍**：LeftToolbar 殼、IndicatorPaneHost、**pane 拖曳（OQ1）**、**全螢幕 + 截圖（D19/D20）**、`setFullscreen`/`exportImage` 接線、主題
 - **依賴**：PR-08
-- **說明**：**完整 A**；`@tradview/ui-shell` 為 **UNLICENSED** 私有包
+- **說明**：**完整 A**；`@coderyo/ui-shell` 為 **UNLICENSED** 私有包
 
 ### PR-10: `feat(indicators): MA, Vol MA + warmup integration`
 - **依賴**：PR-09

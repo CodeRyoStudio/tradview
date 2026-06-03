@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BarStore } from '@tradview/series';
+import { BarStore } from '@coderyo/series';
 import { VirtualWindow } from '../src/virtual-window.js';
 
 describe('VirtualWindow', () => {

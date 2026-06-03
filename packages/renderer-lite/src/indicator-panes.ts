@@ -9,7 +9,7 @@ import {
   type LineData,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Bar } from '@tradview/data';
+import type { Bar } from '@coderyo/data';
 import {
   type IndicatorConfig,
   DEFAULT_INDICATOR_CONFIG,
@@ -17,7 +17,7 @@ import {
   macd,
   rsi,
   sma,
-} from '@tradview/indicators';
+} from '@coderyo/indicators';
 import { gridOptions } from './chart-grid.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
 

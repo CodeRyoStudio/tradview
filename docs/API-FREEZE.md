@@ -16,11 +16,11 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 | 產物 | 說明 |
 |------|------|
-| `@tradview/core@1.0.0-rc.2` | **MIT**，整合主入口 `createChart` |
-| `@tradview/data` | **MIT**，協議型別 + `createGatewayDataProvider` |
-| `@tradview/bridge` | **MIT**，WebView `postMessage` |
-| `@tradview/series` / `virtual-window` / `renderer-lite` / `indicators` / `i18n` / `interaction` / `pine-lite` | **MIT**，子模組（進階整合可直連） |
-| `@tradview/ui-shell` / `@tradview/drawings` | **UNLICENSED**，商業授權；CDN 含 ui-shell 視為商業版 |
+| `@coderyo/core@1.0.0-rc.2` | **MIT**，整合主入口 `createChart` |
+| `@coderyo/data` | **MIT**，協議型別 + `createGatewayDataProvider` |
+| `@coderyo/bridge` | **MIT**，WebView `postMessage` |
+| `@coderyo/series` / `virtual-window` / `renderer-lite` / `indicators` / `i18n` / `interaction` / `pine-lite` | **MIT**，子模組（進階整合可直連） |
+| `@coderyo/ui-shell` / `@coderyo/drawings` | **UNLICENSED**，商業授權；CDN 含 ui-shell 視為商業版 |
 | `tradview.min.js` | UMD 全域 `TradView`；gzip **≤ 400 KB**（CI `pnpm check:cdn-size`） |
 
 ---
@@ -134,7 +134,7 @@ TradView.mountChartLayout
 | `host.setLogScale` 等擴充 host 事件 | PR-15 |
 | CDN 授權金鑰 / 域名白名單 | PR-19 商業層 |
 | LWC 單路徑 180 KB gzip gate | 僅 CDN 400 KB gate |
-| `@tradview/renderer-webgl` | v2 stub |
+| `@coderyo/renderer-webgl` | v2 stub |
 
 ---
 

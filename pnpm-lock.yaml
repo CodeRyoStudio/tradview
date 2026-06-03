@@ -8,10 +8,10 @@ importers:
 
   .:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:tools/tsconfig
       eslint:
@@ -32,32 +32,32 @@ importers:
 
   apps/playground:
     dependencies:
-      '@tradview/core':
+      '@coderyo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../../packages/data
-      '@tradview/drawings':
+      '@coderyo/drawings':
         specifier: workspace:*
         version: link:../../packages/drawings
-      '@tradview/i18n':
+      '@coderyo/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@tradview/indicators':
+      '@coderyo/indicators':
         specifier: workspace:*
         version: link:../../packages/indicators
-      '@tradview/interaction':
+      '@coderyo/interaction':
         specifier: workspace:*
         version: link:../../packages/interaction
-      '@tradview/ui-shell':
+      '@coderyo/ui-shell':
         specifier: workspace:*
         version: link:../../packages/ui-shell
       lightweight-charts:
         specifier: ^5.0.7
         version: 5.2.0
     devDependencies:
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       typescript:
@@ -69,20 +69,20 @@ importers:
 
   bundle/cdn:
     dependencies:
-      '@tradview/bridge':
+      '@coderyo/bridge':
         specifier: workspace:*
         version: link:../../packages/bridge
-      '@tradview/core':
+      '@coderyo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../../packages/data
-      '@tradview/ui-shell':
+      '@coderyo/ui-shell':
         specifier: workspace:*
         version: link:../../packages/ui-shell
     devDependencies:
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       typescript:
@@ -94,10 +94,10 @@ importers:
 
   packages/bridge:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -112,11 +112,11 @@ importers:
 
   packages/cli-dev:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
     devDependencies:
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       '@types/node':
@@ -131,32 +131,32 @@ importers:
 
   packages/core:
     dependencies:
-      '@tradview/bridge':
+      '@coderyo/bridge':
         specifier: workspace:*
         version: link:../bridge
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
-      '@tradview/drawings':
+      '@coderyo/drawings':
         specifier: workspace:*
         version: link:../drawings
-      '@tradview/indicators':
+      '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators
-      '@tradview/renderer-lite':
+      '@coderyo/renderer-lite':
         specifier: workspace:*
         version: link:../renderer-lite
-      '@tradview/series':
+      '@coderyo/series':
         specifier: workspace:*
         version: link:../series
-      '@tradview/virtual-window':
+      '@coderyo/virtual-window':
         specifier: workspace:*
         version: link:../virtual-window
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -175,10 +175,10 @@ importers:
         specifier: ^8.18.2
         version: 8.21.0
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       '@types/node':
@@ -199,10 +199,10 @@ importers:
 
   packages/drawings:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -217,10 +217,10 @@ importers:
 
   packages/i18n:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -235,14 +235,14 @@ importers:
 
   packages/indicators:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -257,10 +257,10 @@ importers:
 
   packages/interaction:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -275,10 +275,10 @@ importers:
 
   packages/pine-lite:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -293,23 +293,23 @@ importers:
 
   packages/renderer-lite:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
-      '@tradview/indicators':
+      '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators
-      '@tradview/series':
+      '@coderyo/series':
         specifier: workspace:*
         version: link:../series
       lightweight-charts:
         specifier: ^5.0.7
         version: 5.2.0
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -324,10 +324,10 @@ importers:
 
   packages/renderer-webgl:
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -342,14 +342,14 @@ importers:
 
   packages/series:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -364,23 +364,23 @@ importers:
 
   packages/ui-shell:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
-      '@tradview/drawings':
+      '@coderyo/drawings':
         specifier: workspace:*
         version: link:../drawings
-      '@tradview/i18n':
+      '@coderyo/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@tradview/indicators':
+      '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:
@@ -395,17 +395,17 @@ importers:
 
   packages/virtual-window:
     dependencies:
-      '@tradview/data':
+      '@coderyo/data':
         specifier: workspace:*
         version: link:../data
-      '@tradview/series':
+      '@coderyo/series':
         specifier: workspace:*
         version: link:../series
     devDependencies:
-      '@tradview/eslint-config':
+      '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
-      '@tradview/tsconfig':
+      '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
       tsup:

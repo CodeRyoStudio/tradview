@@ -1,6 +1,6 @@
-import type { IndicatorConfig } from '@tradview/indicators';
-import { DEFAULT_INDICATOR_CONFIG } from '@tradview/indicators';
-import type { Interval } from '@tradview/data';
+import type { IndicatorConfig } from '@coderyo/indicators';
+import { DEFAULT_INDICATOR_CONFIG } from '@coderyo/indicators';
+import type { Interval } from '@coderyo/data';
 import type { ChartFeatures } from './chart-features.js';
 import type { ChartOptions } from './chart-controller.js';
 

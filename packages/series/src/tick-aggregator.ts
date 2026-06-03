@@ -1,5 +1,5 @@
-import { intervalMs, type Interval } from '@tradview/data';
-import type { Bar } from '@tradview/data';
+import { intervalMs, type Interval } from '@coderyo/data';
+import type { Bar } from '@coderyo/data';
 
 export interface Tick {
   t: number;

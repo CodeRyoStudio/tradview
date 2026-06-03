@@ -1,5 +1,5 @@
-import type { SymbolSearchHit } from '@tradview/data';
-import { t } from '@tradview/i18n';
+import type { SymbolSearchHit } from '@coderyo/data';
+import { t } from '@coderyo/i18n';
 
 export interface SymbolSearchOptions {
   onSearch: (query: string) => Promise<SymbolSearchHit[]>;

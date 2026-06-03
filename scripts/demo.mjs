@@ -43,19 +43,19 @@ if (mode === 'preview') {
   const build = spawn(pnpm, ['build'], { cwd: root, stdio: 'inherit', shell: isWin });
   build.on('close', (code) => {
     if (code !== 0) shutdown(code ?? 1);
-    spawn(pnpm, ['--filter', '@tradview/playground', 'build'], {
+    spawn(pnpm, ['--filter', '@coderyo/playground', 'build'], {
       cwd: root,
       stdio: 'inherit',
       shell: isWin,
     }).on('close', (c2) => {
       if (c2 !== 0) shutdown(c2 ?? 1);
       console.log('[demo] Preview at http://127.0.0.1:4173 (proxy → mock)');
-      setTimeout(() => run('preview', ['--filter', '@tradview/playground', 'preview', '--host', '127.0.0.1', '--port', '4173']), 800);
+      setTimeout(() => run('preview', ['--filter', '@coderyo/playground', 'preview', '--host', '127.0.0.1', '--port', '4173']), 800);
     });
   });
 } else {
   setTimeout(() => {
     console.log('[demo] Dev UI at http://127.0.0.1:5173 (proxy → mock)');
-    run('playground', ['--filter', '@tradview/playground', 'dev', '--host', '127.0.0.1', '--port', '5173']);
+    run('playground', ['--filter', '@coderyo/playground', 'dev', '--host', '127.0.0.1', '--port', '5173']);
   }, 1500);
 }

@@ -34,20 +34,20 @@ git push origin v1.0.0-rc.1
 
 ## 3. 發布 npm（可選）
 
-需已登入 npm（`npm login`）且對 `@tradview` scope 有發布權。
+需已登入 npm（`npm login`）且對 `@coderyo` scope 有發布權。
 
 ```bash
 pnpm check:rc
 pnpm -r publish --access public --tag rc --no-git-checks
 ```
 
-- **MIT 包**：`@tradview/core`, `data`, `bridge`, `series`, …
-- **UNLICENSED 包**：`@tradview/ui-shell`, `@tradview/drawings` — 發布前確認授權策略；整合方需商業許可。
+- **MIT 包**：`@coderyo/core`, `data`, `bridge`, `series`, …
+- **UNLICENSED 包**：`@coderyo/ui-shell`, `@coderyo/drawings` — 發布前確認授權策略；整合方需商業許可。
 
 安裝範例：
 
 ```bash
-npm install @tradview/core@1.0.0-rc.1
+npm install @coderyo/core@1.0.0-rc.1
 ```
 
 ---

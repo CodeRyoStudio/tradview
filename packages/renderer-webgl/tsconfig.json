@@ -1,5 +1,5 @@
 {
-  "extends": "@tradview/tsconfig/base.json",
+  "extends": "@coderyo/tsconfig/base.json",
   "compilerOptions": { "outDir": "dist", "rootDir": "src" },
   "include": ["src"]
 }

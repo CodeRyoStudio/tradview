@@ -1,5 +1,5 @@
 {
-  "name": "@tradview/data",
+  "name": "@coderyo/data",
   "version": "1.0.0-rc.2",
   "description": "TradView protocol types, interval registry, and mock gateway",
   "license": "MIT",
@@ -27,8 +27,8 @@
     "ws": "^8.18.2"
   },
   "devDependencies": {
-    "@tradview/eslint-config": "workspace:*",
-    "@tradview/tsconfig": "workspace:*",
+    "@coderyo/eslint-config": "workspace:*",
+    "@coderyo/tsconfig": "workspace:*",
     "@types/node": "^22.15.29",
     "@types/ws": "^8.18.1",
     "tsup": "^8.5.0",

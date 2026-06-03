@@ -1,4 +1,4 @@
 {
-  "extends": "@tradview/tsconfig/base.json",
+  "extends": "@coderyo/tsconfig/base.json",
   "include": ["src"]
 }

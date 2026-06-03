@@ -1,4 +1,4 @@
-import { t } from '@tradview/i18n';
+import { t } from '@coderyo/i18n';
 
 export interface ContextMenuAction {
   id: string;

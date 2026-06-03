@@ -1,4 +1,4 @@
-import type { Bar } from '@tradview/data';
+import type { Bar } from '@coderyo/data';
 
 export function sma(bars: Bar[], period: number, field: 'close' | 'open' = 'close'): (number | null)[] {
   const out: (number | null)[] = [];

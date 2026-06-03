@@ -1,8 +1,8 @@
-import { createChart, createDemoChartOptions, type IChart } from '@tradview/core';
-import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@tradview/data';
-import type { Interval } from '@tradview/data';
-import { bindChartKeyboard } from '@tradview/interaction';
-import { t } from '@tradview/i18n';
+import { createChart, createDemoChartOptions, type IChart } from '@coderyo/core';
+import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@coderyo/data';
+import type { Interval } from '@coderyo/data';
+import { bindChartKeyboard } from '@coderyo/interaction';
+import { t } from '@coderyo/i18n';
 import {
   loadIndicatorConfig,
   loadReturnToCursorPreference,
@@ -13,7 +13,7 @@ import {
   openDrawingContextMenu,
   saveIndicatorConfig,
   type DrawingToolId,
-} from '@tradview/ui-shell';
+} from '@coderyo/ui-shell';
 
 const app = document.getElementById('app')!;
 const errorEl = document.getElementById('demo-error')!;
@@ -96,7 +96,7 @@ const shellOpts = createDemoLayoutOptions({
   symbolInput: 'search',
 });
 
-let bindDrawingProps: ((d: import('@tradview/drawings').DrawingRecord | null) => void) | null =
+let bindDrawingProps: ((d: import('@coderyo/drawings').DrawingRecord | null) => void) | null =
   null;
 
 shellOpts.onDrawingSelectionBind = (bind) => {
@@ -129,8 +129,8 @@ const chart = createChart(
 chartRef.current = chart;
 
 mountCodeSnippetPanel(document.body, () =>
-  `import { createChart } from '@tradview/core';
-import { createGatewayDataProvider } from '@tradview/data';
+  `import { createChart } from '@coderyo/core';
+import { createGatewayDataProvider } from '@coderyo/data';
 
 const chart = createChart(document.getElementById('chart'), {
   dataProvider: createGatewayDataProvider({
@@ -203,7 +203,7 @@ chart.on('requestCursorTool', () => {
 });
 
 chart.on('drawingSelectionChange', (payload) => {
-  const p = payload as { record?: import('@tradview/drawings').DrawingRecord | null };
+  const p = payload as { record?: import('@coderyo/drawings').DrawingRecord | null };
   bindDrawingProps?.(p?.record ?? null);
   propertiesPanel.bind(p?.record ?? null);
 });
@@ -212,7 +212,7 @@ chart.on('drawingContextMenu', (payload) => {
   const p = payload as {
     clientX: number;
     clientY: number;
-    drawing: import('@tradview/drawings').DrawingRecord | null;
+    drawing: import('@coderyo/drawings').DrawingRecord | null;
   };
   openDrawingContextMenu(p.clientX, p.clientY, p.drawing, {
     onDelete: () => chart.deleteSelectedDrawing(),

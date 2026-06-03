@@ -48,10 +48,10 @@ pnpm demo
 
 | Package | License | Role |
 |---------|---------|------|
-| `@tradview/core` | MIT | `createChart`, Bridge, chart controller |
-| `@tradview/data` | MIT | Protocol types + gateway client |
-| `@tradview/ui-shell` | UNLICENSED | TV layout shell |
-| `@tradview/drawings` | UNLICENSED | Drawing overlay |
+| `@coderyo/core` | MIT | `createChart`, Bridge, chart controller |
+| `@coderyo/data` | MIT | Protocol types + gateway client |
+| `@coderyo/ui-shell` | UNLICENSED | TV layout shell |
+| `@coderyo/drawings` | UNLICENSED | Drawing overlay |
 | … | | See [DESIGN.md](./docs/DESIGN.md) |
 
 **CDN:** `bundle/cdn/dist/tradview.min.js`（gzip ≤ 400 KB，CI gate）

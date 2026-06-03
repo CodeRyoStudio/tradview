@@ -1,5 +1,5 @@
-import { DEFAULT_INTERVALS, type Interval, type SymbolSearchHit } from '@tradview/data';
-import { t } from '@tradview/i18n';
+import { DEFAULT_INTERVALS, type Interval, type SymbolSearchHit } from '@coderyo/data';
+import { t } from '@coderyo/i18n';
 import { mountSettingsMenu, type SettingsMenuOptions } from './settings-menu.js';
 import { mountSymbolSearch } from './symbol-search.js';
 

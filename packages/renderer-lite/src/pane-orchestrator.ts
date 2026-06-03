@@ -12,10 +12,10 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Bar } from '@tradview/data';
-import { lodDecimateBars } from '@tradview/series';
+import type { Bar } from '@coderyo/data';
+import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
-import type { IndicatorConfig } from '@tradview/indicators';
+import type { IndicatorConfig } from '@coderyo/indicators';
 
 import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';

@@ -1,6 +1,6 @@
-import type { RealtimeStreamMode } from '@tradview/data';
-import type { IndicatorConfig } from '@tradview/indicators';
-import type { FetchPolicy } from '@tradview/virtual-window';
+import type { RealtimeStreamMode } from '@coderyo/data';
+import type { IndicatorConfig } from '@coderyo/indicators';
+import type { FetchPolicy } from '@coderyo/virtual-window';
 
 export interface ChartGapsFeatures {
   whitespace?: boolean;

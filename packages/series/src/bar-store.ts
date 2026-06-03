@@ -1,4 +1,4 @@
-import { compareBarSeq, intervalMs, type Bar, type Interval } from '@tradview/data';
+import { compareBarSeq, intervalMs, type Bar, type Interval } from '@coderyo/data';
 import { rangesFromSortedTimes, type TimeRange } from './loaded-ranges.js';
 
 export type SourcePriority = 'rest' | 'ws';

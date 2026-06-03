@@ -1,12 +1,12 @@
-import type { BridgeAdapter } from '@tradview/bridge';
+import type { BridgeAdapter } from '@coderyo/bridge';
 import {
   BRIDGE_SCHEMA_VERSION,
   isBridgeInbound,
   type BridgeInboundType,
   type BridgeOutboundType,
-} from '@tradview/bridge';
-import type { Interval } from '@tradview/data';
-import type { CrosshairPayload } from '@tradview/renderer-lite';
+} from '@coderyo/bridge';
+import type { Interval } from '@coderyo/data';
+import type { CrosshairPayload } from '@coderyo/renderer-lite';
 import type { ChartController, ChartEvent } from './chart-controller.js';
 import type { IChart } from './create-chart.js';
 import { TRADVIEW_VERSION } from './version.js';

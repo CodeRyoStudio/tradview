@@ -1,4 +1,4 @@
-import { startMockGateway } from '@tradview/data/mock';
+import { startMockGateway } from '@coderyo/data/mock';
 
 const port = Number(process.env.MOCK_PORT ?? '4010');
 const host = process.env.MOCK_HOST ?? '127.0.0.1';

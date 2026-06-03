@@ -1,5 +1,5 @@
-import { DEFAULT_INDICATOR_CONFIG, type IndicatorConfig } from '@tradview/indicators';
-import { t } from '@tradview/i18n';
+import { DEFAULT_INDICATOR_CONFIG, type IndicatorConfig } from '@coderyo/indicators';
+import { t } from '@coderyo/i18n';
 import {
   loadReturnToCursorPreference,
   loadShowGridPreference,

@@ -1,3 +1,3 @@
-import config from '@tradview/eslint-config';
+import config from '@coderyo/eslint-config';
 
 export default config;

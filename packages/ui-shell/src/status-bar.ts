@@ -1,4 +1,4 @@
-import { getLocale, setLocale, t } from '@tradview/i18n';
+import { getLocale, setLocale, t } from '@coderyo/i18n';
 
 export interface OhlcvSnapshot {
   o?: number;

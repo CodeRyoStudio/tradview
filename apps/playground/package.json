@@ -1,5 +1,5 @@
 {
-  "name": "@tradview/playground",
+  "name": "@coderyo/playground",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,17 +10,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tradview/core": "workspace:*",
-    "@tradview/drawings": "workspace:*",
-    "@tradview/data": "workspace:*",
-    "@tradview/indicators": "workspace:*",
-    "@tradview/interaction": "workspace:*",
-    "@tradview/i18n": "workspace:*",
-    "@tradview/ui-shell": "workspace:*",
+    "@coderyo/core": "workspace:*",
+    "@coderyo/drawings": "workspace:*",
+    "@coderyo/data": "workspace:*",
+    "@coderyo/indicators": "workspace:*",
+    "@coderyo/interaction": "workspace:*",
+    "@coderyo/i18n": "workspace:*",
+    "@coderyo/ui-shell": "workspace:*",
     "lightweight-charts": "^5.0.7"
   },
   "devDependencies": {
-    "@tradview/tsconfig": "workspace:*",
+    "@coderyo/tsconfig": "workspace:*",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }

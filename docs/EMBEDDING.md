@@ -18,9 +18,9 @@ import {
   DEFAULT_CHART_FEATURES,
   wireChartBridge,
   createDemoChartOptions,
-} from '@tradview/core';
-import { createGatewayDataProvider } from '@tradview/data';
-import { mountChartLayout, createDemoLayoutOptions } from '@tradview/ui-shell';
+} from '@coderyo/core';
+import { createGatewayDataProvider } from '@coderyo/data';
+import { mountChartLayout, createDemoLayoutOptions } from '@coderyo/ui-shell';
 
 // 最小嵌入：僅 K 線 + 你自己的 UI
 const chart = createChart(document.getElementById('chart')!, {
@@ -88,20 +88,20 @@ const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider
 ### npm（RC）
 
 ```bash
-npm install @tradview/core@1.0.0-rc.2
+npm install @coderyo/core@1.0.0-rc.2
 ```
 
 ## 必備條件
 
 - 容器需有明確高度（`height` 或 flex 佈局中的 `flex:1; min-height:0`）。
 - 行情由整合方實作：`DataProvider`（REST 歷史 + WS 即時）。
-- 可選 `SymbolResolver` 豐富商品搜尋（`@tradview/data`）。
+- 可選 `SymbolResolver` 豐富商品搜尋（`@coderyo/data`）。
 
 ## Bridge 事件白名單
 
 ```typescript
-import { createChart } from '@tradview/core';
-import { createDefaultBridge } from '@tradview/bridge';
+import { createChart } from '@coderyo/core';
+import { createDefaultBridge } from '@coderyo/bridge';
 
 const bridge = createDefaultBridge({ target: window.parent });
 createChart('#chart', {

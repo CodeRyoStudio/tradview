@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **npm scope**: all publishable packages renamed from `@tradview/*` to `@coderyo/*` (org `coderyo`)
+
 ## [1.0.0-rc.2] - 2026-06-03
 
 ### Added
@@ -26,7 +30,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **RC release tooling**: `VERSION`, `pnpm version:sync`, `pnpm check:rc`, [docs/API-FREEZE.md](./docs/API-FREEZE.md), [docs/RELEASE.md](./docs/RELEASE.md)
-- **`TRADVIEW_VERSION`** on `@tradview/core` / CDN / `chart.ready` payload
+- **`TRADVIEW_VERSION`** on `@coderyo/core` / CDN / `chart.ready` payload
 - **API freeze test** for `apiVersion: 1` constants
 
 ### Fixed (since pre-RC)

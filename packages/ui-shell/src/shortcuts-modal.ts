@@ -1,4 +1,4 @@
-import { t } from '@tradview/i18n';
+import { t } from '@coderyo/i18n';
 
 const SHORTCUTS: Array<{ key: string; desc: string }> = [
   { key: '↖ / Esc', desc: '游標（選取/編輯繪圖）' },

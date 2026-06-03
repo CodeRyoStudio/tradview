@@ -1,5 +1,5 @@
-import type { DrawingRecord } from '@tradview/drawings';
-import { t } from '@tradview/i18n';
+import type { DrawingRecord } from '@coderyo/drawings';
+import { t } from '@coderyo/i18n';
 
 export interface DrawingPropertiesPanelOptions {
   onStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;

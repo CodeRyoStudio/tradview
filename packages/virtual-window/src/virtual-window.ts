@@ -1,6 +1,6 @@
-import { intervalMs, type Interval } from '@tradview/data';
-import type { BarStore } from '@tradview/series';
-import type { TimeRange } from '@tradview/series';
+import { intervalMs, type Interval } from '@coderyo/data';
+import type { BarStore } from '@coderyo/series';
+import type { TimeRange } from '@coderyo/series';
 
 export type FetchPolicy = 'lazy-left-only' | 'fill-visible-holes';
 

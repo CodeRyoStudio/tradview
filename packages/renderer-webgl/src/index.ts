@@ -1,4 +1,4 @@
-export const PACKAGE_NAME = '@tradview/renderer-webgl' as const;
+export const PACKAGE_NAME = '@coderyo/renderer-webgl' as const;
 
 export interface WebGlRendererOptions {
   enabled?: boolean;

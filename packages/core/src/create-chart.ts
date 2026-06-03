@@ -1,8 +1,8 @@
-import type { BridgeAdapter } from '@tradview/bridge';
-import type { BridgeOutboundType } from '@tradview/bridge';
-import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
-import type { IndicatorConfig } from '@tradview/indicators';
-import type { DataProvider } from '@tradview/data';
+import type { BridgeAdapter } from '@coderyo/bridge';
+import type { BridgeOutboundType } from '@coderyo/bridge';
+import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
+import type { IndicatorConfig } from '@coderyo/indicators';
+import type { DataProvider } from '@coderyo/data';
 import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
 import type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
@@ -24,7 +24,7 @@ export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
 
 export interface IChart {
   setSymbol(symbol: string): IChart;
-  setInterval(interval: import('@tradview/data').Interval): IChart;
+  setInterval(interval: import('@coderyo/data').Interval): IChart;
   setTheme(theme: 'dark' | 'light'): IChart;
   setShowGrid(show: boolean): IChart;
   setLogScale(enabled: boolean): IChart;
@@ -35,8 +35,8 @@ export interface IChart {
   exportImage(opts?: { pixelRatio?: number }): Promise<Blob>;
   on(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
   off(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
-  searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]>;
-  setDrawingTool(tool: import('@tradview/drawings').DrawingTool): IChart;
+  searchSymbols(query: string): Promise<import('@coderyo/data').SymbolSearchHit[]>;
+  setDrawingTool(tool: import('@coderyo/drawings').DrawingTool): IChart;
   deleteSelectedDrawing(): boolean;
   copySelectedDrawing(): DrawingRecord | null;
   toggleLockSelectedDrawing(): boolean;

@@ -1,4 +1,4 @@
-import type { Bar } from '@tradview/data';
+import type { Bar } from '@coderyo/data';
 import { ema } from './ma.js';
 
 export interface MacdResult {

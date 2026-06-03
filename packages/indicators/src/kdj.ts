@@ -1,4 +1,4 @@
-import type { Bar } from '@tradview/data';
+import type { Bar } from '@coderyo/data';
 
 export interface KdjResult {
   k: (number | null)[];

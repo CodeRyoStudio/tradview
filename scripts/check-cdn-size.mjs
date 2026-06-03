@@ -10,7 +10,7 @@ const bundlePath = resolve(root, 'bundle/cdn/dist/tradview.min.js');
 const maxGzipKb = Number(process.env.TRADVIEW_CDN_MAX_KB ?? 400);
 
 if (!existsSync(bundlePath)) {
-  console.error(`[cdn-size] missing bundle: ${bundlePath}\nRun: pnpm --filter @tradview/cdn-bundle build`);
+  console.error(`[cdn-size] missing bundle: ${bundlePath}\nRun: pnpm --filter @coderyo/cdn-bundle build`);
   process.exit(1);
 }
 

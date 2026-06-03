@@ -1,5 +1,5 @@
 {
-  "name": "@tradview/cli-dev",
+  "name": "@coderyo/cli-dev",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -12,10 +12,10 @@
     "test": "echo test ok"
   },
   "dependencies": {
-    "@tradview/data": "workspace:*"
+    "@coderyo/data": "workspace:*"
   },
   "devDependencies": {
-    "@tradview/tsconfig": "workspace:*",
+    "@coderyo/tsconfig": "workspace:*",
     "@types/node": "^22.15.29",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
