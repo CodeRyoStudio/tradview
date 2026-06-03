@@ -11,11 +11,14 @@ export function createDemoChartFeatures(opts: {
 }): ChartFeatures {
   return {
     fetchPolicy: 'lazy-left-only',
-    streamMode: 'bar',
+    streamMode: 'bar+tick',
     gaps: { whitespace: false, fillVisibleHoles: false },
     drawings: { layer: true, persist: true },
     indicators: opts.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG,
     indicatorPersist: true,
+    smoothPriceUpdate: true,
+    smoothPriceDurationMs: 150,
+    tickStream: true,
   };
 }
 

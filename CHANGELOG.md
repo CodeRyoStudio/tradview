@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Sub-second intervals**: `1s`, `5s`, `15s`, `30s` + mock gateway faster bar/tick push
+- **Smooth price update**: `chart.updateLastPrice`, `smoothPriceUpdate` / `smoothPriceDurationMs` (~150ms OHLC + price line)
 - [docs/API.md](./docs/API.md) — 整合方 API 參考（`@coderyo/*`、`createChart`、Bridge、DataProvider）
 
 ### Fixed

@@ -23,6 +23,9 @@ export interface ChartFeatures {
   indicators?: IndicatorConfig | null;
   /** Save indicator params to storage (default false). */
   indicatorPersist?: boolean;
+  /** Ease last candle OHLC + price line to new values (~150ms). */
+  smoothPriceUpdate?: boolean;
+  smoothPriceDurationMs?: number;
   /** Post-1.0 hooks — default false, no-op until implemented. */
   pineEnabled?: boolean;
   protobuf?: boolean;
@@ -37,6 +40,8 @@ export interface ResolvedChartFeatures {
   drawings: Required<ChartDrawingsFeatures>;
   indicators: IndicatorConfig | null;
   indicatorPersist: boolean;
+  smoothPriceUpdate: boolean;
+  smoothPriceDurationMs: number;
   pineEnabled: boolean;
   protobuf: boolean;
   telemetry: boolean;
@@ -50,6 +55,8 @@ export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
   drawings: { layer: false, persist: true },
   indicators: null,
   indicatorPersist: false,
+  smoothPriceUpdate: false,
+  smoothPriceDurationMs: 150,
   pineEnabled: false,
   protobuf: false,
   telemetry: false,
@@ -71,6 +78,8 @@ export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeat
     },
     indicators: partial?.indicators !== undefined ? partial.indicators : d.indicators,
     indicatorPersist: partial?.indicatorPersist ?? d.indicatorPersist,
+    smoothPriceUpdate: partial?.smoothPriceUpdate ?? d.smoothPriceUpdate,
+    smoothPriceDurationMs: partial?.smoothPriceDurationMs ?? d.smoothPriceDurationMs,
     pineEnabled: partial?.pineEnabled ?? d.pineEnabled,
     protobuf: partial?.protobuf ?? d.protobuf,
     telemetry: partial?.telemetry ?? d.telemetry,
@@ -89,6 +98,8 @@ export function mergeChartFeatures(
     drawings: { ...current.drawings, ...patch.drawings },
     indicators: patch.indicators !== undefined ? patch.indicators : current.indicators,
     indicatorPersist: patch.indicatorPersist ?? current.indicatorPersist,
+    smoothPriceUpdate: patch.smoothPriceUpdate ?? current.smoothPriceUpdate,
+    smoothPriceDurationMs: patch.smoothPriceDurationMs ?? current.smoothPriceDurationMs,
     pineEnabled: patch.pineEnabled ?? current.pineEnabled,
     protobuf: patch.protobuf ?? current.protobuf,
     telemetry: patch.telemetry ?? current.telemetry,

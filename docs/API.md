@@ -146,6 +146,7 @@ const chart = createChart(
 | `deselectDrawing()` | `void` | 取消選取 |
 | `setIndicatorConfig(config)` | `void` | `null` 關閉所有指標窗格 |
 | `setReturnToCursorAfterDraw(v)` | `IChart` | 繪圖行為 |
+| `updateLastPrice(price, timeMs?)` | `IChart` | 整合方 push 最新價（可不訂閱 WS） |
 | `setFeatures(patch)` | `IChart` | 執行期更新 feature |
 | `getFeatures()` | `ResolvedChartFeatures` | 目前 feature 快照 |
 | `hasActiveSymbol()` | `boolean` | 是否已 `setSymbol` |
@@ -204,7 +205,9 @@ const teardown = wireChartBridge({
 | `drawings.persist` | `boolean` | `localStorage` 持久化 |
 | `indicators` | `IndicatorConfig \| null` | `null` = 無 MA / 無子窗格 |
 | `indicatorPersist` | `boolean` | 指標參數寫入 storage |
-| `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `boolean` | 預留；多數尚未接線 |
+| `smoothPriceUpdate` | `boolean` | 最後一根 K 線 + 價格線平滑插值（預設 `false`） |
+| `smoothPriceDurationMs` | `number` | 平滑動畫時長（預設 `150`） |
+| `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `boolean` | `tickStream` 啟用 WS tick；其餘多為預留 |
 
 輔助：
 
@@ -295,7 +298,7 @@ chartRef.current = chart;
 | `contextMenuActions` | — | 自訂右鍵項目 |
 | `settings` | — | 網格、指標、畫完回游標 |
 
-`Interval` 清單（TopBar）：`1m` `5m` `15m` `1h` `4h` `1D` `1W`（見 `@coderyo/data` `DEFAULT_INTERVALS`）。
+`Interval` 清單：`1s` `5s` `15s` `30s`（`SUB_SECOND_INTERVALS`）+ `1m` … `1W`（`DEFAULT_INTERVALS`）；Playground 用 `EXTENDED_INTERVALS`。
 
 ---
 

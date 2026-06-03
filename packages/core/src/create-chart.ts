@@ -46,6 +46,8 @@ export interface IChart {
   setReturnToCursorAfterDraw(v: boolean): void;
   setFeatures(patch: ChartFeatures): IChart;
   getFeatures(): ResolvedChartFeatures;
+  /** Integrator push: smooth-update last candle toward `price` (no WS required). */
+  updateLastPrice(price: number, timeMs?: number): IChart;
   hasActiveSymbol(): boolean;
   destroy(): void;
 }
@@ -126,6 +128,10 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       return wrap(controller, beforeDestroy);
     },
     getFeatures: () => controller.getFeatures(),
+    updateLastPrice: (price, timeMs) => {
+      controller.updateLastPrice(price, timeMs);
+      return wrap(controller, beforeDestroy);
+    },
     hasActiveSymbol: () => controller.hasActiveSymbol(),
     destroy: () => {
       controller.destroy();

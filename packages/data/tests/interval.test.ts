@@ -18,7 +18,13 @@ describe('interval registry', () => {
     expect(() => parseInterval('2m')).toThrow(InvalidIntervalError);
   });
 
+  it('parses sub-second intervals', () => {
+    expect(parseInterval('1s')).toBe('1s');
+    expect(intervalMs('5s')).toBe(5_000);
+    expect(intervalMs('30s')).toBe(30_000);
+  });
+
   it('covers all registry entries', () => {
-    expect(Object.keys(INTERVAL_REGISTRY)).toHaveLength(7);
+    expect(Object.keys(INTERVAL_REGISTRY)).toHaveLength(11);
   });
 });

@@ -22,5 +22,7 @@ describe('RC API freeze (apiVersion 1)', () => {
     expect(DEFAULT_CHART_FEATURES.indicators).toBeNull();
     expect(DEFAULT_CHART_FEATURES.drawings.layer).toBe(false);
     expect(DEFAULT_CHART_FEATURES.gaps.whitespace).toBe(false);
+    expect(DEFAULT_CHART_FEATURES.smoothPriceUpdate).toBe(false);
+    expect(DEFAULT_CHART_FEATURES.smoothPriceDurationMs).toBe(150);
   });
 });

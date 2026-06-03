@@ -8,6 +8,7 @@ import {
   type HistogramData,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type MouseEventParams,
   type Time,
   type UTCTimestamp,
@@ -20,6 +21,7 @@ import type { IndicatorConfig } from '@coderyo/indicators';
 import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
+import { BarSmoothAnimator } from './bar-smooth-animator.js';
 
 export type ScaleMode = 'linear' | 'log';
 
@@ -39,6 +41,9 @@ export interface PaneOrchestratorOptions {
   showGrid?: boolean;
   /** null = no MA overlays and no MACD/RSI/KDJ panes. */
   indicatorConfig?: IndicatorConfig | null;
+  /** Animate last candle + price line toward new OHLC (~150ms). */
+  smoothPriceUpdate?: boolean;
+  smoothPriceDurationMs?: number;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -70,6 +75,9 @@ export class PaneOrchestrator {
   private barByTime = new Map<number, Bar>();
   private didInitialFit = false;
   private indicatorConfig: IndicatorConfig | null = null;
+  private priceLine: IPriceLine | null = null;
+  private barAnimator: BarSmoothAnimator | null = null;
+  private smoothPriceDurationMs = 150;
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -130,6 +138,69 @@ export class PaneOrchestrator {
     this.indicators = this.createIndicatorStack();
 
     this.initOverlay(mainEl);
+    this.setSmoothPriceUpdate(opts.smoothPriceUpdate ?? false, opts.smoothPriceDurationMs);
+  }
+
+  setSmoothPriceUpdate(enabled: boolean, durationMs = 150): void {
+    this.smoothPriceDurationMs = durationMs;
+    if (enabled) {
+      if (!this.barAnimator) {
+        this.barAnimator = new BarSmoothAnimator(durationMs, (bar) => this.applyLastBarToSeries(bar));
+      } else {
+        this.barAnimator.setDuration(durationMs);
+      }
+      return;
+    }
+    this.barAnimator?.cancel();
+    this.barAnimator = null;
+    if (this.priceLine) {
+      this.mainSeries.removePriceLine(this.priceLine);
+      this.priceLine = null;
+    }
+  }
+
+  /** Update the last candle (and price line); optional smooth interpolation. */
+  updateLastBar(target: Bar, opts?: { smooth?: boolean; durationMs?: number }): void {
+    const prev = this.barByTime.get(target.t);
+    const smooth = opts?.smooth ?? !!this.barAnimator;
+    const duration = opts?.durationMs ?? this.smoothPriceDurationMs;
+    if (smooth && this.barAnimator) {
+      this.barAnimator.setDuration(duration);
+      this.barAnimator.animateTo(target, prev ?? target);
+      return;
+    }
+    this.barAnimator?.cancel();
+    this.applyLastBarToSeries(target);
+  }
+
+  private applyLastBarToSeries(bar: Bar): void {
+    this.barByTime.set(bar.t, bar);
+    this.mainSeries.update(barToCandle(bar));
+    this.volumeSeries.update(barToVolume(bar));
+    this.ensurePriceLine(bar.c);
+    if (this.indicatorConfig) {
+      const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
+      this.maSeries.setData(
+        maOverlayLine(bars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
+      );
+      this.volMaSeries.setData(volMaOverlayLine(bars, this.indicatorConfig.volMaPeriod));
+      this.indicators?.setBars(bars);
+    }
+  }
+
+  private ensurePriceLine(price: number): void {
+    if (!this.priceLine) {
+      this.priceLine = this.mainSeries.createPriceLine({
+        price,
+        color: '#58a6ff',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: '',
+      });
+    } else {
+      this.priceLine.applyOptions({ price });
+    }
   }
 
   setTheme(theme: 'dark' | 'light'): void {
@@ -267,6 +338,7 @@ export class PaneOrchestrator {
 
   /** Clear series while symbol/interval data reloads (avoids overlapping candles). */
   clearBars(): void {
+    this.barAnimator?.cancel();
     this.barByTime = new Map();
     this.mainSeries.setData([]);
     this.maSeries.setData([]);
@@ -326,6 +398,11 @@ export class PaneOrchestrator {
   }
 
   destroy(): void {
+    this.barAnimator?.cancel();
+    if (this.priceLine) {
+      this.mainSeries.removePriceLine(this.priceLine);
+      this.priceLine = null;
+    }
     this.mainChart.remove();
     this.volumeChart.remove();
     this.indicators?.destroy();

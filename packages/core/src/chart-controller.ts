@@ -2,6 +2,7 @@ import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
 import type { IndicatorConfig } from '@coderyo/indicators';
 
 import type {
+  Bar,
   DataProvider,
   HistoryQuery,
   Interval,
@@ -9,6 +10,7 @@ import type {
   SubscribeParams,
   SymbolResolver,
 } from '@coderyo/data';
+import { floorBarOpenTime } from '@coderyo/data';
 import type { HistoryRequest } from '@coderyo/virtual-window';
 import { parseInterval } from '@coderyo/data';
 import { BarStore } from '@coderyo/series';
@@ -109,6 +111,8 @@ export class ChartController {
       scaleMode: options.scaleMode ?? 'linear',
       showGrid: options.showGrid ?? false,
       indicatorConfig: this.features.indicators,
+      smoothPriceUpdate: this.features.smoothPriceUpdate,
+      smoothPriceDurationMs: this.features.smoothPriceDurationMs,
     });
 
     if (options.width) container.style.width = `${options.width}px`;
@@ -189,8 +193,69 @@ export class ChartController {
     this.virtualWindow.setFetchPolicy(fetchPolicy);
 
     this.orchestrator.setIndicatorConfig(this.features.indicators);
+    this.orchestrator.setSmoothPriceUpdate(
+      this.features.smoothPriceUpdate,
+      this.features.smoothPriceDurationMs,
+    );
     this.drawingManager?.setPersistence(this.features.drawings.persist);
     this.applyDrawingLayer();
+  }
+
+  /** Integrator push: update last candle close (and H/L) without WS. */
+  updateLastPrice(price: number, timeMs = Date.now()): this {
+    if (!this.hasActiveSymbol() || this.destroyed) return this;
+    const bar = this.buildBarFromPrice(price, timeMs);
+    void this.applyRealtimeBar(bar, true);
+    return this;
+  }
+
+  private buildBarFromPrice(price: number, timeMs: number): Bar {
+    const interval = this.store.interval;
+    const open = floorBarOpenTime(timeMs, interval);
+    const times = this.store.sortedTimes;
+    const lastT = times.length > 0 ? times[times.length - 1]! : undefined;
+    const existing = lastT !== undefined ? this.store.getBar(lastT) : undefined;
+
+    if (existing && existing.t === open) {
+      return {
+        ...existing,
+        c: price,
+        h: Math.max(existing.h, price),
+        l: Math.min(existing.l, price),
+      };
+    }
+
+    const prevClose = existing?.c ?? price;
+    return {
+      t: open,
+      o: prevClose,
+      h: Math.max(prevClose, price),
+      l: Math.min(prevClose, price),
+      c: price,
+      v: existing?.v ?? 0,
+    };
+  }
+
+  private async applyRealtimeBar(
+    bar: Bar,
+    partial: boolean,
+    loadGen = this.loadGeneration,
+  ): Promise<void> {
+    await this.store.mergeRealtime({ bar, partial });
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
+
+    const bars = this.virtualWindow.getBarsForRender();
+    const last = bars[bars.length - 1];
+    if (last && this.features.smoothPriceUpdate) {
+      this.orchestrator.updateLastBar(last, {
+        smooth: true,
+        durationMs: this.features.smoothPriceDurationMs,
+      });
+      this.drawingManager?.redraw();
+    } else {
+      this.refreshRender(loadGen);
+    }
+    this.emit('barUpdate', bar);
   }
 
   private applyDrawingLayer(): void {
@@ -433,13 +498,13 @@ export class ChartController {
       onBar: (bar, meta) => {
         if (!this.isLoadGenerationCurrent(loadGen)) return;
         if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-        void this.store
-          .mergeRealtime({
-            bar,
-            partial: meta.partial,
-          })
-          .then(() => this.refreshRender(loadGen));
-        this.emit('barUpdate', bar);
+        void this.applyRealtimeBar(bar, meta.partial, loadGen);
+      },
+      onTick: (tick) => {
+        if (!this.isLoadGenerationCurrent(loadGen)) return;
+        if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+        const bar = this.buildBarFromPrice(tick.price, tick.t);
+        void this.applyRealtimeBar(bar, true, loadGen);
       },
       onConnectionChange: (state) => this.emit('connectionChange', state),
       onError: (err) => this.emit('error', err),

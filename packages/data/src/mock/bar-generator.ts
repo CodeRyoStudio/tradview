@@ -1,4 +1,4 @@
-import { intervalMs, parseInterval, type Interval } from '../interval.js';
+import { floorBarOpenTime, intervalMs, parseInterval, type Interval } from '../interval.js';
 import type { Bar } from '../types.js';
 
 export interface BarGeneratorOptions {
@@ -100,10 +100,7 @@ export function seedNextBar(
   };
 }
 
-export function floorBarOpenTime(t: number, interval: Interval): number {
-  const ms = intervalMs(interval);
-  return Math.floor(t / ms) * ms;
-}
+export { floorBarOpenTime };
 
 export function parseHistoryQuery(url: URL): {
   symbol: string;

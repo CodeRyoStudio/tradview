@@ -1,8 +1,8 @@
 import http from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { parseInterval } from '../interval.js';
+import { floorBarOpenTime, intervalMs, parseInterval } from '../interval.js';
 import type { Envelope } from '../types.js';
-import { floorBarOpenTime, generateBars, seedNextBar } from './bar-generator.js';
+import { generateBars, seedNextBar } from './bar-generator.js';
 import { resolveHistoryBars } from './bar-generator.js';
 
 export interface MockWsServerOptions {
@@ -15,7 +15,8 @@ interface Subscription {
   symbol: string;
   interval: ReturnType<typeof parseInterval>;
   streamMode: 'bar' | 'tick' | 'bar+tick';
-  timer?: ReturnType<typeof setInterval>;
+  barTimer?: ReturnType<typeof setInterval>;
+  tickTimer?: ReturnType<typeof setInterval>;
 }
 
 function send(ws: WebSocket, msg: Envelope) {
@@ -85,6 +86,9 @@ export function attachMockWebSocket(server: http.Server): WebSocketServer {
           if (p.channels?.includes('bar') || streamMode === 'bar' || streamMode === 'bar+tick') {
             startBarPush(ws, sub);
           }
+          if (p.channels?.includes('tick') || streamMode === 'tick' || streamMode === 'bar+tick') {
+            startTickPush(ws, sub);
+          }
         } catch {
           send(ws, {
             v: '1.0',
@@ -99,7 +103,8 @@ export function attachMockWebSocket(server: http.Server): WebSocketServer {
       if (msg.type === 'unsubscribe') {
         const p = msg.payload as { subscriptionId: string };
         const sub = clientSubs.get(p.subscriptionId);
-        if (sub?.timer) clearInterval(sub.timer);
+        if (sub?.barTimer) clearInterval(sub.barTimer);
+        if (sub?.tickTimer) clearInterval(sub.tickTimer);
         clientSubs.delete(p.subscriptionId);
         send(ws, {
           v: '1.0',
@@ -150,7 +155,8 @@ export function attachMockWebSocket(server: http.Server): WebSocketServer {
       const clientSubs = subs.get(ws);
       if (clientSubs) {
         for (const sub of clientSubs.values()) {
-          if (sub.timer) clearInterval(sub.timer);
+          if (sub.barTimer) clearInterval(sub.barTimer);
+          if (sub.tickTimer) clearInterval(sub.tickTimer);
         }
       }
       subs.delete(ws);
@@ -160,8 +166,13 @@ export function attachMockWebSocket(server: http.Server): WebSocketServer {
   return wss;
 }
 
+function realtimePushIntervalMs(interval: ReturnType<typeof parseInterval>): number {
+  const ms = intervalMs(interval);
+  return Math.max(50, Math.min(Math.floor(ms / 4), 1000));
+}
+
 function startBarPush(ws: WebSocket, sub: Subscription) {
-  if (sub.timer) clearInterval(sub.timer);
+  if (sub.barTimer) clearInterval(sub.barTimer);
 
   let seq = 1n;
   let openTime = floorBarOpenTime(Date.now(), sub.interval);
@@ -172,7 +183,8 @@ function startBarPush(ws: WebSocket, sub: Subscription) {
     count: 1,
   })[0]!;
 
-  sub.timer = setInterval(() => {
+  const period = realtimePushIntervalMs(sub.interval);
+  sub.barTimer = setInterval(() => {
     if (ws.readyState !== ws.OPEN) return;
 
     const now = Date.now();
@@ -211,5 +223,31 @@ function startBarPush(ws: WebSocket, sub: Subscription) {
         },
       });
     }
-  }, 1000);
+  }, period);
+}
+
+function startTickPush(ws: WebSocket, sub: Subscription) {
+  if (sub.tickTimer) clearInterval(sub.tickTimer);
+
+  let lastPrice = generateBars({
+    symbol: sub.symbol,
+    interval: sub.interval,
+    endTime: floorBarOpenTime(Date.now(), sub.interval),
+    count: 1,
+  })[0]!.c;
+
+  const period = Math.max(40, Math.floor(realtimePushIntervalMs(sub.interval) / 2));
+  sub.tickTimer = setInterval(() => {
+    if (ws.readyState !== ws.OPEN) return;
+    const jitter = (Math.random() - 0.5) * (lastPrice * 0.00008);
+    lastPrice += jitter;
+    send(ws, {
+      v: '1.0',
+      type: 'tick',
+      payload: {
+        subscriptionId: sub.id,
+        tick: { t: Date.now(), price: lastPrice, size: Math.round(1 + Math.random() * 5) },
+      },
+    });
+  }, period);
 }

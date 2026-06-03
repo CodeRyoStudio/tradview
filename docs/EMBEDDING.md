@@ -46,7 +46,9 @@ const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider
 | `drawings.persist` | `true` | `localStorage` 持久化；可設 `false` 關閉 |
 | `indicators` | `null` | 不傳 / `null` → **零指標**、無子窗格 |
 | `indicatorPersist` | `false` | 指標參數寫入 storage |
-| `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `false` | 預留；多數尚未接線 |
+| `smoothPriceUpdate` | `false` | 最後 K 線 + 價格線 ~150ms 平滑插值 |
+| `smoothPriceDurationMs` | `150` | 平滑動畫毫秒 |
+| `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `false` | Playground demo 會開 `tickStream` + 平滑 |
 
 執行期：`chart.setFeatures({ … })`、`chart.getFeatures()`；事件 `featuresChange`。
 
@@ -137,6 +139,19 @@ getHistory({
 | `cursor` | 分頁 / cursor 協議 |
 
 詳見 [API.md § DataProvider](./API.md#7-dataprovider)。
+
+## 平滑價格更新（integrator push）
+
+不需 WS 也可刷最後一根 K 線：
+
+```typescript
+chart.setFeatures({ smoothPriceUpdate: true, smoothPriceDurationMs: 150 });
+chart.setSymbol('BINANCE:BTCUSDT').setInterval('1s');
+// 整合方行情 push
+chart.updateLastPrice(94_250.5);
+```
+
+啟用後會插值動畫：**最後一根 OHLC** + **最新價水平線**（~150ms，新價打斷重播）。Playground demo 預設開啟。
 
 ## 快速開始（CDN）
 

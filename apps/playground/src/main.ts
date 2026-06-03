@@ -1,6 +1,6 @@
 import { createChart, createDemoChartOptions, type IChart } from '@coderyo/core';
 import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@coderyo/data';
-import type { Interval } from '@coderyo/data';
+import { EXTENDED_INTERVALS, type Interval } from '@coderyo/data';
 import { bindChartKeyboard } from '@coderyo/interaction';
 import { t } from '@coderyo/i18n';
 import {
@@ -42,6 +42,7 @@ const symbolResolver = createPassthroughSymbolResolver((q) =>
 );
 
 const shellOpts = createDemoLayoutOptions({
+  intervals: EXTENDED_INTERVALS,
   activeDrawingTool: drawingTool,
   onDrawingToolSelect: (tool) => {
     drawingTool = tool;
