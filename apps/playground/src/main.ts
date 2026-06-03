@@ -82,6 +82,17 @@ const shellOpts = createDemoLayoutOptions({
       saveIndicatorConfig(lastSymbol, lastInterval, cfg);
       chartRef.current?.setIndicatorConfig(cfg);
     },
+    onClearAllIndicators: () => {
+      const cfg = chartRef.current?.clearAllIndicators();
+      if (!cfg) return;
+      indicatorConfig = cfg;
+      shellOpts.settings!.indicatorConfig = cfg;
+      saveIndicatorConfig(lastSymbol, lastInterval, cfg);
+    },
+    onClearAllDrawings: () => {
+      chartRef.current?.clearAllDrawings();
+      chartRef.current?.deselectDrawing();
+    },
   },
   activeInterval: lastInterval,
   statusBar: {

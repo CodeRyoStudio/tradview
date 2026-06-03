@@ -19,6 +19,8 @@ export interface IndicatorConfig {
   showMacd: boolean;
   showRsi: boolean;
   showKdj: boolean;
+  showMa: boolean;
+  showVolMa: boolean;
 }
 
 export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
@@ -40,7 +42,23 @@ export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
   showMacd: true,
   showRsi: true,
   showKdj: true,
+  showMa: true,
+  showVolMa: true,
 };
+
+/** Hide all indicator panes and main-chart overlays (MA / EMA / BOLL / vol MA). */
+export function clearedIndicatorConfig(base: IndicatorConfig = DEFAULT_INDICATOR_CONFIG): IndicatorConfig {
+  return {
+    ...base,
+    showMacd: false,
+    showRsi: false,
+    showKdj: false,
+    showEma: false,
+    showBoll: false,
+    showMa: false,
+    showVolMa: false,
+  };
+}
 
 export function indicatorConfigStorageKey(symbol: string, interval: string): string {
   return `tradview:indicators:${symbol}:${interval}`;

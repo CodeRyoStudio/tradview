@@ -130,6 +130,21 @@ export class DrawingManager {
     return true;
   }
 
+  /** Remove every drawing for the current symbol/interval. */
+  clearAll(): number {
+    const count = this.drawings.length;
+    if (count === 0 && !this.draft) return 0;
+    this.drawings = [];
+    this.draft = null;
+    this.selectedId = null;
+    this.drag = null;
+    this.labelDragIndex = null;
+    this.persist();
+    this.redraw();
+    this.emitSelection();
+    return count;
+  }
+
   deselect(): void {
     this.selectedId = null;
     this.drag = null;

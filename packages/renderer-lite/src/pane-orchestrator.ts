@@ -279,7 +279,7 @@ export class PaneOrchestrator {
   setIndicatorConfig(config: IndicatorConfig | null): void {
     this.indicatorConfig = config;
     if (!config) {
-      this.indicators = null;
+      this.teardownIndicatorStack();
       this.maSeries.setData([]);
       this.emaSeries.setData([]);
       this.bollUpper.setData([]);
@@ -307,12 +307,28 @@ export class PaneOrchestrator {
     this.syncPinePlotSeries(bars);
   }
 
+  private teardownIndicatorStack(): void {
+    this.indicators?.destroy();
+    this.indicators = null;
+  }
+
   private applyMainOverlays(bars: Bar[]): void {
     const cfg = this.indicatorConfig;
     if (!cfg) return;
-    this.maSeries.applyOptions({ title: `MA${cfg.maPeriod}` });
-    this.maSeries.setData(maOverlayLine(bars, cfg.maPeriod, cfg.source));
-    this.volMaSeries.setData(volMaOverlayLine(bars, cfg.volMaPeriod));
+    if (cfg.showMa) {
+      this.maSeries.applyOptions({ visible: true, title: `MA${cfg.maPeriod}` });
+      this.maSeries.setData(maOverlayLine(bars, cfg.maPeriod, cfg.source));
+    } else {
+      this.maSeries.applyOptions({ visible: false });
+      this.maSeries.setData([]);
+    }
+    if (cfg.showVolMa) {
+      this.volMaSeries.applyOptions({ visible: true });
+      this.volMaSeries.setData(volMaOverlayLine(bars, cfg.volMaPeriod));
+    } else {
+      this.volMaSeries.applyOptions({ visible: false });
+      this.volMaSeries.setData([]);
+    }
 
     if (cfg.showEma) {
       this.emaSeries.applyOptions({ visible: true, title: `EMA${cfg.emaPeriod}` });

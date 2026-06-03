@@ -1,5 +1,5 @@
 import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
-import type { IndicatorConfig } from '@coderyo/indicators';
+import { clearedIndicatorConfig, type IndicatorConfig } from '@coderyo/indicators';
 
 import type {
   Bar,
@@ -437,6 +437,17 @@ export class ChartController {
     this.features = mergeChartFeatures(this.features, { indicators: config });
     this.orchestrator.setIndicatorConfig(config);
     this.emit('featuresChange', this.getFeatures());
+  }
+
+  clearAllIndicators(): IndicatorConfig {
+    const config = clearedIndicatorConfig(this.features.indicators ?? undefined);
+    this.setIndicatorConfig(config);
+    this.orchestrator.setPinePlots(null);
+    return config;
+  }
+
+  clearAllDrawings(): number {
+    return this.drawingManager?.clearAll() ?? 0;
   }
 
   setReturnToCursorAfterDraw(v: boolean): void {

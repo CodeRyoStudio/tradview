@@ -45,6 +45,8 @@ const zhTW: I18nDictionary = {
   'settings.ind.rsi': 'RSI 窗格',
   'settings.ind.kdj': 'KDJ 窗格',
   'settings.ind.source': '源',
+  'settings.ind.clearAll': '清空所有指標',
+  'settings.drawing.clearAll': '清除所有畫線',
   'shortcuts.title': '快捷鍵',
   'shortcuts.close': '關閉',
 };
@@ -90,6 +92,8 @@ const en: I18nDictionary = {
   'settings.ind.rsi': 'RSI pane',
   'settings.ind.kdj': 'KDJ pane',
   'settings.ind.source': 'Source',
+  'settings.ind.clearAll': 'Clear all indicators',
+  'settings.drawing.clearAll': 'Clear all drawings',
   'shortcuts.title': 'Shortcuts',
   'shortcuts.close': 'Close',
 };

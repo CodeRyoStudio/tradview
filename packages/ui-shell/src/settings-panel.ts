@@ -14,6 +14,8 @@ export interface SettingsPanelOptions {
   onReturnToCursorChange?: (v: boolean) => void;
   indicatorConfig?: IndicatorConfig;
   onIndicatorConfigChange?: (config: IndicatorConfig) => void;
+  onClearAllIndicators?: () => void;
+  onClearAllDrawings?: () => void;
 }
 
 export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptions = {}): HTMLElement {
@@ -79,6 +81,19 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
     return row;
   };
 
+  const actionButton = (label: string, onClick: () => void) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.style.cssText =
+      'display:block;width:100%;margin-top:10px;padding:6px 10px;border-radius:4px;border:1px solid #f85149;background:#21262d;color:#f85149;cursor:pointer;font-size:12px;';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      onClick();
+    };
+    return btn;
+  };
+
   const numberField = (label: string, value: number, onChange: (n: number) => void) => {
     const row = document.createElement('label');
     row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
@@ -111,6 +126,14 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
           opts.onReturnToCursorChange?.(v);
         }),
       );
+      if (opts.onClearAllDrawings) {
+        content.appendChild(
+          actionButton(t('settings.drawing.clearAll', '清除所有畫線'), () => {
+            opts.onClearAllDrawings?.();
+            renderContent();
+          }),
+        );
+      }
     } else {
       content.appendChild(
         checkbox(t('settings.ind.macd', 'MACD 窗格'), indicatorConfig.showMacd, (v) => {
@@ -203,6 +226,14 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
           opts.onIndicatorConfigChange?.(indicatorConfig);
         }),
       );
+      if (opts.onClearAllIndicators) {
+        content.appendChild(
+          actionButton(t('settings.ind.clearAll', '清空所有指標'), () => {
+            opts.onClearAllIndicators?.();
+            renderContent();
+          }),
+        );
+      }
     }
   };
 

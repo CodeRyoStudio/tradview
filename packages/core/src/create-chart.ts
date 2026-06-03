@@ -56,6 +56,10 @@ export interface IChart {
   updateSelectedDrawingStyle(patch: DrawingStyleMeta): void;
   deselectDrawing(): void;
   setIndicatorConfig(config: IndicatorConfig | null): void;
+  /** Hide all indicator panes and overlays; returns the applied config. */
+  clearAllIndicators(): IndicatorConfig;
+  /** Remove all drawings for the current symbol/interval; returns count removed. */
+  clearAllDrawings(): number;
   setReturnToCursorAfterDraw(v: boolean): void;
   setFeatures(patch: ChartFeatures): IChart;
   getFeatures(): ResolvedChartFeatures;
@@ -153,6 +157,8 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       controller.setIndicatorConfig(c);
       return wrap(controller, beforeDestroy);
     },
+    clearAllIndicators: () => controller.clearAllIndicators(),
+    clearAllDrawings: () => controller.clearAllDrawings(),
     setReturnToCursorAfterDraw: (v) => {
       controller.setReturnToCursorAfterDraw(v);
       return wrap(controller, beforeDestroy);
