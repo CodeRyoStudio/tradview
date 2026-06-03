@@ -1,0 +1,24 @@
+{
+  "name": "tradview",
+  "private": true,
+  "version": "0.0.0",
+  "description": "TradingView-style embeddable K-line chart framework",
+  "packageManager": "pnpm@10.17.0",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev:mock": "pnpm --filter @tradview/cli-dev dev:mock",
+    "dev:playground": "pnpm --filter @tradview/playground dev"
+  },
+  "devDependencies": {
+    "@tradview/eslint-config": "workspace:*",
+    "@tradview/tsconfig": "workspace:*",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

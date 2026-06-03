@@ -1,0 +1,23 @@
+{
+  "name": "@tradview/cli-dev",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "echo cli-dev ok",
+    "dev:mock": "tsx src/mock-server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo lint ok",
+    "test": "echo test ok"
+  },
+  "dependencies": {
+    "@tradview/data": "workspace:*"
+  },
+  "devDependencies": {
+    "@tradview/tsconfig": "workspace:*",
+    "@types/node": "^22.15.29",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

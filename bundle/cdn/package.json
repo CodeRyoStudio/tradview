@@ -1,0 +1,9 @@
+{
+  "name": "@tradview/cdn-bundle",
+  "version": "0.0.0",
+  "private": true,
+  "description": "UMD CDN bundle (PR-19)",
+  "scripts": {
+    "build": "echo \"CDN bundle — implement in PR-19\""
+  }
+}
