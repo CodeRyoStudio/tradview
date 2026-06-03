@@ -108,6 +108,10 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   root.style.display = 'flex';
   root.style.flexDirection = 'column';
   root.style.height = '100%';
+  root.style.width = '100%';
+  root.style.minWidth = '0';
+  root.style.boxSizing = 'border-box';
+  root.style.overflow = 'visible';
   root.style.background = '#0d1117';
 
   let activeTool: DrawingToolId = opts.activeDrawingTool ?? 'cursor';
@@ -125,12 +129,19 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     opts.onDrawingToolSelect?.(tool);
   };
 
+  const headerSlot = document.createElement('div');
+  headerSlot.className = 'tv-layout-header';
+  headerSlot.style.cssText =
+    'display:none;flex-shrink:0;width:100%;min-width:0;overflow:visible;position:relative;z-index:30;';
+
   const body = document.createElement('div');
-  body.style.cssText = 'display:flex;flex:1;min-height:0;';
+  body.className = 'tv-layout-body';
+  body.style.cssText =
+    'display:flex;flex:1;min-height:0;min-width:0;overflow:hidden;position:relative;z-index:0;';
 
   const leftAside = document.createElement('aside');
   leftAside.style.cssText =
-    'width:48px;border-right:1px solid #30363d;background:#161b22;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:8px;flex-shrink:0;z-index:20;';
+    'width:48px;border-right:1px solid #30363d;background:#161b22;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:8px;flex-shrink:0;';
 
   const bottomBar = document.createElement('div');
   bottomBar.style.cssText =
@@ -155,12 +166,11 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
 
   opts.onDrawingSelectionBind?.(propertiesPanel.bind);
 
+  root.appendChild(headerSlot);
   root.appendChild(body);
   root.appendChild(bottomBar);
 
-  let topBar: HTMLElement = document.createElement('div');
-  topBar.style.display = 'none';
-  root.insertBefore(topBar, body);
+  let topBar: HTMLElement = headerSlot;
   let setActiveInterval: (interval: import('@coderyo/data').Interval) => void = () => {};
 
   const crosshairLegend = mountCrosshairLegend(chartHost, { symbol: opts.initialSymbol });
@@ -200,10 +210,11 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     const f = layoutFeatures;
 
     if (f.showTopBar) {
-      topBar.remove();
+      headerSlot.replaceChildren();
+      headerSlot.style.display = '';
       // Mutate opts in place so late-assigned callbacks (e.g. onIntervalChange) stay wired.
       const mounted = mountTopBar(
-        root,
+        headerSlot,
         Object.assign(opts, {
           symbolInput: f.symbolInput,
           showSettings: f.showSettings,
@@ -212,7 +223,9 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       topBar = mounted.el;
       setActiveInterval = mounted.setActiveInterval;
     } else {
-      topBar.style.display = 'none';
+      headerSlot.replaceChildren();
+      headerSlot.style.display = 'none';
+      topBar = headerSlot;
     }
 
     if (f.showLeftToolbar) mountLeftToolbar();

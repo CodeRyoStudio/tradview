@@ -58,7 +58,7 @@ export function mountTopBar(
   const bar = document.createElement('div');
   bar.className = 'tv-topbar';
   bar.style.cssText =
-    'display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid #30363d;background:#161b22;';
+    'display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid #30363d;background:#161b22;flex-shrink:0;box-sizing:border-box;width:100%;min-width:0;overflow-x:auto;overflow-y:visible;position:relative;';
 
   const symbolMode = opts.symbolInput ?? 'manual';
   if (symbolMode === 'search' && opts.onSymbolSearch && opts.onSymbolSelect) {
@@ -76,10 +76,14 @@ export function mountTopBar(
 
   const intervals = opts.intervals ?? DEFAULT_INTERVALS;
   const btnStyle =
-    'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;';
+    'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;flex-shrink:0;';
   const btnActiveStyle = btnStyle.replace('#21262d', '#388bfd').replace('#e6edf3', '#fff');
   const intervalButtons = new Map<Interval, HTMLButtonElement>();
   let activeInterval = opts.activeInterval ?? intervals[0];
+
+  const intervalRow = document.createElement('div');
+  intervalRow.className = 'tv-topbar-intervals';
+  intervalRow.style.cssText = 'display:flex;gap:8px;flex-wrap:nowrap;align-items:center;flex-shrink:0;';
 
   const paintIntervalButtons = () => {
     for (const [iv, btn] of intervalButtons) {
@@ -99,9 +103,10 @@ export function mountTopBar(
       opts.onIntervalChange?.(iv);
     };
     intervalButtons.set(iv, btn);
-    bar.appendChild(btn);
+    intervalRow.appendChild(btn);
   }
   paintIntervalButtons();
+  bar.appendChild(intervalRow);
 
   const spacer = document.createElement('div');
   spacer.style.flex = '1';
@@ -122,7 +127,7 @@ export function mountTopBar(
   bar.appendChild(mkBtn('⛶', opts.onFullscreen));
   bar.appendChild(mkBtn('📷', opts.onScreenshot));
 
-  parent.prepend(bar);
+  parent.appendChild(bar);
   return {
     el: bar,
     setActiveInterval: (interval) => {
