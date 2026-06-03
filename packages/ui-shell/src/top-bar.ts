@@ -7,6 +7,8 @@ export type SymbolInputMode = 'manual' | 'search' | 'none';
 
 export interface TopBarOptions {
   intervals?: Interval[];
+  /** Highlighted interval button (defaults to first in `intervals`). */
+  activeInterval?: Interval;
   initialSymbol?: string;
   onSymbolSearch?: (query: string) => Promise<SymbolSearchHit[]>;
   onSymbolSelect?: (symbol: string) => void;
@@ -49,7 +51,10 @@ function mountManualSymbolInput(
   parent.appendChild(wrap);
 }
 
-export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTMLElement {
+export function mountTopBar(
+  parent: HTMLElement,
+  opts: TopBarOptions = {},
+): { el: HTMLElement; setActiveInterval: (interval: Interval) => void } {
   const bar = document.createElement('div');
   bar.className = 'tv-topbar';
   bar.style.cssText =
@@ -70,15 +75,33 @@ export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTML
   }
 
   const intervals = opts.intervals ?? DEFAULT_INTERVALS;
+  const btnStyle =
+    'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;';
+  const btnActiveStyle = btnStyle.replace('#21262d', '#388bfd').replace('#e6edf3', '#fff');
+  const intervalButtons = new Map<Interval, HTMLButtonElement>();
+  let activeInterval = opts.activeInterval ?? intervals[0];
+
+  const paintIntervalButtons = () => {
+    for (const [iv, btn] of intervalButtons) {
+      btn.style.cssText = iv === activeInterval ? btnActiveStyle : btnStyle;
+    }
+  };
+
   for (const iv of intervals) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = t(`interval.${iv}`, iv);
-    btn.style.cssText =
-      'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;';
-    btn.onclick = () => opts.onIntervalChange?.(iv);
+    btn.style.cssText = btnStyle;
+    btn.onclick = () => {
+      if (activeInterval === iv) return;
+      activeInterval = iv;
+      paintIntervalButtons();
+      opts.onIntervalChange?.(iv);
+    };
+    intervalButtons.set(iv, btn);
     bar.appendChild(btn);
   }
+  paintIntervalButtons();
 
   const spacer = document.createElement('div');
   spacer.style.flex = '1';
@@ -100,5 +123,12 @@ export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTML
   bar.appendChild(mkBtn('📷', opts.onScreenshot));
 
   parent.prepend(bar);
-  return bar;
+  return {
+    el: bar,
+    setActiveInterval: (interval) => {
+      if (!intervalButtons.has(interval)) return;
+      activeInterval = interval;
+      paintIntervalButtons();
+    },
+  };
 }

@@ -94,6 +94,7 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   chartHost: HTMLElement;
   indicatorHost: HTMLElement;
   topBar: HTMLElement;
+  setActiveInterval: (interval: import('@coderyo/data').Interval) => void;
   statusBar: ReturnType<typeof mountStatusBar>;
   crosshairLegend: ReturnType<typeof mountCrosshairLegend>;
   detachContextMenu: () => void;
@@ -160,6 +161,7 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   let topBar: HTMLElement = document.createElement('div');
   topBar.style.display = 'none';
   root.insertBefore(topBar, body);
+  let setActiveInterval: (interval: import('@coderyo/data').Interval) => void = () => {};
 
   const crosshairLegend = mountCrosshairLegend(chartHost, { symbol: opts.initialSymbol });
 
@@ -200,13 +202,15 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     if (f.showTopBar) {
       topBar.remove();
       // Mutate opts in place so late-assigned callbacks (e.g. onIntervalChange) stay wired.
-      topBar = mountTopBar(
+      const mounted = mountTopBar(
         root,
         Object.assign(opts, {
           symbolInput: f.symbolInput,
           showSettings: f.showSettings,
         }),
       );
+      topBar = mounted.el;
+      setActiveInterval = mounted.setActiveInterval;
     } else {
       topBar.style.display = 'none';
     }
@@ -237,6 +241,7 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     chartHost,
     indicatorHost,
     topBar,
+    setActiveInterval,
     statusBar,
     crosshairLegend,
     detachContextMenu,

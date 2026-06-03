@@ -6,14 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-rc.3] - 2026-06-03
+
 ### Added
 
 - **Sub-second intervals**: `1s`, `5s`, `15s`, `30s` + mock gateway faster bar/tick push
 - **Smooth price update**: `chart.updateLastPrice`, `smoothPriceUpdate` / `smoothPriceDurationMs` (~150ms OHLC + price line)
 - [docs/API.md](./docs/API.md) — 整合方 API 參考（`@coderyo/*`、`createChart`、Bridge、DataProvider）
+- **TopBar**: `activeInterval` highlight + `setActiveInterval` from `mountChartLayout`
+- **Playground**: `predev` rebuilds `@coderyo/ui-shell` before Vite dev (avoids stale `dist`)
+- **ui-shell**: regression test for late `onIntervalChange` wiring
 
 ### Fixed
 
+- **Demo interval switch**: `mountChartLayout` passes same `opts` reference to TopBar (`Object.assign`, not spread copy) so callbacks assigned after mount work
 - **Docs (#1)**: document that chart bootstrap uses `getHistory({ mode: 'loadMore', endTime: now })`
 - **Docs (#2)**: EMBEDDING end-to-end shell ⇄ chart callback wiring + `chartRef` pattern
 
@@ -61,5 +67,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 See [docs/API-FREEZE.md](./docs/API-FREEZE.md) §7 (Pine execution stub, Protobuf v1.1, commercial CDN license gate, etc.).
 
+[1.0.0-rc.3]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.1

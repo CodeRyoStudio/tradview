@@ -72,6 +72,7 @@ const shellOpts = createDemoLayoutOptions({
       chartRef.current?.setIndicatorConfig(cfg);
     },
   },
+  activeInterval: lastInterval,
   statusBar: {
     connection: 'connecting',
     symbol: lastSymbol,
@@ -111,6 +112,7 @@ const {
   crosshairLegend,
   setActiveDrawingTool,
   propertiesPanel,
+  setActiveInterval,
 } = mountChartLayout(app, shellOpts);
 
 const chart = createChart(
@@ -128,29 +130,6 @@ const chart = createChart(
   }),
 );
 chartRef.current = chart;
-
-mountCodeSnippetPanel(document.body, () =>
-  `import { createChart } from '@coderyo/core';
-import { createGatewayDataProvider } from '@coderyo/data';
-
-const chart = createChart(document.getElementById('chart'), {
-  dataProvider: createGatewayDataProvider({
-    restBaseUrl: '${location.origin}/api',
-    wsUrl: '${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0',
-  }),
-  symbol: '${lastSymbol}',
-  interval: '${lastInterval}',
-  showGrid: ${showGrid},
-  drawingDefaults: { returnToCursorAfterDraw: ${returnToCursor} },
-  // showCrosshairLegend: true (layout)
-  // showStatusBar: false (layout, integrator debug)
-});`,
-);
-
-function showError(err: unknown) {
-  errorEl.style.display = 'block';
-  errorEl.textContent = err instanceof Error ? err.message : String(err);
-}
 
 const updateShellMeta = () => {
   statusBar.update({ interval: lastInterval, symbol: lastSymbol });
@@ -184,6 +163,29 @@ shellOpts.onScreenshot = () => {
     URL.revokeObjectURL(url);
   });
 };
+
+mountCodeSnippetPanel(document.body, () =>
+  `import { createChart } from '@coderyo/core';
+import { createGatewayDataProvider } from '@coderyo/data';
+
+const chart = createChart(document.getElementById('chart'), {
+  dataProvider: createGatewayDataProvider({
+    restBaseUrl: '${location.origin}/api',
+    wsUrl: '${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0',
+  }),
+  symbol: '${lastSymbol}',
+  interval: '${lastInterval}',
+  showGrid: ${showGrid},
+  drawingDefaults: { returnToCursorAfterDraw: ${returnToCursor} },
+  // showCrosshairLegend: true (layout)
+  // showStatusBar: false (layout, integrator debug)
+});`,
+);
+
+function showError(err: unknown) {
+  errorEl.style.display = 'block';
+  errorEl.textContent = err instanceof Error ? err.message : String(err);
+}
 
 bindChartKeyboard({
   fitContent: () => chart.fitContent(),
@@ -264,7 +266,9 @@ chart.on('symbolChange', (info) => {
 
 chart.on('intervalChange', (iv) => {
   lastInterval = iv as Interval;
+  setActiveInterval(lastInterval);
   statusBar.update({ interval: lastInterval });
+  crosshairLegend.setMeta({ interval: lastInterval });
 });
 
 chart.on('error', (err) => showError(err));

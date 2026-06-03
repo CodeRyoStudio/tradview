@@ -1,6 +1,6 @@
 # TradView API 參考
 
-> **版本**：`1.0.0-rc.2` · **Embed API**：`apiVersion: 1`（`TRADVIEW_API_VERSION`）  
+> **版本**：`1.0.0-rc.3` · **Embed API**：`apiVersion: 1`（`TRADVIEW_API_VERSION`）  
 > **npm scope**：`@coderyo/*` · **Bridge schema**：`bridgeSchemaVersion: 1`
 
 本文描述整合方使用的公開 API。架構與協議細節見 [DESIGN.md](./DESIGN.md)；凍結承諾見 [API-FREEZE.md](./API-FREEZE.md)；嵌入範例見 [EMBEDDING.md](./EMBEDDING.md)。
@@ -489,7 +489,7 @@ interface IndicatorConfig {
 ## 11. CDN 全域 `TradView`
 
 ```html
-<script src="https://github.com/CodeRyoStudio/tradview/releases/download/v1.0.0-rc.2/tradview.min.js"></script>
+<script src="https://github.com/CodeRyoStudio/tradview/releases/download/v1.0.0-rc.3/tradview.min.js"></script>
 <script>
   const provider = TradView.createGatewayDataProvider({
     restBaseUrl: '/api',
@@ -507,7 +507,7 @@ interface IndicatorConfig {
 | `TradView.createDefaultBridge` | 同 npm |
 | `TradView.mountChartLayout` | 同 npm |
 | `TradView.TRADVIEW_API_VERSION` | `1` |
-| `TradView.TRADVIEW_VERSION` | 例如 `'1.0.0-rc.2'` |
+| `TradView.TRADVIEW_VERSION` | 例如 `'1.0.0-rc.3'` |
 | `TradView.BRIDGE_SCHEMA_VERSION` | `1` |
 
 ---
