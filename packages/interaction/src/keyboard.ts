@@ -6,6 +6,7 @@ export interface ChartKeyboardActions {
   toggleLogScale?: () => void;
   toggleTheme?: () => void;
   selectCursorTool?: () => void;
+  deleteSelectedDrawing?: () => void;
 }
 
 export function bindChartKeyboard(actions: ChartKeyboardActions): () => void {
@@ -35,6 +36,8 @@ export function bindChartKeyboard(actions: ChartKeyboardActions): () => void {
     } else if (key === 'escape') {
       actions.selectCursorTool?.();
       e.preventDefault();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (actions.deleteSelectedDrawing?.()) e.preventDefault();
     }
   };
 

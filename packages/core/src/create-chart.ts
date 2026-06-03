@@ -26,6 +26,7 @@ export interface IChart {
   off(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
   searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]>;
   setDrawingTool(tool: import('@tradview/drawings').DrawingTool): IChart;
+  deleteSelectedDrawing(): boolean;
   destroy(): void;
 }
 
@@ -81,6 +82,7 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       controller.setDrawingTool(tool);
       return wrap(controller, beforeDestroy);
     },
+    deleteSelectedDrawing: () => controller.deleteSelectedDrawing(),
     destroy: () => {
       controller.destroy();
       beforeDestroy?.();

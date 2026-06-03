@@ -159,8 +159,12 @@ export class ChartController {
 
   setDrawingTool(tool: import('@tradview/drawings').DrawingTool): this {
     this.drawingManager?.setTool(tool);
-    this.orchestrator.setOverlayPointerEvents(tool === 'cursor' ? 'none' : 'auto');
+    this.orchestrator.setOverlayPointerEvents('auto');
     return this;
+  }
+
+  deleteSelectedDrawing(): boolean {
+    return this.drawingManager?.deleteSelected() ?? false;
   }
 
   async setSymbol(symbol: string): Promise<void> {

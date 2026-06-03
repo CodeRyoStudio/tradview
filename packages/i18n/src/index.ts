@@ -24,6 +24,7 @@ const zhTW: I18nDictionary = {
   'context.fitContent': '適配畫面',
   'context.scrollRealtime': '跳到最新',
   'context.screenshot': '截圖',
+  'context.deleteDrawing': '刪除繪圖',
 };
 
 const en: I18nDictionary = {
@@ -46,6 +47,7 @@ const en: I18nDictionary = {
   'context.fitContent': 'Fit content',
   'context.scrollRealtime': 'Go to realtime',
   'context.screenshot': 'Screenshot',
+  'context.deleteDrawing': 'Delete drawing',
 };
 
 let locale = 'zh-TW';

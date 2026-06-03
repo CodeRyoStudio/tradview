@@ -29,13 +29,26 @@ interface DrawingContext {
   interval: string;
 }
 
+type DragState =
+  | { kind: 'anchor'; drawingId: string; pointIndex: number }
+  | {
+      kind: 'body';
+      drawingId: string;
+      startPoints: Array<{ t: number; price: number }>;
+      startT: number;
+      startPrice: number;
+    };
+
 export class DrawingManager {
   private tool: DrawingTool = 'cursor';
   private drawings: DrawingRecord[] = [];
   private draft: DrawingRecord | null = null;
   private selectedId: string | null = null;
+  private drag: DragState | null = null;
+  private activePointerId: number | null = null;
   private key: string;
   private readonly ctx: DrawingContext;
+  private readonly handleRadius: number;
 
   constructor(private readonly opts: DrawingManagerOptions) {
     this.ctx = {
@@ -45,21 +58,41 @@ export class DrawingManager {
     };
     this.key = storageKey(this.ctx.chartId, this.ctx.symbol, this.ctx.interval);
     this.drawings = loadDrawings(this.key).drawings;
+    this.handleRadius = 6 * devicePixelRatio;
     this.applyPointerMode();
     opts.canvas.addEventListener('pointerdown', this.onDown);
     opts.canvas.addEventListener('pointermove', this.onMove);
     opts.canvas.addEventListener('pointerup', this.onUp);
+    opts.canvas.addEventListener('pointercancel', this.onUp);
+    window.addEventListener('keydown', this.onKeyDown);
   }
 
   setTool(tool: DrawingTool): void {
     this.tool = tool;
-    if (tool !== 'cursor') this.selectedId = null;
+    if (tool !== 'cursor') {
+      this.selectedId = null;
+      this.drag = null;
+    }
     this.applyPointerMode();
     this.redraw();
   }
 
+  getSelectedId(): string | null {
+    return this.selectedId;
+  }
+
+  deleteSelected(): boolean {
+    if (!this.selectedId) return false;
+    this.drawings = this.drawings.filter((d) => d.id !== this.selectedId);
+    this.selectedId = null;
+    this.drag = null;
+    this.persist();
+    this.redraw();
+    return true;
+  }
+
   private applyPointerMode(): void {
-    this.opts.canvas.style.pointerEvents = this.tool === 'cursor' ? 'none' : 'auto';
+    this.opts.canvas.style.pointerEvents = 'auto';
   }
 
   setContext(symbol: string, interval: string): void {
@@ -69,6 +102,7 @@ export class DrawingManager {
     this.drawings = loadDrawings(this.key).drawings;
     this.selectedId = null;
     this.draft = null;
+    this.drag = null;
     this.redraw();
   }
 
@@ -85,6 +119,7 @@ export class DrawingManager {
       ctx.lineWidth = selected ? 3 : 2;
       ctx.font = `${12 * devicePixelRatio}px sans-serif`;
       this.paint(ctx, d);
+      if (selected && !this.draft && this.tool === 'cursor') this.paintHandles(ctx, d);
     }
   }
 
@@ -92,6 +127,8 @@ export class DrawingManager {
     this.opts.canvas.removeEventListener('pointerdown', this.onDown);
     this.opts.canvas.removeEventListener('pointermove', this.onMove);
     this.opts.canvas.removeEventListener('pointerup', this.onUp);
+    this.opts.canvas.removeEventListener('pointercancel', this.onUp);
+    window.removeEventListener('keydown', this.onKeyDown);
   }
 
   private paint(ctx: CanvasRenderingContext2D, d: DrawingRecord): void {
@@ -114,6 +151,21 @@ export class DrawingManager {
       case 'text':
         this.paintText(ctx, d);
         break;
+    }
+  }
+
+  private paintHandles(ctx: CanvasRenderingContext2D, d: DrawingRecord): void {
+    for (const p of d.points) {
+      const x = this.opts.timeToX(p.t);
+      const y = this.opts.priceToY(p.price);
+      if (x == null || y == null) continue;
+      ctx.beginPath();
+      ctx.fillStyle = '#f78166';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.arc(x, y, this.handleRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     }
   }
 
@@ -206,13 +258,52 @@ export class DrawingManager {
     saveDrawings(this.key, { version: 1, drawings: this.drawings });
   }
 
+  private onKeyDown = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (this.tool !== 'cursor' || !this.selectedId) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      this.deleteSelected();
+      e.preventDefault();
+    }
+  };
+
   private onDown = (e: PointerEvent) => {
     const pt = this.hitPoint(e);
     if (!pt) return;
 
     if (this.tool === 'cursor') {
-      this.selectedId = this.hitTestDrawing(pt.x, pt.y);
+      const anchor = this.hitTestAnchorAny(pt.x, pt.y);
+      if (anchor) {
+        this.selectedId = anchor.drawingId;
+        this.drag = { kind: 'anchor', drawingId: anchor.drawingId, pointIndex: anchor.pointIndex };
+        this.capturePointer(e);
+        this.redraw();
+        return;
+      }
+
+      const id = this.hitTestDrawing(pt.x, pt.y);
+      this.selectedId = id;
+      if (id) {
+        const d = this.getDrawing(id);
+        if (d) {
+          this.drag = {
+            kind: 'body',
+            drawingId: id,
+            startPoints: d.points.map((p) => ({ ...p })),
+            startT: pt.t,
+            startPrice: pt.price,
+          };
+          this.capturePointer(e);
+        }
+        this.redraw();
+        return;
+      }
+
+      this.selectedId = null;
+      this.drag = null;
       this.redraw();
+      this.beginChartPassthrough(e);
       return;
     }
 
@@ -225,9 +316,30 @@ export class DrawingManager {
       points: [pt],
       meta: type === 'text' ? { text: 'Note' } : undefined,
     };
+    this.capturePointer(e);
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.drag && this.activePointerId === e.pointerId) {
+      const pt = this.hitPoint(e);
+      if (!pt) return;
+      const d = this.getDrawing(this.drag.drawingId);
+      if (!d) return;
+
+      if (this.drag.kind === 'anchor') {
+        d.points[this.drag.pointIndex] = { t: pt.t, price: pt.price };
+      } else {
+        const dt = pt.t - this.drag.startT;
+        const dp = pt.price - this.drag.startPrice;
+        d.points = this.drag.startPoints.map((p) => ({
+          t: p.t + dt,
+          price: p.price + dp,
+        }));
+      }
+      this.redraw();
+      return;
+    }
+
     if (!this.draft) return;
     const pt = this.hitPoint(e);
     if (!pt) return;
@@ -244,7 +356,19 @@ export class DrawingManager {
     this.redraw();
   };
 
-  private onUp = () => {
+  private onUp = (e: PointerEvent) => {
+    if (this.activePointerId === e.pointerId) {
+      this.releasePointer(e);
+    }
+
+    if (this.drag) {
+      const changed = this.drag.kind === 'anchor' || this.drag.kind === 'body';
+      this.drag = null;
+      if (changed) this.persist();
+      this.redraw();
+      return;
+    }
+
     if (!this.draft) return;
     const needsTwo = ['trendline', 'rectangle', 'fibonacci'].includes(this.draft.type);
     if (needsTwo && this.draft.points.length < 2) {
@@ -252,13 +376,88 @@ export class DrawingManager {
       return;
     }
     this.drawings.push(this.draft);
+    this.selectedId = this.draft.id;
     this.draft = null;
     this.persist();
     this.redraw();
   };
 
+  private capturePointer(e: PointerEvent): void {
+    this.activePointerId = e.pointerId;
+    try {
+      this.opts.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private releasePointer(e: PointerEvent): void {
+    this.activePointerId = null;
+    try {
+      if (this.opts.canvas.hasPointerCapture(e.pointerId)) {
+        this.opts.canvas.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private beginChartPassthrough(e: PointerEvent): void {
+    this.opts.canvas.style.pointerEvents = 'none';
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (target && target !== this.opts.canvas) {
+      target.dispatchEvent(this.clonePointerEvent(e, 'pointerdown'));
+    }
+
+    const move = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (el && el !== this.opts.canvas) {
+        el.dispatchEvent(this.clonePointerEvent(ev, 'pointermove'));
+      }
+    };
+
+    const end = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (el && el !== this.opts.canvas) {
+        el.dispatchEvent(this.clonePointerEvent(ev, 'pointerup'));
+      }
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      this.applyPointerMode();
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end, { once: true });
+    window.addEventListener('pointercancel', end, { once: true });
+  }
+
+  private clonePointerEvent(e: PointerEvent, type: string): PointerEvent {
+    return new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      screenX: e.screenX,
+      screenY: e.screenY,
+      pointerId: e.pointerId,
+      pointerType: e.pointerType,
+      buttons: e.buttons,
+      button: e.button,
+      altKey: e.altKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+    });
+  }
+
+  private getDrawing(id: string): DrawingRecord | undefined {
+    return this.drawings.find((d) => d.id === id);
+  }
+
   private hitPoint(e: PointerEvent): { t: number; price: number; x: number; y: number } | null {
     const rect = this.opts.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
     const x = ((e.clientX - rect.left) / rect.width) * this.opts.canvas.width;
     const y = ((e.clientY - rect.top) / rect.height) * this.opts.canvas.height;
     const t = this.opts.xToTime?.(x) ?? null;
@@ -267,8 +466,28 @@ export class DrawingManager {
     return { t, price, x, y };
   }
 
+  private hitTestAnchorAny(x: number, y: number): { drawingId: string; pointIndex: number } | null {
+    const r = this.handleRadius + 4 * devicePixelRatio;
+    let best: { drawingId: string; pointIndex: number; dist: number } | null = null;
+
+    for (const d of this.drawings) {
+      for (let i = 0; i < d.points.length; i++) {
+        const p = d.points[i]!;
+        const px = this.opts.timeToX(p.t);
+        const py = this.opts.priceToY(p.price);
+        if (px == null || py == null) continue;
+        const dist = Math.hypot(x - px, y - py);
+        if (dist > r) continue;
+        if (!best || dist < best.dist) {
+          best = { drawingId: d.id, pointIndex: i, dist };
+        }
+      }
+    }
+    return best ? { drawingId: best.drawingId, pointIndex: best.pointIndex } : null;
+  }
+
   private hitTestDrawing(x: number, y: number): string | null {
-    const tol = 8 * devicePixelRatio;
+    const tol = 10 * devicePixelRatio;
     let best: { id: string; dist: number } | null = null;
 
     for (const d of this.drawings) {

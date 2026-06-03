@@ -142,6 +142,7 @@ bindChartKeyboard({
     chart.setDrawingTool('cursor');
     setActiveDrawingTool('cursor');
   },
+  deleteSelectedDrawing: () => chart.deleteSelectedDrawing(),
 });
 
 chart.on('connectionChange', (state) => {
