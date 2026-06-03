@@ -1,4 +1,9 @@
-import type { IChartApi, LogicalRange } from 'lightweight-charts';
+import type { IChartApi, LogicalRange, UTCTimestamp } from 'lightweight-charts';
+
+export interface ChartVisibleRange {
+  fromMs: number;
+  toMs: number;
+}
 
 export interface TransformState {
   visibleFromMs: number;
@@ -39,6 +44,49 @@ export class TimeScaleBus {
   setBarsTimeRange(fromMs: number, toMs: number): void {
     this.visibleFromMs = fromMs;
     this.visibleToMs = toMs;
+    this.emit();
+  }
+
+  getVisibleRange(): ChartVisibleRange | null {
+    if (this.visibleToMs <= this.visibleFromMs) return null;
+    return { fromMs: this.visibleFromMs, toMs: this.visibleToMs };
+  }
+
+  getBarSpacing(): number {
+    const chart = this.charts[0];
+    return chart ? chart.timeScale().options().barSpacing : 6;
+  }
+
+  setBarSpacing(spacing: number): void {
+    if (!Number.isFinite(spacing) || spacing <= 0) return;
+    this.syncing = true;
+    for (const chart of this.charts) {
+      chart.timeScale().applyOptions({ barSpacing: spacing });
+    }
+    this.syncing = false;
+    this.emit();
+  }
+
+  setVisibleTimeRange(range: ChartVisibleRange): void {
+    const from = Math.floor(range.fromMs / 1000) as UTCTimestamp;
+    const to = Math.floor(range.toMs / 1000) as UTCTimestamp;
+    if (to <= from) return;
+    this.visibleFromMs = range.fromMs;
+    this.visibleToMs = range.toMs;
+    this.syncing = true;
+    for (const chart of this.charts) {
+      chart.timeScale().setVisibleRange({ from, to });
+    }
+    this.syncing = false;
+    this.emit();
+  }
+
+  scrollToLogicalPosition(position: number, animated = false): void {
+    this.syncing = true;
+    for (const chart of this.charts) {
+      chart.timeScale().scrollToPosition(position, animated);
+    }
+    this.syncing = false;
     this.emit();
   }
 

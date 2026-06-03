@@ -7,8 +7,10 @@ import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
 import type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
 import { TRADVIEW_VERSION } from './version.js';
+import type { ChartVisibleRange } from '@coderyo/renderer-lite';
 
 export { TRADVIEW_API_VERSION, TRADVIEW_VERSION };
+export type { ChartVisibleRange };
 export type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
 export { resolveChartFeatures, DEFAULT_CHART_FEATURES, PENDING_SYMBOL } from './chart-features.js';
 export { createDemoChartFeatures, createDemoChartOptions } from './demo-presets.js';
@@ -30,6 +32,17 @@ export interface IChart {
   setLogScale(enabled: boolean): IChart;
   fitContent(): IChart;
   scrollToRealtime(): IChart;
+  /** Visible time range in ms (`fromMs` / `toMs`), or `null` if unknown. */
+  getVisibleRange(): ChartVisibleRange | null;
+  /** Bar spacing in px (zoom). Alias for LWC `barSpacing`. */
+  getBarSpace(): number;
+  setBarSpace(px: number): IChart;
+  /** Restore viewport time range after re-bootstrap. */
+  setVisibleRange(range: ChartVisibleRange): IChart;
+  /** Scroll so `tsMs` aligns to the right edge of the viewport. */
+  scrollToTimestamp(tsMs: number, animationMs?: number): IChart;
+  /** Re-fetch recent history without clearing scroll/zoom. */
+  reloadHistory(): Promise<IChart>;
   resize(size?: { width?: number; height?: number }): IChart;
   setFullscreen(enabled: boolean): IChart;
   exportImage(opts?: { pixelRatio?: number }): Promise<Blob>;
@@ -80,6 +93,24 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
     },
     scrollToRealtime: () => {
       controller.scrollToRealtime();
+      return wrap(controller, beforeDestroy);
+    },
+    getVisibleRange: () => controller.getVisibleRange(),
+    getBarSpace: () => controller.getBarSpace(),
+    setBarSpace: (px) => {
+      controller.setBarSpace(px);
+      return wrap(controller, beforeDestroy);
+    },
+    setVisibleRange: (range) => {
+      controller.setVisibleRange(range);
+      return wrap(controller, beforeDestroy);
+    },
+    scrollToTimestamp: (tsMs, animationMs) => {
+      controller.scrollToTimestamp(tsMs, animationMs);
+      return wrap(controller, beforeDestroy);
+    },
+    reloadHistory: async () => {
+      await controller.reloadHistory();
       return wrap(controller, beforeDestroy);
     },
     resize: (s) => {

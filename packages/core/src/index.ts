@@ -12,7 +12,12 @@ export {
   createDemoChartFeatures,
   createDemoChartOptions,
 } from './create-chart.js';
-export { ChartController, type ChartOptions, type ChartEvent } from './chart-controller.js';
+export {
+  ChartController,
+  type ChartOptions,
+  type ChartEvent,
+  type ChartVisibleRange,
+} from './chart-controller.js';
 export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';
 export {
   compilePineLite,

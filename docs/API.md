@@ -132,6 +132,12 @@ const chart = createChart(
 | `setLogScale(enabled)` | `IChart` | 對數價格軸 |
 | `fitContent()` | `IChart` | 適配可見 K 線 |
 | `scrollToRealtime()` | `IChart` | 捲到最新 |
+| `getVisibleRange()` | `ChartVisibleRange \| null` | 目前可見時間範圍（`fromMs` / `toMs`） |
+| `getBarSpace()` | `number` | K 線柱寬（px，對應 LWC `barSpacing`） |
+| `setBarSpace(px)` | `IChart` | 設定縮放柱寬 |
+| `setVisibleRange(range)` | `IChart` | 還原可見時間範圍 |
+| `scrollToTimestamp(tsMs, animationMs?)` | `IChart` | 將指定時間對齊視窗右緣 |
+| `reloadHistory()` | `Promise<IChart>` | 重新拉取近期歷史，**不**重置捲動/縮放 |
 | `resize(size?)` | `IChart` | `{ width?, height? }` |
 | `setFullscreen(enabled)` | `IChart` | 全螢幕容器 |
 | `exportImage(opts?)` | `Promise<Blob>` | PNG；`pixelRatio` 預設 `2` |

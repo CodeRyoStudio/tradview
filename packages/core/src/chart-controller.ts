@@ -17,7 +17,9 @@ import { BarStore } from '@coderyo/series';
 import { VirtualWindow, type FetchPolicy } from '@coderyo/virtual-window';
 import { DrawingManager } from '@coderyo/drawings';
 import { compilePineLite, runPineLite, type PineIrProgram } from '@coderyo/pine-lite';
-import { PaneOrchestrator } from '@coderyo/renderer-lite';
+import { PaneOrchestrator, type ChartVisibleRange } from '@coderyo/renderer-lite';
+
+export type { ChartVisibleRange };
 import {
   mergeChartFeatures,
   PENDING_SYMBOL,
@@ -430,6 +432,67 @@ export class ChartController {
 
   scrollToRealtime(): this {
     this.orchestrator.scrollToRealtime();
+    return this;
+  }
+
+  getVisibleRange(): ChartVisibleRange | null {
+    return this.orchestrator.getVisibleRange();
+  }
+
+  getBarSpace(): number {
+    return this.orchestrator.getBarSpace();
+  }
+
+  setBarSpace(px: number): this {
+    this.orchestrator.setBarSpace(px);
+    return this;
+  }
+
+  setVisibleRange(range: ChartVisibleRange): this {
+    this.orchestrator.setVisibleRange(range);
+    const { fromMs, toMs } = range;
+    if (toMs > fromMs) {
+      this.virtualWindow.setVisibleRange({ fromMs, toMs });
+      this.visibleRangeInitialized = true;
+    }
+    return this;
+  }
+
+  scrollToTimestamp(tsMs: number, animationMs?: number): this {
+    this.orchestrator.scrollToTimestamp(tsMs, animationMs);
+    return this;
+  }
+
+  async reloadHistory(): Promise<this> {
+    if (!this.hasActiveSymbol()) return this;
+    const savedRange = this.getVisibleRange();
+    const savedBarSpace = this.getBarSpace();
+    const loadGen = this.loadGeneration;
+    const symbol = this.store.symbol;
+    const interval = this.store.interval;
+
+    try {
+      const history = await this.options.dataProvider.getHistory({
+        mode: 'loadMore',
+        symbol,
+        interval,
+        endTime: Date.now(),
+        limit: 500,
+      });
+      if (!this.isLoadGenerationCurrent(loadGen)) return this;
+      if (this.store.symbol !== symbol || this.store.interval !== interval) return this;
+      if (history.bars.length === 0) return this;
+
+      await this.store.mergeBars(history.bars.map((bar) => ({ bar, source: 'rest' as const })));
+      if (!this.isLoadGenerationCurrent(loadGen)) return this;
+
+      this.orchestrator.preserveViewportOnNextSetBars();
+      this.refreshRender(loadGen);
+      if (savedBarSpace > 0) this.setBarSpace(savedBarSpace);
+      if (savedRange) this.setVisibleRange(savedRange);
+    } catch (err) {
+      this.emit('error', err);
+    }
     return this;
   }
 

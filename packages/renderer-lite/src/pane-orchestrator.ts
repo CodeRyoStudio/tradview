@@ -26,7 +26,9 @@ import {
   volMaOverlayLine,
 } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
-import { TimeScaleBus } from './time-scale-bus.js';
+import { TimeScaleBus, type ChartVisibleRange } from './time-scale-bus.js';
+
+export type { ChartVisibleRange };
 import { BarSmoothAnimator } from './bar-smooth-animator.js';
 
 export type ScaleMode = 'linear' | 'log';
@@ -93,7 +95,9 @@ export class PaneOrchestrator {
   private showGrid = false;
   private readonly maxRenderPoints: number;
   private barByTime = new Map<number, Bar>();
+  private barTimesOrdered: number[] = [];
   private didInitialFit = false;
+  private skipNextInitialFit = false;
   private indicatorConfig: IndicatorConfig | null = null;
   private priceLine: IPriceLine | null = null;
   private barAnimator: BarSmoothAnimator | null = null;
@@ -355,6 +359,7 @@ export class PaneOrchestrator {
   setBars(bars: Bar[], gaps?: number[]): void {
     const renderBars = lodDecimateBars(bars, this.maxRenderPoints);
     this.barByTime = new Map(renderBars.map((b) => [b.t, b]));
+    this.barTimesOrdered = renderBars.map((b) => b.t);
 
     const candles: CandlestickData[] = [];
     const vols: HistogramData<UTCTimestamp>[] = [];
@@ -390,12 +395,13 @@ export class PaneOrchestrator {
 
     if (renderBars.length > 0) {
       this.syncChartSize();
-      if (!this.didInitialFit) {
+      if (!this.didInitialFit && !this.skipNextInitialFit) {
         this.mainChart.timeScale().fitContent();
         this.volumeChart.timeScale().fitContent();
         this.indicators?.fitContent();
         this.didInitialFit = true;
       }
+      this.skipNextInitialFit = false;
     }
   }
 
@@ -448,14 +454,53 @@ export class PaneOrchestrator {
 
   resetViewState(): void {
     this.didInitialFit = false;
+    this.skipNextInitialFit = false;
     this.bus.visibleFromMs = 0;
     this.bus.visibleToMs = 0;
+  }
+
+  /** Skip the next automatic fitContent after setBars (used by reloadHistory). */
+  preserveViewportOnNextSetBars(): void {
+    this.skipNextInitialFit = true;
+    this.didInitialFit = true;
+  }
+
+  getVisibleRange(): ChartVisibleRange | null {
+    return this.bus.getVisibleRange();
+  }
+
+  getBarSpace(): number {
+    return this.bus.getBarSpacing();
+  }
+
+  setBarSpace(px: number): void {
+    this.bus.setBarSpacing(px);
+  }
+
+  setVisibleRange(range: ChartVisibleRange): void {
+    this.bus.setVisibleTimeRange(range);
+    this.didInitialFit = true;
+  }
+
+  scrollToTimestamp(tsMs: number, animationMs?: number): void {
+    const time = toUtcSeconds(tsMs);
+    const idx = this.mainChart.timeScale().timeToIndex(time, true);
+    if (idx == null) {
+      const nearest = this.findNearestBar(tsMs);
+      if (nearest == null) return;
+      const i = this.barTimesOrdered.indexOf(nearest.t);
+      if (i < 0) return;
+      this.bus.scrollToLogicalPosition(i, (animationMs ?? 0) > 0);
+      return;
+    }
+    this.bus.scrollToLogicalPosition(idx as number, (animationMs ?? 0) > 0);
   }
 
   /** Clear series while symbol/interval data reloads (avoids overlapping candles). */
   clearBars(): void {
     this.barAnimator?.cancel();
     this.barByTime = new Map();
+    this.barTimesOrdered = [];
     this.mainSeries.setData([]);
     this.maSeries.setData([]);
     this.volumeSeries.setData([]);
