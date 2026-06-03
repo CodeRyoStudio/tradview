@@ -1,7 +1,7 @@
 {
   "name": "tradview",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "description": "TradingView-style embeddable K-line chart framework",
   "packageManager": "pnpm@10.17.0",
   "scripts": {
@@ -15,7 +15,10 @@
     "demo:build": "pnpm build && pnpm --filter @tradview/playground build",
     "demo:serve": "node scripts/demo.mjs --mode=preview",
     "build:cdn": "pnpm --filter @tradview/cdn-bundle build",
-    "check:cdn-size": "node scripts/check-cdn-size.mjs"
+    "check:cdn-size": "node scripts/check-cdn-size.mjs",
+    "version:sync": "node scripts/sync-versions.mjs",
+    "check:rc": "node scripts/check-rc.mjs",
+    "publish:rc": "pnpm check:rc && pnpm -r publish --access public --tag rc --no-git-checks"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",

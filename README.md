@@ -4,6 +4,17 @@ TradingView-style embeddable K-line chart framework (see [docs/DESIGN.md](./docs
 
 **Repository:** https://github.com/CodeRyoStudio/tradview
 
+## Release status
+
+| 版本 | 狀態 | 說明 |
+|------|------|------|
+| **1.0.0-rc.1** | RC | [API 凍結](./docs/API-FREEZE.md) · [發布流程](./docs/RELEASE.md) · [CHANGELOG](./CHANGELOG.md) |
+
+```bash
+# RC 發布前完整檢查
+pnpm check:rc
+```
+
 ## Quick start
 
 ```bash
@@ -12,7 +23,7 @@ pnpm build
 pnpm test
 ```
 
-### Mock data gateway (PR-02)
+### Mock data gateway
 
 ```bash
 pnpm dev:mock
@@ -23,15 +34,24 @@ pnpm dev:mock
 ### Playground
 
 ```bash
-pnpm dev:mock   # terminal 1
-pnpm dev:playground
+pnpm demo
+# http://127.0.0.1:5173
 ```
+
+## Integrator docs
+
+- [EMBEDDING.md](./docs/EMBEDDING.md) — `createChart` / CDN / Bridge
+- [API-FREEZE.md](./docs/API-FREEZE.md) — RC 凍結的公開 API（`apiVersion: 1`）
+- [RELEASE.md](./docs/RELEASE.md) — 標籤、npm、CDN 附件
 
 ## Monorepo packages
 
-| Package | License | Status |
-|---------|---------|--------|
-| `@tradview/data` | MIT | Protocol + mock gateway |
-| `@tradview/core` | MIT | `createChart`, Bridge, 繪圖 |
-| `@tradview/ui-shell` | UNLICENSED | TV 殼層、設定（網格開關） |
-| … | | See [DESIGN.md](./docs/DESIGN.md) · [EMBEDDING.md](./docs/EMBEDDING.md) |
+| Package | License | Role |
+|---------|---------|------|
+| `@tradview/core` | MIT | `createChart`, Bridge, chart controller |
+| `@tradview/data` | MIT | Protocol types + gateway client |
+| `@tradview/ui-shell` | UNLICENSED | TV layout shell |
+| `@tradview/drawings` | UNLICENSED | Drawing overlay |
+| … | | See [DESIGN.md](./docs/DESIGN.md) |
+
+**CDN:** `bundle/cdn/dist/tradview.min.js`（gzip ≤ 400 KB，CI gate）

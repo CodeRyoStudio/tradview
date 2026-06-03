@@ -1,6 +1,7 @@
 export {
   createChart,
   TRADVIEW_API_VERSION,
+  TRADVIEW_VERSION,
   type IChart,
   type CreateChartOptions,
 } from '@tradview/core';

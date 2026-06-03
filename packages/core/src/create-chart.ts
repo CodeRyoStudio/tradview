@@ -4,8 +4,9 @@ import type { IndicatorConfig } from '@tradview/indicators';
 import type { DataProvider } from '@tradview/data';
 import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
+import { TRADVIEW_VERSION } from './version.js';
 
-export { TRADVIEW_API_VERSION };
+export { TRADVIEW_API_VERSION, TRADVIEW_VERSION };
 
 export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   dataProvider: DataProvider;

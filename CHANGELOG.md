@@ -1,0 +1,32 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [1.0.0-rc.1] - 2026-06-03
+
+### Added
+
+- **RC release tooling**: `VERSION`, `pnpm version:sync`, `pnpm check:rc`, [docs/API-FREEZE.md](./docs/API-FREEZE.md), [docs/RELEASE.md](./docs/RELEASE.md)
+- **`TRADVIEW_VERSION`** on `@tradview/core` / CDN / `chart.ready` payload
+- **API freeze test** for `apiVersion: 1` constants
+
+### Fixed (since pre-RC)
+
+- Chart pan in cursor mode (drawing overlay pass-through + host hit-test)
+- Duplicate candles when switching interval rapidly (`loadGeneration` guard)
+
+### Included in RC (feature baseline)
+
+- `createChart` with LWC main + volume + MACD/RSI/KDJ panes
+- Full TV-style `mountChartLayout` (toolbar, settings, crosshair legend, drawing properties)
+- Drawing tools v1 with `localStorage` persistence
+- Mock REST/WS gateway, `DataProvider`, `VirtualWindow`, Bridge schema v1
+- CDN `tradview.min.js` with 400 KB gzip CI gate
+
+### Known RC limitations
+
+See [docs/API-FREEZE.md](./docs/API-FREEZE.md) §7 (Pine execution stub, Protobuf v1.1, commercial CDN license gate, etc.).
+
+[1.0.0-rc.1]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.1

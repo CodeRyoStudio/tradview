@@ -1,4 +1,6 @@
-# TradView 嵌入指南（PR-20）
+# TradView 嵌入指南
+
+> **RC `1.0.0-rc.1`** — 公開 API 見 [API-FREEZE.md](./API-FREEZE.md)（`apiVersion: 1`）。
 
 ## 快速開始
 
@@ -17,7 +19,20 @@
     showGrid: false,
     apiVersion: 1,
   });
+  // TradView.TRADVIEW_VERSION === '1.0.0-rc.1'
 </script>
+```
+
+### npm（RC）
+
+```bash
+npm install @tradview/core@1.0.0-rc.1
+```
+
+```typescript
+import { createChart, TRADVIEW_API_VERSION, TRADVIEW_VERSION } from '@tradview/core';
+import { createGatewayDataProvider } from '@tradview/data';
+import { mountChartLayout } from '@tradview/ui-shell';
 ```
 
 ## 必備條件

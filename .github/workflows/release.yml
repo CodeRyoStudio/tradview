@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: RC gates
+        run: pnpm check:rc
+
+      - name: Package CDN artifact
+        run: |
+          VERSION=$(cat VERSION)
+          mkdir -p release-assets
+          cp bundle/cdn/dist/tradview.min.js "release-assets/tradview.min.js"
+          gzip -c bundle/cdn/dist/tradview.min.js > "release-assets/tradview.min.js.gz"
+          echo "${VERSION}" > release-assets/VERSION.txt
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release-assets/tradview.min.js
+            release-assets/tradview.min.js.gz
+            release-assets/VERSION.txt

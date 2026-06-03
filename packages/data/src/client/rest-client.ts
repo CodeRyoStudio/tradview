@@ -80,7 +80,7 @@ export class TradViewRestClient {
   private async fetch(url: string | URL, init?: RequestInit): Promise<Response> {
     const headers = await this.buildHeaders();
     const qp = this.opts.auth?.getQueryParams?.();
-    let target: URL =
+    const target: URL =
       typeof url === 'string'
         ? url.startsWith('http')
           ? new URL(url)

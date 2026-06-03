@@ -4,6 +4,7 @@ import type { Interval } from '@tradview/data';
 import type { CrosshairPayload } from '@tradview/renderer-lite';
 import type { ChartController, ChartEvent } from './chart-controller.js';
 import type { IChart } from './create-chart.js';
+import { TRADVIEW_VERSION } from './version.js';
 
 export const TRADVIEW_API_VERSION = 1 as const;
 
@@ -24,6 +25,7 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
       chartId,
       bridgeSchemaVersion: BRIDGE_SCHEMA_VERSION,
       apiVersion: TRADVIEW_API_VERSION,
+      version: TRADVIEW_VERSION,
     },
   });
 

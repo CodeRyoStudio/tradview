@@ -1,6 +1,6 @@
 {
   "name": "@tradview/data",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "description": "TradView protocol types, interval registry, and mock gateway",
   "license": "MIT",
   "type": "module",
@@ -14,7 +14,9 @@
       "import": "./dist/mock/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -32,5 +34,13 @@
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodeRyoStudio/tradview.git",
+    "directory": "packages/data"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
