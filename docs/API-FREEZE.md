@@ -1,8 +1,8 @@
-# TradView API Freeze — `1.0.0-rc.3`
+# TradView API Freeze — `1.0.0-rc.4`
 
 | 欄位 | 值 |
 |------|-----|
-| 套件版本 | `1.0.0-rc.3`（見 repo 根目錄 `VERSION`） |
+| 套件版本 | `1.0.0-rc.4`（見 repo 根目錄 `VERSION`） |
 | Embed API | `apiVersion: 1`（`TRADVIEW_API_VERSION`） |
 | Bridge schema | `bridgeSchemaVersion: 1` |
 | 協議 | REST/WS **JSON v1.0**（Protobuf 為 v1.1，**不在 RC 凍結範圍**） |
@@ -18,7 +18,7 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 | 產物 | 說明 |
 |------|------|
-| `@coderyo/core@1.0.0-rc.3` | **MIT**，整合主入口 `createChart` |
+| `@coderyo/core@1.0.0-rc.4` | **MIT**，整合主入口 `createChart` |
 | `@coderyo/data` | **MIT**，協議型別 + `createGatewayDataProvider` |
 | `@coderyo/bridge` | **MIT**，WebView `postMessage` |
 | `@coderyo/series` / `virtual-window` / `renderer-lite` / `indicators` / `i18n` / `interaction` / `pine-lite` | **MIT**，子模組（進階整合可直連） |

@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-rc.4] - 2026-06-03
+
+### Added
+
+- **Pine 腳本編輯器**（`mountPineEditorPanel`）：CodeMirror 語法高亮、行號、即時 lint、debounced 套用、`localStorage` 持久化
+- **Pine-lite 執行**：`if` / `else`、`while`、`for … to`、比較與 `and` / `or` / `not`、跳轉 VM（圖靈完備子集）
+- **Pine-lite API**：`compilePineLite` 回傳 `diagnostics`（行/列）、`features.pineScript` + `pineEnabled`
+- **內建指標**：主圖 **EMA**、**BOLL** 疊加（設定面板可開關）
+- Playground 底部 Pine 編輯器面板
+
+### Changed
+
+- `@coderyo/ui-shell` 依賴 CodeMirror 6 + `@coderyo/pine-lite`（workspace）
+
 ## [1.0.0-rc.3] - 2026-06-03
 
 ### Added
@@ -67,6 +81,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 See [docs/API-FREEZE.md](./docs/API-FREEZE.md) §7 (Pine execution stub, Protobuf v1.1, commercial CDN license gate, etc.).
 
+[1.0.0-rc.4]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.1
