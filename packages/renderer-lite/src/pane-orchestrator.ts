@@ -17,7 +17,7 @@ import {
 import { intervalMs, type Bar, type Interval } from '@coderyo/data';
 import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
-import type { IndicatorConfig } from '@coderyo/indicators';
+import { hasVisibleIndicatorPanes, type IndicatorConfig } from '@coderyo/indicators';
 
 import {
   IndicatorPaneStack,
@@ -244,7 +244,9 @@ export class PaneOrchestrator {
     if (this.indicatorConfig) {
       const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
       this.applyMainOverlays(bars);
-      this.indicators?.setBars(bars);
+      if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
+        this.indicators?.setBars(bars);
+      }
     }
   }
 
@@ -297,7 +299,9 @@ export class PaneOrchestrator {
     this.indicators?.setConfig(config);
     if (bars.length > 0) {
       this.applyMainOverlays(bars);
-      this.indicators?.setBars(bars);
+      if (hasVisibleIndicatorPanes(config)) {
+        this.indicators?.setBars(bars);
+      }
     }
   }
 
@@ -416,7 +420,9 @@ export class PaneOrchestrator {
     this.volumeSeries.setData(vols);
     if (this.indicatorConfig) {
       this.applyMainOverlays(renderBars);
-      this.indicators?.setBars(renderBars);
+      if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
+        this.indicators?.setBars(renderBars);
+      }
     } else {
       this.maSeries.setData([]);
       this.emaSeries.setData([]);

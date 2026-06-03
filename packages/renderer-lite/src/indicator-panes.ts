@@ -13,6 +13,7 @@ import type { Bar } from '@coderyo/data';
 import {
   type IndicatorConfig,
   DEFAULT_INDICATOR_CONFIG,
+  hasVisibleIndicatorPanes,
   boll,
   kdj,
   macd,
@@ -252,34 +253,57 @@ export class IndicatorPaneStack {
       return;
     }
 
+    const needMacd = this.config.showMacd;
+    const needRsi = this.config.showRsi;
+    const needKdj = this.config.showKdj;
+    if (!hasVisibleIndicatorPanes(this.config)) {
+      return;
+    }
+
     const mutation = this.detectBarMutation(bars);
     this.lastBarTimes = bars.map((b) => b.t);
     const src = barsForSource(bars, this.config.source);
-    const m = macd(src, this.config.macdFast, this.config.macdSlow, this.config.macdSignal);
-    const r = rsi(src, this.config.rsiPeriod);
-    const k = kdj(src, this.config.kdjPeriod, this.config.kdjKSmooth, this.config.kdjDSmooth);
+    const m = needMacd
+      ? macd(src, this.config.macdFast, this.config.macdSlow, this.config.macdSignal)
+      : null;
+    const r = needRsi ? rsi(src, this.config.rsiPeriod) : null;
+    const k = needKdj
+      ? kdj(src, this.config.kdjPeriod, this.config.kdjKSmooth, this.config.kdjDSmooth)
+      : null;
 
     if (mutation === 'full') {
-      this.macdLine.setData(lineData(bars, m.macd));
-      this.macdSignal.setData(lineData(bars, m.signal));
-      this.macdHist.setData(histData(bars, m.histogram));
-      this.rsiLine.setData(lineData(bars, r));
-      this.kdjK.setData(lineData(bars, k.k));
-      this.kdjD.setData(lineData(bars, k.d));
-      this.kdjJ.setData(lineData(bars, k.j));
-      this.macdChart.timeScale().fitContent();
-      this.rsiChart.timeScale().fitContent();
-      this.kdjChart.timeScale().fitContent();
+      if (needMacd && m) {
+        this.macdLine.setData(lineData(bars, m.macd));
+        this.macdSignal.setData(lineData(bars, m.signal));
+        this.macdHist.setData(histData(bars, m.histogram));
+        this.macdChart.timeScale().fitContent();
+      }
+      if (needRsi && r) {
+        this.rsiLine.setData(lineData(bars, r));
+        this.rsiChart.timeScale().fitContent();
+      }
+      if (needKdj && k) {
+        this.kdjK.setData(lineData(bars, k.k));
+        this.kdjD.setData(lineData(bars, k.d));
+        this.kdjJ.setData(lineData(bars, k.j));
+        this.kdjChart.timeScale().fitContent();
+      }
     } else {
       const from =
         mutation === 'tail-update' ? Math.max(0, bars.length - 1) : Math.max(0, bars.length - this.warmupLookback());
-      this.pushSeriesUpdates(this.macdLine, bars, m.macd, from);
-      this.pushSeriesUpdates(this.macdSignal, bars, m.signal, from);
-      this.pushHistUpdates(this.macdHist, bars, m.histogram, from);
-      this.pushSeriesUpdates(this.rsiLine, bars, r, from);
-      this.pushSeriesUpdates(this.kdjK, bars, k.k, from);
-      this.pushSeriesUpdates(this.kdjD, bars, k.d, from);
-      this.pushSeriesUpdates(this.kdjJ, bars, k.j, from);
+      if (needMacd && m) {
+        this.pushSeriesUpdates(this.macdLine, bars, m.macd, from);
+        this.pushSeriesUpdates(this.macdSignal, bars, m.signal, from);
+        this.pushHistUpdates(this.macdHist, bars, m.histogram, from);
+      }
+      if (needRsi && r) {
+        this.pushSeriesUpdates(this.rsiLine, bars, r, from);
+      }
+      if (needKdj && k) {
+        this.pushSeriesUpdates(this.kdjK, bars, k.k, from);
+        this.pushSeriesUpdates(this.kdjD, bars, k.d, from);
+        this.pushSeriesUpdates(this.kdjJ, bars, k.j, from);
+      }
     }
 
     this.resize();

@@ -46,6 +46,19 @@ export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
   showVolMa: true,
 };
 
+export function hasVisibleIndicatorPanes(config: IndicatorConfig): boolean {
+  return config.showMacd || config.showRsi || config.showKdj;
+}
+
+export function hasMainChartOverlays(config: IndicatorConfig): boolean {
+  return config.showMa || config.showVolMa || config.showEma || config.showBoll;
+}
+
+/** Any built-in indicator pane or main-chart overlay enabled. */
+export function hasAnyActiveIndicators(config: IndicatorConfig): boolean {
+  return hasVisibleIndicatorPanes(config) || hasMainChartOverlays(config);
+}
+
 /** Hide all indicator panes and main-chart overlays (MA / EMA / BOLL / vol MA). */
 export function clearedIndicatorConfig(base: IndicatorConfig = DEFAULT_INDICATOR_CONFIG): IndicatorConfig {
   return {
