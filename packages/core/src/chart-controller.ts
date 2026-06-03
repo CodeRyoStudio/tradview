@@ -234,6 +234,10 @@ export class ChartController {
       return;
     }
     this.pineIr = compiled.ir;
+    if (this.hasActiveSymbol()) {
+      const bars = this.virtualWindow.getBarsForRender();
+      if (bars.length > 0) this.applyPinePlots(bars);
+    }
   }
 
   private applyPinePlots(bars: Bar[]): void {
@@ -243,16 +247,18 @@ export class ChartController {
     }
     const ir = this.pineIr;
     const useWorker = this.features.pineWorker;
-    void runPineLiteAsync(ir, bars, { useWorker }).then((result) => {
-      if (this.destroyed || this.pineIr !== ir) return;
-      this.orchestrator.setPinePlots(
-        result.plots.map((p) => ({
-          title: p.title,
-          values: p.values,
-          color: undefined,
-        })),
-      );
-    });
+    void runPineLiteAsync(ir, bars, { useWorker })
+      .then((result) => {
+        if (this.destroyed || this.pineIr !== ir) return;
+        this.orchestrator.setPinePlots(
+          result.plots.map((p) => ({
+            title: p.title,
+            values: p.values,
+            color: undefined,
+          })),
+        );
+      })
+      .catch((err) => this.emit('error', err));
   }
 
   private trackTelemetry(event: string, data?: Record<string, unknown>): void {
@@ -666,7 +672,8 @@ export class ChartController {
       },
       onConnectionChange: (state) => {
         this.emit('connectionChange', state);
-        if (state === 'connected') {
+        // Only backfill on reconnect; initial connect loads history in bootstrap.
+        if (state === 'connected' && this.subscriptionId != null) {
           void this.catchUpMissedBars();
         }
       },

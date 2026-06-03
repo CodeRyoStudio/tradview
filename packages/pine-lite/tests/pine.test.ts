@@ -38,6 +38,11 @@ describe('compilePineLite', () => {
 });
 
 describe('runPineLite', () => {
+  it('compiles crossover', () => {
+    const r = compilePineLite('plot(crossover(close, open))');
+    expect(r.ok).toBe(true);
+  });
+
   it('produces SMA values after warmup', () => {
     const compiled = compilePineLite('plot(sma(close, 3))');
     expect(compiled.ok).toBe(true);
