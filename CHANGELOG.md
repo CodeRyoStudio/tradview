@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-03
+
+### Fixed
+
+- **ui-shell (#4)**: TopBar first interval button no longer clipped on the left (`tv-layout-header` stacking; `.tv-topbar-intervals` group)
+
 ## [1.0.1] - 2026-06-03
 
 ### Fixed
