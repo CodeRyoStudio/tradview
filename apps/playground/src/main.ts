@@ -1,11 +1,17 @@
 import { createChart, type IChart } from '@tradview/core';
 import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@tradview/data';
+import type { Interval } from '@tradview/data';
 import { bindChartKeyboard } from '@tradview/interaction';
 import { t } from '@tradview/i18n';
-import type { Interval } from '@tradview/data';
 import {
+  bindShortcutsModal,
+  loadIndicatorConfig,
+  loadReturnToCursorPreference,
   loadShowGridPreference,
   mountChartLayout,
+  mountCodeSnippetPanel,
+  openDrawingContextMenu,
+  saveIndicatorConfig,
   type ChartLayoutOptions,
   type DrawingToolId,
 } from '@tradview/ui-shell';
@@ -16,23 +22,21 @@ const urlEl = document.getElementById('demo-url')!;
 
 urlEl.textContent = location.origin;
 
-const restBase = '';
-const wsBase = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`;
-
 const provider = createGatewayDataProvider({
-  restBaseUrl: restBase,
-  wsUrl: wsBase,
+  restBaseUrl: '',
+  wsUrl: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`,
 });
 
 const chartRef: { current: IChart | null } = { current: null };
 
 let drawingTool: DrawingToolId = 'cursor';
 let showGrid = loadShowGridPreference();
+let returnToCursor = loadReturnToCursorPreference();
 let theme: 'dark' | 'light' = 'dark';
 let logScale = false;
-let barCount = 0;
 let lastSymbol = 'BINANCE:BTCUSDT';
 let lastInterval: Interval = '1h';
+let indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
 
 const symbolResolver = createPassthroughSymbolResolver((q) =>
   provider.searchSymbols?.(q) ?? Promise.resolve([]),
@@ -40,12 +44,15 @@ const symbolResolver = createPassthroughSymbolResolver((q) =>
 
 const shellOpts: ChartLayoutOptions = {
   showLeftToolbar: true,
+  showCrosshairLegend: true,
+  showStatusBar: true,
+  showPropertiesPanel: true,
   activeDrawingTool: drawingTool,
   onDrawingToolSelect: (tool) => {
     drawingTool = tool;
-    shellOpts.activeDrawingTool = tool;
     chartRef.current?.setDrawingTool(tool);
   },
+  onDrawingStyleChange: (patch) => chartRef.current?.updateSelectedDrawingStyle(patch),
   initialSymbol: lastSymbol,
   onSymbolSearch: (q) => symbolResolver.search?.(q) ?? Promise.resolve([]),
   onSymbolSelect: (symbol) => {
@@ -53,9 +60,20 @@ const shellOpts: ChartLayoutOptions = {
   },
   settings: {
     showGrid,
+    returnToCursorAfterDraw: returnToCursor,
+    indicatorConfig,
     onShowGridChange: (next) => {
       showGrid = next;
       chartRef.current?.setShowGrid(next);
+    },
+    onReturnToCursorChange: (v) => {
+      returnToCursor = v;
+      chartRef.current?.setReturnToCursorAfterDraw(v);
+    },
+    onIndicatorConfigChange: (cfg) => {
+      indicatorConfig = cfg;
+      saveIndicatorConfig(lastSymbol, lastInterval, cfg);
+      chartRef.current?.setIndicatorConfig(cfg);
     },
   },
   statusBar: {
@@ -82,8 +100,21 @@ const shellOpts: ChartLayoutOptions = {
   ],
 };
 
-const { chartHost, indicatorHost, statusBar, crosshairLegend, setActiveDrawingTool } =
-  mountChartLayout(app, shellOpts);
+let bindDrawingProps: ((d: import('@tradview/drawings').DrawingRecord | null) => void) | null =
+  null;
+
+shellOpts.onDrawingSelectionBind = (bind) => {
+  bindDrawingProps = bind;
+};
+
+const {
+  chartHost,
+  indicatorHost,
+  statusBar,
+  crosshairLegend,
+  setActiveDrawingTool,
+  propertiesPanel,
+} = mountChartLayout(app, shellOpts);
 
 const chart = createChart(chartHost, {
   dataProvider: provider,
@@ -94,8 +125,30 @@ const chart = createChart(chartHost, {
   theme,
   scaleMode: 'linear',
   showGrid,
+  indicatorConfig,
+  drawingDefaults: { returnToCursorAfterDraw: returnToCursor },
 });
 chartRef.current = chart;
+
+mountCodeSnippetPanel(document.body, () =>
+  `import { createChart } from '@tradview/core';
+import { createGatewayDataProvider } from '@tradview/data';
+
+const chart = createChart(document.getElementById('chart'), {
+  dataProvider: createGatewayDataProvider({
+    restBaseUrl: '${location.origin}/api',
+    wsUrl: '${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0',
+  }),
+  symbol: '${lastSymbol}',
+  interval: '${lastInterval}',
+  showGrid: ${showGrid},
+  drawingDefaults: { returnToCursorAfterDraw: ${returnToCursor} },
+  // showCrosshairLegend: true (layout)
+  // showStatusBar: false (layout, integrator debug)
+});`,
+);
+
+bindShortcutsModal();
 
 function showError(err: unknown) {
   errorEl.style.display = 'block';
@@ -104,7 +157,10 @@ function showError(err: unknown) {
 
 shellOpts.onIntervalChange = (interval) => {
   lastInterval = interval;
+  indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
+  shellOpts.settings!.indicatorConfig = indicatorConfig;
   chart.setInterval(interval);
+  chart.setIndicatorConfig(indicatorConfig);
   statusBar.update({ interval });
   crosshairLegend.setMeta({ interval });
 };
@@ -145,12 +201,37 @@ bindChartKeyboard({
   deleteSelectedDrawing: () => chart.deleteSelectedDrawing(),
 });
 
-chart.on('connectionChange', (state) => {
-  statusBar.update({ connection: String(state ?? 'unknown') });
+chart.on('requestCursorTool', () => {
+  setActiveDrawingTool('cursor');
+  drawingTool = 'cursor';
 });
 
-chart.on('barUpdate', () => {
-  barCount += 1;
+chart.on('drawingSelectionChange', (payload) => {
+  const p = payload as { record?: import('@tradview/drawings').DrawingRecord | null };
+  bindDrawingProps?.(p?.record ?? null);
+  propertiesPanel.bind(p?.record ?? null);
+});
+
+chart.on('drawingContextMenu', (payload) => {
+  const p = payload as {
+    clientX: number;
+    clientY: number;
+    drawing: import('@tradview/drawings').DrawingRecord | null;
+  };
+  openDrawingContextMenu(p.clientX, p.clientY, p.drawing, {
+    onDelete: () => chart.deleteSelectedDrawing(),
+    onCopy: () => chart.copySelectedDrawing(),
+    onToggleLock: () => chart.toggleLockSelectedDrawing(),
+    onDeselect: () => chart.deselectDrawing(),
+    onEditText: () => {
+      const text = window.prompt(t('drawing.ctx.editText', '編輯文字'), String(p.drawing?.meta?.text ?? ''));
+      if (text != null) chart.updateSelectedDrawingStyle({ text });
+    },
+  });
+});
+
+chart.on('connectionChange', (state) => {
+  statusBar.update({ connection: String(state ?? 'unknown') });
 });
 
 chart.on('crosshairChange', (payload) => {
@@ -169,6 +250,8 @@ chart.on('crosshairChange', (payload) => {
 chart.on('symbolChange', (info) => {
   const row = info as { symbol?: string; description?: string; exchange?: string };
   lastSymbol = row.symbol ?? lastSymbol;
+  indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
+  chart.setIndicatorConfig(indicatorConfig);
   const label = row.description
     ? `${lastSymbol} — ${row.description}`
     : row.exchange
@@ -193,14 +276,9 @@ void provider
     endTime: Date.now(),
     limit: 500,
   })
-  .then((h) => {
-    barCount = h.bars.length;
-    statusBar.update({ connection: 'connected' });
-  })
+  .then(() => statusBar.update({ connection: 'connected' }))
   .catch((e) => {
     showError(e);
     statusBar.update({ connection: 'error' });
     console.error('[demo] mock unreachable — run: pnpm demo');
   });
-
-console.log('[demo] TradView — grid off by default · StatusBar · crosshair legend · context menu');

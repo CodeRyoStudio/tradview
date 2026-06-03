@@ -38,6 +38,9 @@ importers:
       '@tradview/data':
         specifier: workspace:*
         version: link:../../packages/data
+      '@tradview/drawings':
+        specifier: workspace:*
+        version: link:../../packages/drawings
       '@tradview/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -137,6 +140,9 @@ importers:
       '@tradview/drawings':
         specifier: workspace:*
         version: link:../drawings
+      '@tradview/indicators':
+        specifier: workspace:*
+        version: link:../indicators
       '@tradview/renderer-lite':
         specifier: workspace:*
         version: link:../renderer-lite
@@ -361,9 +367,15 @@ importers:
       '@tradview/data':
         specifier: workspace:*
         version: link:../data
+      '@tradview/drawings':
+        specifier: workspace:*
+        version: link:../drawings
       '@tradview/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@tradview/indicators':
+        specifier: workspace:*
+        version: link:../indicators
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*

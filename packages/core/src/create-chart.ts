@@ -1,4 +1,6 @@
 import type { BridgeAdapter } from '@tradview/bridge';
+import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
+import type { IndicatorConfig } from '@tradview/indicators';
 import type { DataProvider } from '@tradview/data';
 import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
@@ -27,6 +29,12 @@ export interface IChart {
   searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]>;
   setDrawingTool(tool: import('@tradview/drawings').DrawingTool): IChart;
   deleteSelectedDrawing(): boolean;
+  copySelectedDrawing(): DrawingRecord | null;
+  toggleLockSelectedDrawing(): boolean;
+  updateSelectedDrawingStyle(patch: DrawingStyleMeta): void;
+  deselectDrawing(): void;
+  setIndicatorConfig(config: IndicatorConfig): void;
+  setReturnToCursorAfterDraw(v: boolean): void;
   destroy(): void;
 }
 
@@ -83,6 +91,24 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       return wrap(controller, beforeDestroy);
     },
     deleteSelectedDrawing: () => controller.deleteSelectedDrawing(),
+    copySelectedDrawing: () => controller.copySelectedDrawing(),
+    toggleLockSelectedDrawing: () => controller.toggleLockSelectedDrawing(),
+    updateSelectedDrawingStyle: (p) => {
+      controller.updateSelectedDrawingStyle(p);
+      return wrap(controller, beforeDestroy);
+    },
+    deselectDrawing: () => {
+      controller.deselectDrawing();
+      return wrap(controller, beforeDestroy);
+    },
+    setIndicatorConfig: (c) => {
+      controller.setIndicatorConfig(c);
+      return wrap(controller, beforeDestroy);
+    },
+    setReturnToCursorAfterDraw: (v) => {
+      controller.setReturnToCursorAfterDraw(v);
+      return wrap(controller, beforeDestroy);
+    },
     destroy: () => {
       controller.destroy();
       beforeDestroy?.();

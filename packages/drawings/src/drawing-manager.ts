@@ -1,5 +1,8 @@
+import { getDrawingStyle, setDrawingStyle, type DrawingStyleMeta } from './drawing-style.js';
 import type { DrawingRecord } from './storage.js';
 import { loadDrawings, saveDrawings, storageKey } from './storage.js';
+
+export type { DrawingRecord, DrawingStyleMeta };
 
 export type DrawingTool =
   | 'cursor'
@@ -21,6 +24,14 @@ export interface DrawingManagerOptions {
   timeToX: (tMs: number) => number | null;
   xToTime?: (x: number) => number | null;
   yToPrice?: (y: number) => number | null;
+  returnToCursorAfterDraw?: boolean;
+  onSelectionChange?: (id: string | null, record: DrawingRecord | null) => void;
+  onRequestCursorTool?: () => void;
+  onContextMenu?: (payload: {
+    clientX: number;
+    clientY: number;
+    drawing: DrawingRecord | null;
+  }) => void;
 }
 
 interface DrawingContext {
@@ -49,6 +60,7 @@ export class DrawingManager {
   private key: string;
   private readonly ctx: DrawingContext;
   private readonly handleRadius: number;
+  private labelDragIndex: number | null = null;
 
   constructor(private readonly opts: DrawingManagerOptions) {
     this.ctx = {
@@ -65,6 +77,8 @@ export class DrawingManager {
     opts.canvas.addEventListener('pointerup', this.onUp);
     opts.canvas.addEventListener('pointercancel', this.onUp);
     window.addEventListener('keydown', this.onKeyDown);
+    opts.canvas.addEventListener('contextmenu', this.onContextMenu);
+    opts.canvas.style.touchAction = 'none';
   }
 
   setTool(tool: DrawingTool): void {
@@ -88,7 +102,61 @@ export class DrawingManager {
     this.drag = null;
     this.persist();
     this.redraw();
+    this.emitSelection();
     return true;
+  }
+
+  deselect(): void {
+    this.selectedId = null;
+    this.drag = null;
+    this.redraw();
+    this.emitSelection();
+  }
+
+  getSelected(): DrawingRecord | null {
+    return this.selectedId ? (this.getDrawing(this.selectedId) ?? null) : null;
+  }
+
+  copySelected(): DrawingRecord | null {
+    const src = this.getSelected();
+    if (!src) return null;
+    const intervalMs = 3_600_000;
+    const copy: DrawingRecord = {
+      ...src,
+      id: `d-${Date.now()}`,
+      points: src.points.map((p) => ({ t: p.t + intervalMs * 0.02, price: p.price * 1.001 })),
+      meta: { ...(src.meta ?? {}) },
+    };
+    this.drawings.push(copy);
+    this.selectedId = copy.id;
+    this.persist();
+    this.redraw();
+    this.emitSelection();
+    return copy;
+  }
+
+  toggleLockSelected(): boolean {
+    const d = this.getSelected();
+    if (!d) return false;
+    const style = getDrawingStyle(d);
+    setDrawingStyle(d, { locked: !style.locked });
+    this.persist();
+    this.redraw();
+    this.emitSelection();
+    return !style.locked;
+  }
+
+  updateSelectedStyle(patch: DrawingStyleMeta): void {
+    const d = this.getSelected();
+    if (!d) return;
+    setDrawingStyle(d, patch);
+    this.persist();
+    this.redraw();
+    this.emitSelection();
+  }
+
+  setReturnToCursorAfterDraw(v: boolean): void {
+    (this.opts as { returnToCursorAfterDraw?: boolean }).returnToCursorAfterDraw = v;
   }
 
   private applyPointerMode(): void {
@@ -114,13 +182,38 @@ export class DrawingManager {
 
     for (const d of [...this.drawings, ...(this.draft ? [this.draft] : [])]) {
       const selected = d.id === this.selectedId;
-      ctx.strokeStyle = selected ? '#f78166' : '#58a6ff';
-      ctx.fillStyle = selected ? '#f7816688' : '#58a6ff44';
-      ctx.lineWidth = selected ? 3 : 2;
+      const style = getDrawingStyle(d);
+      ctx.strokeStyle = selected ? '#f78166' : style.color;
+      ctx.fillStyle = selected ? '#f7816688' : `${style.color}44`;
+      ctx.lineWidth = (selected ? style.lineWidth + 1 : style.lineWidth) * devicePixelRatio;
       ctx.font = `${12 * devicePixelRatio}px sans-serif`;
       this.paint(ctx, d);
       if (selected && !this.draft && this.tool === 'cursor') this.paintHandles(ctx, d);
     }
+
+    if (
+      this.labelDragIndex != null &&
+      this.selectedId &&
+      this.drag?.kind === 'anchor'
+    ) {
+      const d = this.getDrawing(this.selectedId);
+      const p = d?.points[this.labelDragIndex];
+      if (d && p) this.paintAnchorLabel(ctx, p.t, p.price);
+    }
+  }
+
+  private paintAnchorLabel(ctx: CanvasRenderingContext2D, t: number, price: number): void {
+    const x = this.opts.timeToX(t);
+    const y = this.opts.priceToY(price);
+    if (x == null || y == null) return;
+    const label = `${new Date(t).toLocaleString()}  ${price.toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+    ctx.font = `${11 * devicePixelRatio}px sans-serif`;
+    ctx.fillStyle = '#0d1117';
+    const pad = 4 * devicePixelRatio;
+    const tw = ctx.measureText(label).width;
+    ctx.fillRect(x + 8, y - 20, tw + pad * 2, 16 * devicePixelRatio);
+    ctx.fillStyle = '#e6edf3';
+    ctx.fillText(label, x + 8 + pad, y - 8);
   }
 
   destroy(): void {
@@ -128,8 +221,30 @@ export class DrawingManager {
     this.opts.canvas.removeEventListener('pointermove', this.onMove);
     this.opts.canvas.removeEventListener('pointerup', this.onUp);
     this.opts.canvas.removeEventListener('pointercancel', this.onUp);
+    this.opts.canvas.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('keydown', this.onKeyDown);
   }
+
+  private emitSelection(): void {
+    this.opts.onSelectionChange?.(this.selectedId, this.getSelected());
+  }
+
+  private onContextMenu = (e: MouseEvent) => {
+    if (this.tool !== 'cursor') return;
+    e.preventDefault();
+    const pt = this.hitPointFromClient(e.clientX, e.clientY);
+    if (pt) {
+      const hit = this.hitTestDrawing(pt.x, pt.y);
+      if (hit) this.selectedId = hit;
+      this.redraw();
+      this.emitSelection();
+    }
+    this.opts.onContextMenu?.({
+      clientX: e.clientX,
+      clientY: e.clientY,
+      drawing: this.getSelected(),
+    });
+  };
 
   private paint(ctx: CanvasRenderingContext2D, d: DrawingRecord): void {
     switch (d.type) {
@@ -275,10 +390,14 @@ export class DrawingManager {
     if (this.tool === 'cursor') {
       const anchor = this.hitTestAnchorAny(pt.x, pt.y);
       if (anchor) {
+        const d = this.getDrawing(anchor.drawingId);
+        if (d && getDrawingStyle(d).locked) return;
         this.selectedId = anchor.drawingId;
         this.drag = { kind: 'anchor', drawingId: anchor.drawingId, pointIndex: anchor.pointIndex };
+        this.labelDragIndex = anchor.pointIndex;
         this.capturePointer(e);
         this.redraw();
+        this.emitSelection();
         return;
       }
 
@@ -286,7 +405,7 @@ export class DrawingManager {
       this.selectedId = id;
       if (id) {
         const d = this.getDrawing(id);
-        if (d) {
+        if (d && !getDrawingStyle(d).locked) {
           this.drag = {
             kind: 'body',
             drawingId: id,
@@ -297,12 +416,14 @@ export class DrawingManager {
           this.capturePointer(e);
         }
         this.redraw();
+        this.emitSelection();
         return;
       }
 
       this.selectedId = null;
       this.drag = null;
       this.redraw();
+      this.emitSelection();
       this.beginChartPassthrough(e);
       return;
     }
@@ -324,9 +445,10 @@ export class DrawingManager {
       const pt = this.hitPoint(e);
       if (!pt) return;
       const d = this.getDrawing(this.drag.drawingId);
-      if (!d) return;
+      if (!d || getDrawingStyle(d).locked) return;
 
       if (this.drag.kind === 'anchor') {
+        this.labelDragIndex = this.drag.pointIndex;
         d.points[this.drag.pointIndex] = { t: pt.t, price: pt.price };
       } else {
         const dt = pt.t - this.drag.startT;
@@ -364,6 +486,7 @@ export class DrawingManager {
     if (this.drag) {
       const changed = this.drag.kind === 'anchor' || this.drag.kind === 'body';
       this.drag = null;
+      this.labelDragIndex = null;
       if (changed) this.persist();
       this.redraw();
       return;
@@ -375,11 +498,17 @@ export class DrawingManager {
       this.draft = null;
       return;
     }
+    const finishedTool = this.tool;
     this.drawings.push(this.draft);
     this.selectedId = this.draft.id;
     this.draft = null;
     this.persist();
     this.redraw();
+    this.emitSelection();
+    if (this.opts.returnToCursorAfterDraw && finishedTool !== 'cursor') {
+      this.setTool('cursor');
+      this.opts.onRequestCursorTool?.();
+    }
   };
 
   private capturePointer(e: PointerEvent): void {
@@ -456,10 +585,17 @@ export class DrawingManager {
   }
 
   private hitPoint(e: PointerEvent): { t: number; price: number; x: number; y: number } | null {
+    return this.hitPointFromClient(e.clientX, e.clientY);
+  }
+
+  private hitPointFromClient(
+    clientX: number,
+    clientY: number,
+  ): { t: number; price: number; x: number; y: number } | null {
     const rect = this.opts.canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
-    const x = ((e.clientX - rect.left) / rect.width) * this.opts.canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * this.opts.canvas.height;
+    const x = ((clientX - rect.left) / rect.width) * this.opts.canvas.width;
+    const y = ((clientY - rect.top) / rect.height) * this.opts.canvas.height;
     const t = this.opts.xToTime?.(x) ?? null;
     const price = this.opts.yToPrice?.(y) ?? null;
     if (t == null || price == null) return null;

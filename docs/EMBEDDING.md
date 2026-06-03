@@ -30,7 +30,8 @@
 
 | API | 說明 |
 |-----|------|
-| `createChart(container, options)` | 建立圖表；`showGrid` 預設 `false` |
+| `createChart(container, options)` | 建立圖表；`showGrid` 預設 `false`；`drawingDefaults.returnToCursorAfterDraw` 預設 `false` |
+| `mountChartLayout` | `showCrosshairLegend`（預設 true）、`showStatusBar`（預設 false）、右側繪圖屬性欄 |
 | `chart.setSymbol` / `setInterval` | 切換商品與週期 |
 | `chart.setShowGrid(boolean)` | 顯示/隱藏網格 |
 | `chart.setTheme('dark' \| 'light')` | 主題 |

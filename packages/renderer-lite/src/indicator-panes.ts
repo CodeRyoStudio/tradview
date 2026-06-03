@@ -10,13 +10,26 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
-import { kdj, macd, rsi, sma } from '@tradview/indicators';
+import {
+  type IndicatorConfig,
+  DEFAULT_INDICATOR_CONFIG,
+  kdj,
+  macd,
+  rsi,
+  sma,
+} from '@tradview/indicators';
 import { gridOptions } from './chart-grid.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
 
 export interface IndicatorPaneStackOptions {
   theme?: 'dark' | 'light';
   showGrid?: boolean;
+  config?: IndicatorConfig;
+}
+
+function barsForSource(bars: Bar[], source: IndicatorConfig['source']): Bar[] {
+  if (source === 'close') return bars;
+  return bars.map((b) => ({ ...b, c: (b.h + b.l + b.c) / 3 }));
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -60,6 +73,10 @@ export class IndicatorPaneStack {
   private readonly kdjJ: ISeriesApi<'Line'>;
   private dark = true;
   private showGrid = false;
+  private config: IndicatorConfig = DEFAULT_INDICATOR_CONFIG;
+  private readonly macdWrap: HTMLElement;
+  private readonly rsiWrap: HTMLElement;
+  private readonly kdjWrap: HTMLElement;
 
   constructor(
     private readonly root: HTMLElement,
@@ -69,22 +86,27 @@ export class IndicatorPaneStack {
     const o = typeof opts === 'string' ? { theme: opts, showGrid: false } : opts;
     this.dark = o.theme !== 'light';
     this.showGrid = o.showGrid ?? false;
+    this.config = o.config ?? DEFAULT_INDICATOR_CONFIG;
     this.root.style.display = 'flex';
     this.root.style.flexDirection = 'column';
     this.root.style.flex = '2';
     this.root.style.minHeight = '0';
     this.root.style.overflow = 'hidden';
 
-    const macdWrap = this.createPaneWrap('MACD');
-    const rsiWrap = this.createPaneWrap('RSI');
-    const kdjWrap = this.createPaneWrap('KDJ');
-    this.root.append(macdWrap.wrap, rsiWrap.wrap, kdjWrap.wrap);
+    const macdPane = this.createPaneWrap('MACD');
+    const rsiPane = this.createPaneWrap('RSI');
+    const kdjPane = this.createPaneWrap('KDJ');
+    this.macdWrap = macdPane.wrap;
+    this.rsiWrap = rsiPane.wrap;
+    this.kdjWrap = kdjPane.wrap;
+    this.root.append(macdPane.wrap, rsiPane.wrap, kdjPane.wrap);
+    this.applyPaneVisibility();
 
     const layout = this.layoutForTheme(this.dark);
     const grid = gridOptions(this.showGrid, this.dark);
-    this.macdChart = createChart(macdWrap.el, { layout, grid, autoSize: true });
-    this.rsiChart = createChart(rsiWrap.el, { layout, grid, autoSize: true });
-    this.kdjChart = createChart(kdjWrap.el, { layout, grid, autoSize: true });
+    this.macdChart = createChart(macdPane.el, { layout, grid, autoSize: true });
+    this.rsiChart = createChart(rsiPane.el, { layout, grid, autoSize: true });
+    this.kdjChart = createChart(kdjPane.el, { layout, grid, autoSize: true });
 
     for (const c of [this.macdChart, this.rsiChart, this.kdjChart]) bus.register(c);
 
@@ -99,16 +121,28 @@ export class IndicatorPaneStack {
     this.kdjJ = this.kdjChart.addSeries(LineSeries, { color: '#ef5350', lineWidth: 1 });
   }
 
+  setConfig(config: IndicatorConfig): void {
+    this.config = config;
+    this.applyPaneVisibility();
+  }
+
+  private applyPaneVisibility(): void {
+    this.macdWrap.style.display = this.config.showMacd ? '' : 'none';
+    this.rsiWrap.style.display = this.config.showRsi ? '' : 'none';
+    this.kdjWrap.style.display = this.config.showKdj ? '' : 'none';
+  }
+
   setBars(bars: Bar[]): void {
     if (bars.length === 0) return;
-    const m = macd(bars);
+    const src = barsForSource(bars, this.config.source);
+    const m = macd(src, this.config.macdFast, this.config.macdSlow, this.config.macdSignal);
     this.macdLine.setData(lineData(bars, m.macd));
     this.macdSignal.setData(lineData(bars, m.signal));
     this.macdHist.setData(histData(bars, m.histogram));
 
-    this.rsiLine.setData(lineData(bars, rsi(bars)));
+    this.rsiLine.setData(lineData(bars, rsi(src, this.config.rsiPeriod)));
 
-    const k = kdj(bars);
+    const k = kdj(src, this.config.kdjPeriod, this.config.kdjKSmooth, this.config.kdjDSmooth);
     this.kdjK.setData(lineData(bars, k.k));
     this.kdjD.setData(lineData(bars, k.d));
     this.kdjJ.setData(lineData(bars, k.j));
@@ -190,8 +224,13 @@ export class IndicatorPaneStack {
   }
 }
 
-export function maOverlayLine(bars: Bar[], period = 20): LineData<UTCTimestamp>[] {
-  return lineData(bars, sma(bars, period));
+export function maOverlayLine(
+  bars: Bar[],
+  period = 20,
+  source: IndicatorConfig['source'] = 'close',
+): LineData<UTCTimestamp>[] {
+  const src = barsForSource(bars, source);
+  return lineData(bars, sma(src, period));
 }
 
 export function volMaOverlayLine(bars: Bar[], period = 5): LineData<UTCTimestamp>[] {

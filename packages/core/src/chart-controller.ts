@@ -1,3 +1,6 @@
+import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
+import type { IndicatorConfig } from '@tradview/indicators';
+import { DEFAULT_INDICATOR_CONFIG } from '@tradview/indicators';
 import type { DataProvider, HistoryQuery, Interval, SubscribeParams, SymbolResolver } from '@tradview/data';
 import type { HistoryRequest } from '@tradview/virtual-window';
 import { parseInterval } from '@tradview/data';
@@ -22,6 +25,9 @@ export interface ChartOptions {
   showGrid?: boolean;
   /** Optional symbol metadata enrichment (PR-12). */
   symbolResolver?: SymbolResolver;
+  /** Default false — stay on drawing tool after placing a shape. */
+  drawingDefaults?: { returnToCursorAfterDraw?: boolean };
+  indicatorConfig?: IndicatorConfig;
 }
 
 export type ChartEvent =
@@ -32,7 +38,10 @@ export type ChartEvent =
   | 'symbolChange'
   | 'intervalChange'
   | 'crosshairChange'
-  | 'destroyed';
+  | 'destroyed'
+  | 'drawingSelectionChange'
+  | 'drawingContextMenu'
+  | 'requestCursorTool';
 
 type EventHandler = (payload?: unknown) => void;
 
@@ -68,6 +77,7 @@ export class ChartController {
       scaleMode: options.scaleMode ?? 'linear',
       showGrid: options.showGrid ?? false,
     });
+    this.orchestrator.setIndicatorConfig(options.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG);
 
     if (options.width) container.style.width = `${options.width}px`;
     if (options.height) container.style.height = `${options.height}px`;
@@ -101,6 +111,11 @@ export class ChartController {
         timeToX: (t) => this.orchestrator.timeToX(t),
         xToTime: (x) => this.orchestrator.xToTime(x),
         yToPrice: (y) => this.orchestrator.yToPrice(y),
+        returnToCursorAfterDraw: options.drawingDefaults?.returnToCursorAfterDraw ?? false,
+        onRequestCursorTool: () => this.emit('requestCursorTool'),
+        onSelectionChange: (id, record) =>
+          this.emit('drawingSelectionChange', { id, record }),
+        onContextMenu: (payload) => this.emit('drawingContextMenu', payload),
       });
     }
 
@@ -165,6 +180,30 @@ export class ChartController {
 
   deleteSelectedDrawing(): boolean {
     return this.drawingManager?.deleteSelected() ?? false;
+  }
+
+  copySelectedDrawing(): DrawingRecord | null {
+    return this.drawingManager?.copySelected() ?? null;
+  }
+
+  toggleLockSelectedDrawing(): boolean {
+    return this.drawingManager?.toggleLockSelected() ?? false;
+  }
+
+  updateSelectedDrawingStyle(patch: DrawingStyleMeta): void {
+    this.drawingManager?.updateSelectedStyle(patch);
+  }
+
+  deselectDrawing(): void {
+    this.drawingManager?.deselect();
+  }
+
+  setIndicatorConfig(config: IndicatorConfig): void {
+    this.orchestrator.setIndicatorConfig(config);
+  }
+
+  setReturnToCursorAfterDraw(v: boolean): void {
+    this.drawingManager?.setReturnToCursorAfterDraw(v);
   }
 
   async setSymbol(symbol: string): Promise<void> {

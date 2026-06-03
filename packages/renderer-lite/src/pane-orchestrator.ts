@@ -15,6 +15,8 @@ import {
 import type { Bar } from '@tradview/data';
 import { lodDecimateBars } from '@tradview/series';
 import { gridOptions } from './chart-grid.js';
+import type { IndicatorConfig } from '@tradview/indicators';
+import { DEFAULT_INDICATOR_CONFIG } from '@tradview/indicators';
 import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
@@ -64,6 +66,7 @@ export class PaneOrchestrator {
   private readonly maxRenderPoints: number;
   private barByTime = new Map<number, Bar>();
   private didInitialFit = false;
+  private indicatorConfig: IndicatorConfig = DEFAULT_INDICATOR_CONFIG;
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -123,6 +126,7 @@ export class PaneOrchestrator {
       ? new IndicatorPaneStack(opts.indicatorRoot, this.bus, {
           theme: opts.theme ?? 'dark',
           showGrid: this.showGrid,
+          config: this.indicatorConfig,
         })
       : null;
 
@@ -136,6 +140,17 @@ export class PaneOrchestrator {
     this.mainChart.applyOptions({ layout, grid });
     this.volumeChart.applyOptions({ layout, grid });
     this.indicators?.setTheme(theme);
+  }
+
+  setIndicatorConfig(config: IndicatorConfig): void {
+    this.indicatorConfig = config;
+    this.indicators?.setConfig(config);
+    const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
+    if (bars.length > 0) {
+      this.maSeries.setData(maOverlayLine(bars, config.maPeriod, config.source));
+      this.volMaSeries.setData(volMaOverlayLine(bars, config.volMaPeriod));
+      this.indicators?.setBars(bars);
+    }
   }
 
   setShowGrid(show: boolean): void {
@@ -168,9 +183,11 @@ export class PaneOrchestrator {
     }
 
     this.mainSeries.setData(candles);
-    this.maSeries.setData(maOverlayLine(renderBars, 20));
+    this.maSeries.setData(
+      maOverlayLine(renderBars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
+    );
     this.volumeSeries.setData(vols);
-    this.volMaSeries.setData(volMaOverlayLine(renderBars, 5));
+    this.volMaSeries.setData(volMaOverlayLine(renderBars, this.indicatorConfig.volMaPeriod));
     this.indicators?.setBars(renderBars);
 
     if (renderBars.length > 0) {

@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "@tradview/data": "workspace:*",
-    "@tradview/i18n": "workspace:*"
+    "@tradview/drawings": "workspace:*",
+    "@tradview/i18n": "workspace:*",
+    "@tradview/indicators": "workspace:*"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",
