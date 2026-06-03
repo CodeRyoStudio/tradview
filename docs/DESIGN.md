@@ -6,7 +6,7 @@
 | 狀態 | **Approved for implementation** |
 | 作者 | 架構組 |
 | 最後更新 | 2026-06-03 |
-| 工作區 | `C:\Users\jason\Desktop\tradview` |
+| 倉庫 | [CodeRyoStudio/tradview](https://github.com/CodeRyoStudio/tradview) |
 
 ---
 
