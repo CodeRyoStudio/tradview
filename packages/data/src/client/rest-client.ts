@@ -14,6 +14,18 @@ export interface RestClientOptions {
   protocolVersion?: string;
 }
 
+/** Resolve REST path; empty baseUrl → same-origin (Vite proxy) in browser. */
+export function resolveApiUrl(baseUrl: string, pathname: string): URL {
+  const base = baseUrl.replace(/\/$/, '');
+  if (base) {
+    return new URL(pathname.startsWith('/') ? `${base}${pathname}` : `${base}/${pathname}`);
+  }
+  const g = globalThis as typeof globalThis & { location?: { origin?: string } };
+  const origin =
+    typeof g.location?.origin === 'string' ? g.location.origin : 'http://127.0.0.1:4010';
+  return new URL(pathname, origin);
+}
+
 export class TradViewRestClient {
   private capabilitiesCache: DataProviderCapabilities | null = null;
 
@@ -22,8 +34,7 @@ export class TradViewRestClient {
   async getCapabilities(): Promise<DataProviderCapabilities> {
     if (this.capabilitiesCache) return this.capabilitiesCache;
 
-    const url = `${this.opts.baseUrl.replace(/\/$/, '')}/api/v1/capabilities`;
-    const res = await this.fetch(url);
+    const res = await this.fetch(resolveApiUrl(this.opts.baseUrl, '/api/v1/capabilities'));
 
     if (!res.ok) {
       return DEFAULT_DATA_PROVIDER_CAPABILITIES;
@@ -34,7 +45,7 @@ export class TradViewRestClient {
   }
 
   async getHistory(query: HistoryQuery): Promise<HistoryResponse> {
-    const url = new URL(`${this.opts.baseUrl.replace(/\/$/, '')}/api/v1/bars`);
+    const url = resolveApiUrl(this.opts.baseUrl, '/api/v1/bars');
     url.searchParams.set('symbol', query.symbol);
     url.searchParams.set('interval', query.interval);
 
@@ -49,7 +60,7 @@ export class TradViewRestClient {
       if (query.cursor) url.searchParams.set('cursor', query.cursor);
     }
 
-    const res = await this.fetch(url.toString());
+    const res = await this.fetch(url);
     if (!res.ok) {
       throw await this.toDataError(res, 'rest');
     }
@@ -58,9 +69,9 @@ export class TradViewRestClient {
   }
 
   async searchSymbols(query: string): Promise<{ symbol: string; description?: string; exchange?: string }[]> {
-    const url = new URL(`${this.opts.baseUrl.replace(/\/$/, '')}/api/v1/symbols/search`);
+    const url = resolveApiUrl(this.opts.baseUrl, '/api/v1/symbols/search');
     url.searchParams.set('q', query);
-    const res = await this.fetch(url.toString());
+    const res = await this.fetch(url);
     if (!res.ok) return [];
     const body = (await res.json()) as { results: { symbol: string; description?: string; exchange?: string }[] };
     return body.results ?? [];
@@ -69,15 +80,19 @@ export class TradViewRestClient {
   private async fetch(url: string | URL, init?: RequestInit): Promise<Response> {
     const headers = await this.buildHeaders();
     const qp = this.opts.auth?.getQueryParams?.();
-    let finalUrl = typeof url === 'string' ? url : url.toString();
+    let target: URL =
+      typeof url === 'string'
+        ? url.startsWith('http')
+          ? new URL(url)
+          : resolveApiUrl(this.opts.baseUrl, url)
+        : url;
+
     if (qp && Object.keys(qp).length > 0) {
-      const u = new URL(finalUrl);
-      for (const [k, v] of Object.entries(qp)) u.searchParams.set(k, v);
-      finalUrl = u.toString();
+      for (const [k, v] of Object.entries(qp)) target.searchParams.set(k, v);
     }
 
     await this.opts.auth?.onConnect?.('rest');
-    return fetch(finalUrl, {
+    return fetch(target, {
       ...init,
       headers: { ...headers, ...init?.headers },
     });
