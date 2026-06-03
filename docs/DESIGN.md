@@ -1453,8 +1453,10 @@ warmupMs = warmupBarCount * intervalMs   // hint for fetch scheduling only
 | `CrosshairController` | 十字線 + OHLCV 圖例 |
 | `IndicatorSettingsPanel` | 參數表單（週期、源字段 close/hlc3） |
 | `DrawingLayer` | Canvas overlay（預設）；訂閱 `subscribeTransform`（§10.2） |
-| `ThemeProvider` | CSS variables dark/light |
-| `I18nProvider` | `t('key')` + 動態載入語言包；**預設 locale `zh-TW`** |
+| `ThemeProvider` | CSS variables dark/light（`@coderyo/ui-shell` `createThemeProvider` + `localStorage`） |
+| `I18nProvider` | `t('key')` + 動態載入語言包；**預設 locale `zh-TW`**（`createI18nProvider` 包裝 `@coderyo/i18n`） |
+| `LogoSlot` | TopBar 品牌區（`mountLogoSlot`） |
+| `SymbolSearchDialog` | 彈窗式搜尋（`createSymbolSearchDialog`；TopBar `symbolInput: 'dialog'`） |
 
 ### 12.2 互動狀態機（簡化）
 
@@ -1745,7 +1747,8 @@ window.addEventListener('message', (e) => {
 ### PR-03: `feat(data): clients, reconnect, auth refresh, subscribe timeout`
 - **範圍**：§8.3.1、§8.4.1、§8.10 客戶端骨架、`Subscription` 型別
 - **依賴**：PR-02
-- **驗收**：整合測試覆蓋 reconnect + `refreshToken` + subscribe 超時
+- **驗收**：整合測試覆蓋 reconnect + `refreshToken` + subscribe 超時（`packages/data/tests/ws-client.test.ts`、`ws-client.reconnect.test.ts`、`gateway-provider.integration.test.ts`）
+- **狀態**：**v1 已實作**
 
 ### PR-04: `feat(series): BarStore time-key, mutationQueue, tick modes`
 - **範圍**：§7.1–7.4、`barSeq: string` + `compareBarSeq`、`streamMode`、symbol/interval 切換
@@ -1781,6 +1784,7 @@ window.addEventListener('message', (e) => {
 - **範圍**：LeftToolbar 殼、IndicatorPaneHost、**pane 拖曳（OQ1）**、**全螢幕 + 截圖（D19/D20）**、`setFullscreen`/`exportImage` 接線、主題
 - **依賴**：PR-08
 - **說明**：**完整 A**；`@coderyo/ui-shell` 為 **UNLICENSED** 私有包
+- **狀態**：**v1 已實作**（主圖/量 `attachPaneResizer`；指標窗 MACD/RSI/KDJ 拖曳在 `renderer-lite`；`ThemeProvider`/`I18nProvider`/`LogoSlot`/`SymbolSearchDialog`）
 
 ### PR-10: `feat(indicators): MA, Vol MA + warmup integration`
 - **依賴**：PR-09
@@ -1831,10 +1835,25 @@ window.addEventListener('message', (e) => {
 ### PR-21: `perf: LOD render copy + indicator incremental`
 - **依賴**：PR-05、PR-11
 - **說明**：§11.5 完整 LOD + `lodSourceMap`
+- **狀態**：**v1 部分**（`lodDecimateBars` 於 Orchestrator；指標窗 `detectIndicatorBarMutation` + `series.update` 尾端增量）
 
 ### PR-22: `feat(renderer-webgl): v2 stub + feature flag`
 - **範圍**：`packages/renderer-webgl` 空實作
 - **依賴**：PR-06
+
+---
+
+## v1.0 實作對照（TradView 1.0.x）
+
+| 能力 | 套件 | 備註 |
+|------|------|------|
+| TV 殼層 TopBar / LeftToolbar / 設定 | `@coderyo/ui-shell` | 含全螢幕、截圖、主題、品種搜尋（inline / dialog） |
+| 主圖 + 量 + 指標窗高度拖曳 | `@coderyo/renderer-lite` | `tradview:pane:*` localStorage 比例 |
+| 資料客戶端重連 / 訂閱超時 / token 刷新 | `@coderyo/data` | `TradViewWsClient` |
+| 指標 MACD / RSI / KDJ | `@coderyo/indicators` + renderer-lite | 可關閉窗格 |
+| 週期切換僅調 bar spacing | `@coderyo/core` | 可見根數由整合方 `getHistory` 決定 |
+
+**明確不在 v1**：Protobuf v1.1、CDN 授權 gate、完整 Pine v5、`renderer-webgl` 實作、TradingView 資料源。
 
 ---
 
