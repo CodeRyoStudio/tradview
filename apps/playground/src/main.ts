@@ -82,7 +82,8 @@ const shellOpts: ChartLayoutOptions = {
   ],
 };
 
-const { chartHost, indicatorHost, statusBar, crosshairLegend } = mountChartLayout(app, shellOpts);
+const { chartHost, indicatorHost, statusBar, crosshairLegend, setActiveDrawingTool } =
+  mountChartLayout(app, shellOpts);
 
 const chart = createChart(chartHost, {
   dataProvider: provider,
@@ -137,7 +138,10 @@ bindChartKeyboard({
     chart.setLogScale(logScale);
   },
   toggleTheme: () => shellOpts.onThemeToggle?.(),
-  selectCursorTool: () => chart.setDrawingTool('cursor'),
+  selectCursorTool: () => {
+    chart.setDrawingTool('cursor');
+    setActiveDrawingTool('cursor');
+  },
 });
 
 chart.on('connectionChange', (state) => {

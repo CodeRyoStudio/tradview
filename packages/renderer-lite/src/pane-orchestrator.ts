@@ -285,23 +285,29 @@ export class PaneOrchestrator {
 
   private initOverlay(parent: HTMLElement) {
     const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.left = '0';
-    canvas.style.top = '0';
-    canvas.style.pointerEvents = 'none';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.style.cssText =
+      'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:10;';
     parent.style.position = 'relative';
     parent.appendChild(canvas);
     this.overlayCanvas = canvas;
+    this.syncOverlaySize();
     this.bus.subscribeTransform(() => {
       this.syncOverlaySize();
     });
   }
 
+  /** Let drawing overlay receive clicks; cursor mode keeps pan/zoom on LWC. */
+  setOverlayPointerEvents(mode: 'auto' | 'none'): void {
+    if (this.overlayCanvas) this.overlayCanvas.style.pointerEvents = mode;
+  }
+
   private syncOverlaySize() {
     if (!this.overlayCanvas?.parentElement) return;
-    const rect = this.overlayCanvas.parentElement.getBoundingClientRect();
+    const parent = this.overlayCanvas.parentElement;
+    if (parent.lastElementChild !== this.overlayCanvas) {
+      parent.appendChild(this.overlayCanvas);
+    }
+    const rect = parent.getBoundingClientRect();
     this.overlayCanvas.width = rect.width * devicePixelRatio;
     this.overlayCanvas.height = rect.height * devicePixelRatio;
   }

@@ -45,7 +45,7 @@ export class DrawingManager {
     };
     this.key = storageKey(this.ctx.chartId, this.ctx.symbol, this.ctx.interval);
     this.drawings = loadDrawings(this.key).drawings;
-    opts.canvas.style.pointerEvents = 'auto';
+    this.applyPointerMode();
     opts.canvas.addEventListener('pointerdown', this.onDown);
     opts.canvas.addEventListener('pointermove', this.onMove);
     opts.canvas.addEventListener('pointerup', this.onUp);
@@ -54,7 +54,12 @@ export class DrawingManager {
   setTool(tool: DrawingTool): void {
     this.tool = tool;
     if (tool !== 'cursor') this.selectedId = null;
+    this.applyPointerMode();
     this.redraw();
+  }
+
+  private applyPointerMode(): void {
+    this.opts.canvas.style.pointerEvents = this.tool === 'cursor' ? 'none' : 'auto';
   }
 
   setContext(symbol: string, interval: string): void {

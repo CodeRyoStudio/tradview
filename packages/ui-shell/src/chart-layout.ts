@@ -28,6 +28,7 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   statusBar: ReturnType<typeof mountStatusBar>;
   crosshairLegend: ReturnType<typeof mountCrosshairLegend>;
   detachContextMenu: () => void;
+  setActiveDrawingTool: (tool: DrawingToolId) => void;
 } {
   root.style.display = 'flex';
   root.style.flexDirection = 'column';
@@ -37,10 +38,24 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   const body = document.createElement('div');
   body.style.cssText = 'display:flex;flex:1;min-height:0;';
 
+  let activeTool: DrawingToolId = opts.activeDrawingTool ?? 'cursor';
+  const toolButtons = new Map<DrawingToolId, HTMLButtonElement>();
+  const btnStyle =
+    'width:36px;height:32px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font-size:14px;';
+  const activeStyle =
+    'width:36px;height:32px;background:#388bfd;color:#fff;border:1px solid #58a6ff;border-radius:4px;cursor:pointer;font-size:14px;';
+
+  const setActiveDrawingTool = (tool: DrawingToolId) => {
+    activeTool = tool;
+    for (const [id, btn] of toolButtons) {
+      btn.style.cssText = id === tool ? activeStyle : btnStyle;
+    }
+  };
+
   if (opts.showLeftToolbar) {
     const left = document.createElement('aside');
     left.style.cssText =
-      'width:48px;border-right:1px solid #30363d;background:#161b22;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:8px;';
+      'width:48px;border-right:1px solid #30363d;background:#161b22;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:8px;flex-shrink:0;z-index:20;';
     const tools: Array<{ id: DrawingToolId; label: string }> = [
       { id: 'cursor', label: '↖' },
       { id: 'trendline', label: '╱' },
@@ -50,17 +65,17 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       { id: 'fibonacci', label: 'φ' },
       { id: 'text', label: 'T' },
     ];
-    const btnStyle =
-      'width:36px;height:32px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font-size:14px;';
-    const activeStyle =
-      'width:36px;height:32px;background:#388bfd;color:#fff;border:1px solid #58a6ff;border-radius:4px;cursor:pointer;font-size:14px;';
     for (const tool of tools) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.title = tool.id;
       btn.textContent = tool.label;
-      btn.style.cssText = opts.activeDrawingTool === tool.id ? activeStyle : btnStyle;
-      btn.onclick = () => opts.onDrawingToolSelect?.(tool.id);
+      btn.style.cssText = activeTool === tool.id ? activeStyle : btnStyle;
+      btn.onclick = () => {
+        setActiveDrawingTool(tool.id);
+        opts.onDrawingToolSelect?.(tool.id);
+      };
+      toolButtons.set(tool.id, btn);
       left.appendChild(btn);
     }
     body.appendChild(left);
@@ -87,5 +102,13 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     actions: opts.contextMenuActions,
   });
 
-  return { chartHost, indicatorHost, topBar, statusBar, crosshairLegend, detachContextMenu };
+  return {
+    chartHost,
+    indicatorHost,
+    topBar,
+    statusBar,
+    crosshairLegend,
+    detachContextMenu,
+    setActiveDrawingTool,
+  };
 }
