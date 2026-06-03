@@ -1,2 +1,2 @@
-﻿/** @tradview/renderer-lite — stub (PR-01) */
-export const PACKAGE_NAME = '@tradview/renderer-lite' as const;
+export * from './pane-orchestrator.js';
+export * from './time-scale-bus.js';
