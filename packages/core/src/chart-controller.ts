@@ -10,7 +10,7 @@ import type {
   SubscribeParams,
   SymbolResolver,
 } from '@coderyo/data';
-import { floorBarOpenTime } from '@coderyo/data';
+import { floorBarOpenTime, intervalMs } from '@coderyo/data';
 import type { HistoryRequest } from '@coderyo/virtual-window';
 import { parseInterval } from '@coderyo/data';
 import { BarStore } from '@coderyo/series';
@@ -84,6 +84,9 @@ export class ChartController {
   private offCrosshair: (() => void) | null = null;
   private features: ResolvedChartFeatures;
   private pineIr: PineIrProgram | null = null;
+  private catchUpInFlight = false;
+  private lastCatchUpAt = 0;
+  private offPageResume: (() => void) | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -166,6 +169,8 @@ export class ChartController {
     this.offCrosshair = this.orchestrator.subscribeCrosshair((payload) => {
       this.emit('crosshairChange', payload);
     });
+
+    this.bindPageResumeCatchUp();
 
     if (this.hasActiveSymbol()) {
       void this.bootstrap(this.loadGeneration);
@@ -528,6 +533,8 @@ export class ChartController {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.offPageResume?.();
+    this.offPageResume = null;
     this.offCrosshair?.();
     this.offCrosshair = null;
     this.resizeObserver.disconnect();
@@ -603,7 +610,12 @@ export class ChartController {
         const bar = this.buildBarFromPrice(tick.price, tick.t);
         void this.applyRealtimeBar(bar, true, loadGen);
       },
-      onConnectionChange: (state) => this.emit('connectionChange', state),
+      onConnectionChange: (state) => {
+        this.emit('connectionChange', state);
+        if (state === 'connected') {
+          void this.catchUpMissedBars();
+        }
+      },
       onError: (err) => this.emit('error', err),
     });
     if (!this.isLoadGenerationCurrent(loadGen)) {
@@ -617,6 +629,79 @@ export class ChartController {
     if (this.subscriptionId) {
       await this.options.dataProvider.unsubscribe(this.subscriptionId);
       this.subscriptionId = null;
+    }
+  }
+
+  private bindPageResumeCatchUp(): void {
+    if (typeof document === 'undefined') return;
+
+    const onResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      void this.catchUpMissedBars();
+    };
+
+    document.addEventListener('visibilitychange', onResume);
+    const cleanups: Array<() => void> = [
+      () => document.removeEventListener('visibilitychange', onResume),
+    ];
+
+    if (typeof window !== 'undefined') {
+      const onFocus = () => void this.catchUpMissedBars();
+      window.addEventListener('focus', onFocus);
+      cleanups.push(() => window.removeEventListener('focus', onFocus));
+    }
+
+    this.offPageResume = () => {
+      for (const fn of cleanups) fn();
+    };
+  }
+
+  /**
+   * Backfill bars missed while the tab/window was backgrounded or WS delivery paused.
+   */
+  private async catchUpMissedBars(): Promise<void> {
+    if (this.destroyed || !this.hasActiveSymbol()) return;
+
+    const now = Date.now();
+    if (now - this.lastCatchUpAt < 400) return;
+    if (this.catchUpInFlight) return;
+
+    const times = this.store.sortedTimes;
+    if (times.length === 0) return;
+
+    const lastT = times[times.length - 1]!;
+    const interval = this.store.interval;
+    const to = now + intervalMs(interval);
+    if (to <= lastT) return;
+
+    this.catchUpInFlight = true;
+    this.lastCatchUpAt = now;
+    const loadGen = this.loadGeneration;
+    const symbol = this.store.symbol;
+
+    try {
+      const history = await this.options.dataProvider.getHistory({
+        mode: 'range',
+        symbol,
+        interval,
+        from: lastT,
+        to,
+      });
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+      if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+      if (history.bars.length === 0) return;
+
+      await this.store.mergeBars(
+        history.bars.map((bar) => ({ bar, source: 'rest' as const })),
+      );
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+
+      this.orchestrator.preserveViewportOnNextSetBars();
+      this.refreshRender(loadGen);
+    } catch (err) {
+      this.emit('error', err);
+    } finally {
+      this.catchUpInFlight = false;
     }
   }
 

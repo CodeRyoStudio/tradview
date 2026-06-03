@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Background tab / window focus**: on `visibilitychange` (visible) and `window` `focus`, chart backfills missed bars via REST `range` instead of leaving gaps until manual refresh
+
 ## [1.0.0-rc.4] - 2026-06-03
 
 ### Added
