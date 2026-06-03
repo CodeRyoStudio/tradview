@@ -231,7 +231,9 @@ export class TradViewWsClient {
   }
 
   private async resubscribeAll(): Promise<void> {
-    for (const sub of this.activeSubs.values()) {
+    const toRestore = [...this.activeSubs.values()];
+    this.activeSubs.clear();
+    for (const sub of toRestore) {
       const clientRef = nextClientId('sub');
       this.pendingByClientRef.set(clientRef, {
         params: {

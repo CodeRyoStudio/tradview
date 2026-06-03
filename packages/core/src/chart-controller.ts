@@ -96,6 +96,8 @@ export class ChartController {
   private catchUpInFlight = false;
   private lastCatchUpAt = 0;
   private offPageResume: (() => void) | null = null;
+  /** After clearAllIndicators(); blocks Pine replot until script/features change. */
+  private pinePlotsSuppressed = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -197,6 +199,9 @@ export class ChartController {
   }
 
   setFeatures(patch: ChartFeatures): this {
+    if (patch.pineEnabled === true || patch.pineScript !== undefined) {
+      this.pinePlotsSuppressed = false;
+    }
     this.features = mergeChartFeatures(this.features, patch);
     this.applyFeatures();
     this.emit('featuresChange', this.getFeatures());
@@ -249,7 +254,7 @@ export class ChartController {
   }
 
   private applyPinePlots(bars: Bar[]): void {
-    if (!this.features.pineEnabled || !this.pineIr) {
+    if (this.pinePlotsSuppressed || !this.features.pineEnabled || !this.pineIr) {
       this.orchestrator.setPinePlots(null);
       return;
     }
@@ -443,6 +448,7 @@ export class ChartController {
     const config = clearedIndicatorConfig(this.features.indicators ?? undefined);
     this.setIndicatorConfig(config);
     this.orchestrator.setPinePlots(null);
+    this.pinePlotsSuppressed = true;
     return config;
   }
 

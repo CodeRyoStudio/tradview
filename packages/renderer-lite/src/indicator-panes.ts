@@ -167,7 +167,11 @@ export class IndicatorPaneStack {
 
   setConfig(config: IndicatorConfig): void {
     this.config = config;
+    this.lastBarTimes = [];
     this.applyPaneVisibility();
+    if (!this.config.showMacd && !this.config.showRsi && !this.config.showKdj) {
+      this.clearBars();
+    }
   }
 
   private closePane(id: IndicatorPaneId): void {

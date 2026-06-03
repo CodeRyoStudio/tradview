@@ -230,6 +230,7 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
         content.appendChild(
           actionButton(t('settings.ind.clearAll', '清空所有指標'), () => {
             opts.onClearAllIndicators?.();
+            if (opts.indicatorConfig) indicatorConfig = { ...opts.indicatorConfig };
             renderContent();
           }),
         );
@@ -244,6 +245,10 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
   btn.onclick = (e) => {
     e.stopPropagation();
     open = !open;
+    if (open) {
+      if (opts.indicatorConfig) indicatorConfig = { ...opts.indicatorConfig };
+      renderContent();
+    }
     panel.style.display = open ? 'block' : 'none';
   };
 
