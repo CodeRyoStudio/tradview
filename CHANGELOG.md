@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- [docs/API.md](./docs/API.md) — 整合方 API 參考（`@coderyo/*`、`createChart`、Bridge、DataProvider）
+
 ### Changed
 
 - **npm scope**: all publishable packages renamed from `@tradview/*` to `@coderyo/*` (org `coderyo`)

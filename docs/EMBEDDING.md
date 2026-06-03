@@ -1,6 +1,6 @@
 # TradView 嵌入指南
 
-> **RC `1.0.0-rc.2`** — 公開 API 見 [API-FREEZE.md](./API-FREEZE.md)（`apiVersion: 1`）。
+> **RC `1.0.0-rc.2`** — 完整 API 見 [API.md](./API.md)；凍結範圍見 [API-FREEZE.md](./API-FREEZE.md)（`apiVersion: 1`）。
 
 整合方預設為 **最小圖表**：不帶商品、不帶指標、不帶繪圖互動層、不帶 TV 殼層；需用 `features` / `mountChartLayout` **明確開啟**。Playground 使用 `createDemoChartOptions` / `createDemoLayoutOptions` 展示全功能。
 
