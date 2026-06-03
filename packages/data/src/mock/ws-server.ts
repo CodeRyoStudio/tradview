@@ -2,7 +2,7 @@ import http from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { parseInterval } from '../interval.js';
 import type { Envelope } from '../types.js';
-import { floorBarOpenTime, generateBars } from './bar-generator.js';
+import { floorBarOpenTime, generateBars, seedNextBar } from './bar-generator.js';
 import { resolveHistoryBars } from './bar-generator.js';
 
 export interface MockWsServerOptions {
@@ -190,19 +190,15 @@ function startBarPush(ws: WebSocket, sub: Subscription) {
         },
       });
       openTime = currentOpen;
-      bar = generateBars({
-        symbol: sub.symbol,
-        interval: sub.interval,
-        endTime: openTime,
-        count: 1,
-      })[0]!;
+      bar = seedNextBar(sub.symbol, sub.interval, openTime, bar.c);
     } else {
-      const jitter = (Math.random() - 0.5) * 0.2;
+      const jitter = (Math.random() - 0.5) * (bar.c * 0.00015);
+      const c = bar.c + jitter;
       bar = {
         ...bar,
-        h: Math.max(bar.h, bar.c + jitter + 0.1),
-        l: Math.min(bar.l, bar.c + jitter - 0.1),
-        c: bar.c + jitter,
+        h: Math.max(bar.h, c + Math.abs(jitter)),
+        l: Math.min(bar.l, c - Math.abs(jitter)),
+        c,
       };
       send(ws, {
         v: '1.0',

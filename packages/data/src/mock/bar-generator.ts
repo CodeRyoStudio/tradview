@@ -8,7 +8,15 @@ export interface BarGeneratorOptions {
   endTime: number;
   count: number;
   basePrice?: number;
+  /** Continue random walk from this close (newest bar builds backward if unset). */
+  anchorClose?: number;
 }
+
+const SYMBOL_BASE: Record<string, number> = {
+  'BINANCE:BTCUSDT': 94_250,
+  'BINANCE:ETHUSDT': 3_420,
+  'BINANCE:SOLUSDT': 148,
+};
 
 function hashSeed(symbol: string): number {
   let h = 0;
@@ -18,25 +26,79 @@ function hashSeed(symbol: string): number {
   return h;
 }
 
-/** Deterministic synthetic OHLCV bars for mock gateway. */
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function defaultBasePrice(symbol: string): number {
+  if (SYMBOL_BASE[symbol]) return SYMBOL_BASE[symbol]!;
+  const seed = hashSeed(symbol);
+  return 100 + (seed % 5000) / 10;
+}
+
+/** Volatility fraction per bar (~0.15%–0.4% depending on interval). */
+function volatilityFor(symbol: string, interval: Interval): number {
+  const base = defaultBasePrice(symbol);
+  const ms = intervalMs(interval);
+  const scale = Math.min(1.2, Math.max(0.35, Math.sqrt(ms / 60_000) * 0.12));
+  return base * 0.003 * scale;
+}
+
+/** Deterministic synthetic OHLCV — random-walk style, not real market data. */
 export function generateBars(opts: BarGeneratorOptions): Bar[] {
   const ms = intervalMs(opts.interval);
-  const seed = hashSeed(opts.symbol);
-  const base = opts.basePrice ?? 100 + (seed % 5000) / 10;
+  const seed = hashSeed(opts.symbol) ^ (Math.floor(opts.endTime / ms) >>> 0);
+  const rand = mulberry32(seed);
+  const vol = volatilityFor(opts.symbol, opts.interval);
   const bars: Bar[] = [];
 
-  for (let i = opts.count - 1; i >= 0; i--) {
+  let close = opts.anchorClose ?? opts.basePrice ?? defaultBasePrice(opts.symbol);
+
+  // Walk backward from newest to oldest, then reverse.
+  const stack: Bar[] = [];
+  for (let i = 0; i < opts.count; i++) {
     const t = opts.endTime - i * ms;
-    const phase = (seed + i) * 0.17;
-    const o = base + Math.sin(phase) * 2;
-    const c = base + Math.sin(phase + 0.4) * 2;
-    const h = Math.max(o, c) + 0.5 + (i % 3) * 0.1;
-    const l = Math.min(o, c) - 0.5 - (i % 2) * 0.1;
-    const v = 1000 + ((seed + i) % 500);
-    bars.push({ t, o, h, l, c, v });
+    const change = (rand() - 0.48) * vol;
+    const c = close;
+    const o = c - change;
+    const wick = rand() * vol * 0.45;
+    const h = Math.max(o, c) + wick;
+    const l = Math.min(o, c) - wick;
+    const v = Math.round(800 + rand() * 4000);
+    stack.push({ t, o, h, l, c, v });
+    close = o;
   }
 
-  return bars;
+  stack.reverse();
+  return stack;
+}
+
+/** Seed a new realtime bar from previous close. */
+export function seedNextBar(
+  symbol: string,
+  interval: Interval,
+  openTime: number,
+  prevClose: number,
+): Bar {
+  const rand = mulberry32(hashSeed(symbol) ^ (Math.floor(openTime / intervalMs(interval)) >>> 0));
+  const vol = volatilityFor(symbol, interval);
+  const o = prevClose;
+  const c = o + (rand() - 0.48) * vol * 0.6;
+  const wick = rand() * vol * 0.35;
+  return {
+    t: openTime,
+    o,
+    h: Math.max(o, c) + wick,
+    l: Math.min(o, c) - wick,
+    c,
+    v: Math.round(600 + rand() * 2500),
+  };
 }
 
 export function floorBarOpenTime(t: number, interval: Interval): number {
@@ -129,7 +191,6 @@ export function resolveHistoryBars(
     return { bars, hasMore };
   }
 
-  // cursor mode
   const offset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const endTime = now - offset * ms - ms;
   const bars = generateBars({

@@ -32,6 +32,8 @@ describe('mock gateway', () => {
     const body = await res.json();
     expect(body.bars).toHaveLength(10);
     expect(body.bars[0].t).toBeLessThan(body.bars[9].t);
+    expect(body.bars[9].c).toBeGreaterThan(50_000);
+    expect(body.bars[9].c).toBeLessThan(200_000);
   });
 
   it('supports range history', async () => {
