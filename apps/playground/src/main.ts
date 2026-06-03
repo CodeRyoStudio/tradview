@@ -152,14 +152,18 @@ function showError(err: unknown) {
   errorEl.textContent = err instanceof Error ? err.message : String(err);
 }
 
+const updateShellMeta = () => {
+  statusBar.update({ interval: lastInterval, symbol: lastSymbol });
+  crosshairLegend.setMeta({ symbol: lastSymbol, interval: lastInterval });
+};
+
 shellOpts.onIntervalChange = (interval) => {
   lastInterval = interval;
   indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
   shellOpts.settings!.indicatorConfig = indicatorConfig;
   chart.setInterval(interval);
   chart.setIndicatorConfig(indicatorConfig);
-  statusBar.update({ interval });
-  crosshairLegend.setMeta({ interval });
+  updateShellMeta();
 };
 
 shellOpts.onThemeToggle = () => {

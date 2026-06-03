@@ -199,11 +199,14 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
 
     if (f.showTopBar) {
       topBar.remove();
-      topBar = mountTopBar(root, {
-        ...opts,
-        symbolInput: f.symbolInput,
-        showSettings: f.showSettings,
-      });
+      // Mutate opts in place so late-assigned callbacks (e.g. onIntervalChange) stay wired.
+      topBar = mountTopBar(
+        root,
+        Object.assign(opts, {
+          symbolInput: f.symbolInput,
+          showSettings: f.showSettings,
+        }),
+      );
     } else {
       topBar.style.display = 'none';
     }
