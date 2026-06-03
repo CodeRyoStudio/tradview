@@ -20,9 +20,20 @@ describe('compilePineLite', () => {
     expect(r.ir?.plots).toEqual(['plot_0']);
   });
 
-  it('rejects unknown identifier', () => {
+  it('compiles if/else', () => {
+    const r = compilePineLite('if (close > 0) { plot(close) } else { plot(open) }');
+    expect(r.ok).toBe(true);
+  });
+
+  it('compiles for loop', () => {
+    const r = compilePineLite('for i = 1 to 2 { plot(close) }');
+    expect(r.ok).toBe(true);
+  });
+
+  it('returns line/col diagnostics', () => {
     const r = compilePineLite('plot(foo)');
     expect(r.ok).toBe(false);
+    expect(r.diagnostics[0]?.line).toBeGreaterThan(0);
   });
 });
 

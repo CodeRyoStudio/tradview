@@ -13,5 +13,7 @@ export * from './drawing-properties-panel.js';
 export * from './drawing-context-menu.js';
 export * from './shortcuts-modal.js';
 export * from './code-snippet-panel.js';
+export * from './pine-editor-panel.js';
+export { pineLanguage } from './pine-language.js';
 export type { TopBarOptions } from './top-bar.js';
 export type { SettingsPanelOptions } from './settings-panel.js';

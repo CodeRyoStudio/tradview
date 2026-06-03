@@ -10,10 +10,13 @@ import {
   createDemoLayoutOptions,
   mountChartLayout,
   mountCodeSnippetPanel,
+  mountPineEditorPanel,
+  loadPineScriptPreference,
   openDrawingContextMenu,
   saveIndicatorConfig,
   type DrawingToolId,
 } from '@coderyo/ui-shell';
+import { PINE_EDITOR_DEFAULT } from '@coderyo/core';
 
 const app = document.getElementById('app')!;
 const errorEl = document.getElementById('demo-error')!;
@@ -131,6 +134,9 @@ const chart = createChart(
 );
 chartRef.current = chart;
 
+const initialPineScript = loadPineScriptPreference() ?? PINE_EDITOR_DEFAULT;
+chart.setFeatures({ pineEnabled: true, pineScript: initialPineScript });
+
 const updateShellMeta = () => {
   statusBar.update({ interval: lastInterval, symbol: lastSymbol });
   crosshairLegend.setMeta({ symbol: lastSymbol, interval: lastInterval });
@@ -163,6 +169,14 @@ shellOpts.onScreenshot = () => {
     URL.revokeObjectURL(url);
   });
 };
+
+mountPineEditorPanel(document.body, {
+  initialScript: initialPineScript,
+  onApply: (script, ok) => {
+    if (!ok) return;
+    chart.setFeatures({ pineEnabled: true, pineScript: script });
+  },
+});
 
 mountCodeSnippetPanel(document.body, () =>
   `import { createChart } from '@coderyo/core';

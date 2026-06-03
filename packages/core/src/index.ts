@@ -18,6 +18,7 @@ export {
   compilePineLite,
   runPineLite,
   PINE_SAMPLE_SCRIPT,
+  PINE_EDITOR_DEFAULT,
   type PineCompileResult,
   type PineIrProgram,
   type PinePlotSeries,

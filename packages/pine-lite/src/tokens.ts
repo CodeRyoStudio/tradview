@@ -3,8 +3,25 @@ export type TokenType =
   | 'ident'
   | 'var'
   | 'plot'
-  | 'assign' // :=
-  | 'eq' // =
+  | 'if'
+  | 'else'
+  | 'while'
+  | 'for'
+  | 'to'
+  | 'and'
+  | 'or'
+  | 'not'
+  | 'true'
+  | 'false'
+  | 'assign'
+  | 'eq'
+  | 'ne'
+  | 'lt'
+  | 'gt'
+  | 'le'
+  | 'ge'
+  | 'lbrace'
+  | 'rbrace'
   | 'lparen'
   | 'rparen'
   | 'comma'
@@ -18,4 +35,6 @@ export interface Token {
   type: TokenType;
   value: string;
   pos: number;
+  line: number;
+  col: number;
 }
