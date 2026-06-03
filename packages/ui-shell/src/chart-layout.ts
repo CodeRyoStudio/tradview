@@ -1,3 +1,4 @@
+import { mountIndicatorPaneHost } from './indicator-pane-host.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 
 export interface ChartLayoutOptions extends TopBarOptions {
@@ -24,10 +25,15 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     body.appendChild(left);
   }
 
+  const chartColumn = document.createElement('div');
+  chartColumn.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;';
+
   const chartHost = document.createElement('div');
   chartHost.style.flex = '1';
   chartHost.style.minHeight = '0';
-  body.appendChild(chartHost);
+  chartColumn.appendChild(chartHost);
+  mountIndicatorPaneHost(chartColumn);
+  body.appendChild(chartColumn);
 
   root.appendChild(body);
   const topBar = mountTopBar(root, opts);

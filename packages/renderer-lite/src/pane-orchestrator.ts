@@ -9,6 +9,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
+import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
 
 export type ScaleMode = 'linear' | 'log';
@@ -55,6 +56,7 @@ export class PaneOrchestrator {
     opts.container.style.flexDirection = 'column';
     opts.container.style.height = '100%';
     opts.container.append(mainEl, volEl);
+    attachPaneResizer(mainEl, volEl, { storageKey: 'tradview:pane:main-volume' });
 
     this.mainChart = createChart(mainEl, { layout, autoSize: true });
     this.volumeChart = createChart(volEl, {
