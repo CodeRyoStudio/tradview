@@ -1,6 +1,6 @@
 {
   "name": "@coderyo/data",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TradView protocol types, interval registry, and mock gateway",
   "license": "MIT",
   "type": "module",

@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-03
+
+### Fixed
+
+- Pine Worker promise rejections surfaced via `error` event
+- `setFeatures` / pine recompile refreshes plots immediately
+- WS `connected` no longer triggers redundant catch-up during initial bootstrap
+
 ## [1.0.0] - 2026-06-03
 
 ### Added
