@@ -1,6 +1,7 @@
 import type { BridgeAdapter } from '@tradview/bridge';
 import { BRIDGE_SCHEMA_VERSION, isBridgeInbound, type BridgeInboundType } from '@tradview/bridge';
 import type { Interval } from '@tradview/data';
+import type { CrosshairPayload } from '@tradview/renderer-lite';
 import type { ChartController, ChartEvent } from './chart-controller.js';
 import type { IChart } from './create-chart.js';
 
@@ -28,13 +29,11 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
 
   const postResize = () => {
     const el = controller.getContainer();
-    if (el) {
-      const r = el.getBoundingClientRect();
-      bridge.post({
-        type: 'chart.resize',
-        payload: { chartId, width: Math.round(r.width), height: Math.round(r.height) },
-      });
-    }
+    const r = el.getBoundingClientRect();
+    bridge.post({
+      type: 'chart.resize',
+      payload: { chartId, width: Math.round(r.width), height: Math.round(r.height) },
+    });
   };
   postResize();
 
@@ -47,9 +46,10 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     });
   });
   handlers.set('visibleRangeChange', (range) => {
+    const r = range as { from?: number; to?: number };
     bridge.post({
       type: 'chart.visibleRange',
-      payload: { chartId, ...(range as object) },
+      payload: { chartId, from: r.from, to: r.to },
     });
   });
   handlers.set('error', (err) => {
@@ -73,6 +73,27 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     bridge.post({
       type: 'chart.interval',
       payload: { chartId, interval: String(interval ?? '') },
+    });
+  });
+  handlers.set('crosshairChange', (payload) => {
+    const p = payload as CrosshairPayload | null;
+    if (!p) return;
+    bridge.post({
+      type: 'chart.crosshair',
+      payload: {
+        chartId,
+        time: p.time,
+        price: p.price,
+        ohlcv: p.ohlcv,
+        symbol: controller.getSymbol(),
+        interval: controller.getInterval(),
+      },
+    });
+  });
+  handlers.set('destroyed', () => {
+    bridge.post({
+      type: 'chart.destroyed',
+      payload: { chartId },
     });
   });
 

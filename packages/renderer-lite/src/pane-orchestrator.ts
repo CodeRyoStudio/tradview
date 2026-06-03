@@ -3,20 +3,32 @@ import {
   ColorType,
   createChart,
   HistogramSeries,
+  LineSeries,
   type CandlestickData,
   type HistogramData,
   type IChartApi,
+  type ISeriesApi,
+  type MouseEventParams,
+  type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
 import { lodDecimateBars } from '@tradview/series';
+import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
 
 export type ScaleMode = 'linear' | 'log';
 
+export interface CrosshairPayload {
+  time: number;
+  price: number | null;
+  ohlcv: { o: number; h: number; l: number; c: number; v?: number } | null;
+}
+
 export interface PaneOrchestratorOptions {
   container: HTMLElement;
+  indicatorRoot?: HTMLElement;
   theme?: 'dark' | 'light';
   scaleMode?: ScaleMode;
   maxRenderPoints?: number;
@@ -38,11 +50,15 @@ export class PaneOrchestrator {
   readonly bus = new TimeScaleBus();
   private readonly mainChart: IChartApi;
   private readonly volumeChart: IChartApi;
-  private readonly mainSeries;
-  private readonly volumeSeries;
+  private readonly mainSeries: ISeriesApi<'Candlestick'>;
+  private readonly volumeSeries: ISeriesApi<'Histogram'>;
+  private readonly maSeries: ISeriesApi<'Line'>;
+  private readonly volMaSeries: ISeriesApi<'Line'>;
+  private readonly indicators: IndicatorPaneStack | null;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
   private readonly maxRenderPoints: number;
+  private barByTime = new Map<number, Bar>();
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -67,7 +83,7 @@ export class PaneOrchestrator {
     });
 
     if (opts.scaleMode === 'log') {
-      this.mainChart.priceScale('right').applyOptions({ mode: 1 }); // Logarithmic
+      this.mainChart.priceScale('right').applyOptions({ mode: 1 });
     }
 
     this.mainSeries = this.mainChart.addSeries(CandlestickSeries, {
@@ -77,13 +93,27 @@ export class PaneOrchestrator {
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
     });
+    this.maSeries = this.mainChart.addSeries(LineSeries, {
+      color: '#f0b429',
+      lineWidth: 1,
+      title: 'MA20',
+    });
     this.volumeSeries = this.volumeChart.addSeries(HistogramSeries, {
       color: '#26a69a55',
       priceFormat: { type: 'volume' },
     });
+    this.volMaSeries = this.volumeChart.addSeries(LineSeries, {
+      color: '#58a6ff',
+      lineWidth: 1,
+      title: 'VolMA5',
+    });
 
     this.bus.register(this.mainChart);
     this.bus.register(this.volumeChart);
+
+    this.indicators = opts.indicatorRoot
+      ? new IndicatorPaneStack(opts.indicatorRoot, this.bus, opts.theme ?? 'dark')
+      : null;
 
     this.initOverlay(mainEl);
   }
@@ -93,10 +123,13 @@ export class PaneOrchestrator {
     const layout = this.layoutForTheme(this.dark);
     this.mainChart.applyOptions({ layout });
     this.volumeChart.applyOptions({ layout });
+    this.indicators?.setTheme(theme);
   }
 
   setBars(bars: Bar[], gaps?: number[]): void {
     const renderBars = lodDecimateBars(bars, this.maxRenderPoints);
+    this.barByTime = new Map(renderBars.map((b) => [b.t, b]));
+
     const candles: CandlestickData[] = [];
     const vols: HistogramData<UTCTimestamp>[] = [];
     const gapSet = new Set(gaps ?? []);
@@ -111,24 +144,68 @@ export class PaneOrchestrator {
     }
 
     this.mainSeries.setData(candles);
+    this.maSeries.setData(maOverlayLine(renderBars, 20));
     this.volumeSeries.setData(vols);
+    this.volMaSeries.setData(volMaOverlayLine(renderBars, 5));
+    this.indicators?.setBars(renderBars);
 
     if (renderBars.length > 0) {
       this.bus.setBarsTimeRange(renderBars[0]!.t, renderBars[renderBars.length - 1]!.t);
       this.syncChartSize();
       this.mainChart.timeScale().fitContent();
       this.volumeChart.timeScale().fitContent();
+      this.indicators?.fitContent();
     }
+  }
+
+  subscribeCrosshair(listener: (payload: CrosshairPayload | null) => void): () => void {
+    const handler = (param: MouseEventParams<Time>) => {
+      if (param.time == null || !param.point) {
+        listener(null);
+        return;
+      }
+      const tMs = typeof param.time === 'number' ? param.time * 1000 : null;
+      if (tMs == null) {
+        listener(null);
+        return;
+      }
+      const price = this.mainSeries.coordinateToPrice(param.point.y) ?? null;
+      const bar = this.barByTime.get(tMs) ?? this.findNearestBar(tMs);
+      listener({
+        time: tMs,
+        price,
+        ohlcv: bar
+          ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
+          : null,
+      });
+    };
+    this.mainChart.subscribeCrosshairMove(handler);
+    return () => this.mainChart.unsubscribeCrosshairMove(handler);
+  }
+
+  private findNearestBar(tMs: number): Bar | null {
+    let best: Bar | null = null;
+    let bestDt = Infinity;
+    for (const b of this.barByTime.values()) {
+      const dt = Math.abs(b.t - tMs);
+      if (dt < bestDt) {
+        bestDt = dt;
+        best = b;
+      }
+    }
+    return bestDt < 120_000 ? best : null;
   }
 
   fitContent(): void {
     this.mainChart.timeScale().fitContent();
     this.volumeChart.timeScale().fitContent();
+    this.indicators?.fitContent();
   }
 
   scrollToRealtime(): void {
     this.mainChart.timeScale().scrollToRealTime();
     this.volumeChart.timeScale().scrollToRealTime();
+    this.indicators?.scrollToRealtime();
   }
 
   setLogScale(enabled: boolean): void {
@@ -138,21 +215,7 @@ export class PaneOrchestrator {
   resize(): void {
     this.syncChartSize();
     this.syncOverlaySize();
-  }
-
-  private syncChartSize(): void {
-    const mainEl = this.mainChart.chartElement().parentElement;
-    const volEl = this.volumeChart.chartElement().parentElement;
-    if (mainEl) {
-      const w = mainEl.clientWidth;
-      const h = mainEl.clientHeight;
-      if (w > 0 && h > 0) this.mainChart.resize(w, h);
-    }
-    if (volEl) {
-      const w = volEl.clientWidth;
-      const h = volEl.clientHeight;
-      if (w > 0 && h > 0) this.volumeChart.resize(w, h);
-    }
+    this.indicators?.resize();
   }
 
   getOverlayCanvas(): HTMLCanvasElement | null {
@@ -185,6 +248,7 @@ export class PaneOrchestrator {
   destroy(): void {
     this.mainChart.remove();
     this.volumeChart.remove();
+    this.indicators?.destroy();
     this.overlayCanvas?.remove();
   }
 
@@ -199,7 +263,9 @@ export class PaneOrchestrator {
     parent.style.position = 'relative';
     parent.appendChild(canvas);
     this.overlayCanvas = canvas;
-    this.bus.subscribeTransform(() => this.syncOverlaySize());
+    this.bus.subscribeTransform(() => {
+      this.syncOverlaySize();
+    });
   }
 
   private syncOverlaySize() {
@@ -207,6 +273,21 @@ export class PaneOrchestrator {
     const rect = this.overlayCanvas.parentElement.getBoundingClientRect();
     this.overlayCanvas.width = rect.width * devicePixelRatio;
     this.overlayCanvas.height = rect.height * devicePixelRatio;
+  }
+
+  private syncChartSize(): void {
+    const mainEl = this.mainChart.chartElement().parentElement;
+    const volEl = this.volumeChart.chartElement().parentElement;
+    if (mainEl) {
+      const w = mainEl.clientWidth;
+      const h = mainEl.clientHeight;
+      if (w > 0 && h > 0) this.mainChart.resize(w, h);
+    }
+    if (volEl) {
+      const w = volEl.clientWidth;
+      const h = volEl.clientHeight;
+      if (w > 0 && h > 0) this.volumeChart.resize(w, h);
+    }
   }
 
   private layoutForTheme(dark: boolean) {

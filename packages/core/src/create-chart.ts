@@ -77,8 +77,8 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       return wrap(controller, beforeDestroy);
     },
     destroy: () => {
-      beforeDestroy?.();
       controller.destroy();
+      beforeDestroy?.();
     },
   };
 }

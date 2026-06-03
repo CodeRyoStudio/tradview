@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@tradview/data": "workspace:*",
+    "@tradview/indicators": "workspace:*",
     "@tradview/series": "workspace:*",
     "lightweight-charts": "^5.0.7"
   },

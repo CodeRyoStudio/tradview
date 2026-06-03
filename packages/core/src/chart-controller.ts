@@ -13,6 +13,8 @@ export interface ChartOptions {
   interval?: Interval;
   symbol?: string;
   chartId?: string;
+  /** Host element below main chart for MACD/RSI/KDJ panes (from ui-shell layout). */
+  indicatorHost?: HTMLElement;
   dataProvider: DataProvider;
   fetchPolicy?: FetchPolicy;
   scaleMode?: 'linear' | 'log';
@@ -24,7 +26,9 @@ export type ChartEvent =
   | 'error'
   | 'visibleRangeChange'
   | 'symbolChange'
-  | 'intervalChange';
+  | 'intervalChange'
+  | 'crosshairChange'
+  | 'destroyed';
 
 type EventHandler = (payload?: unknown) => void;
 
@@ -38,6 +42,7 @@ export class ChartController {
   private readonly resizeObserver: ResizeObserver;
   private loadingMore = false;
   private drawingManager: DrawingManager | null = null;
+  private offCrosshair: (() => void) | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -53,6 +58,7 @@ export class ChartController {
     });
     this.orchestrator = new PaneOrchestrator({
       container,
+      indicatorRoot: options.indicatorHost,
       theme: options.theme ?? 'dark',
       scaleMode: options.scaleMode ?? 'linear',
     });
@@ -83,6 +89,10 @@ export class ChartController {
         yToPrice: (y) => this.orchestrator.yToPrice(y),
       });
     }
+
+    this.offCrosshair = this.orchestrator.subscribeCrosshair((payload) => {
+      this.emit('crosshairChange', payload);
+    });
 
     void this.bootstrap();
   }
@@ -186,11 +196,15 @@ export class ChartController {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
     this.destroyed = true;
+    this.offCrosshair?.();
+    this.offCrosshair = null;
     this.resizeObserver.disconnect();
     this.drawingManager?.destroy();
     void this.teardownSubscription();
     this.orchestrator.destroy();
+    this.emit('destroyed', { chartId: this.options.chartId ?? 'default' });
     this.emit('connectionChange', 'disconnected');
   }
 

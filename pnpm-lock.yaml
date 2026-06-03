@@ -287,6 +287,9 @@ importers:
       '@tradview/data':
         specifier: workspace:*
         version: link:../data
+      '@tradview/indicators':
+        specifier: workspace:*
+        version: link:../indicators
       '@tradview/series':
         specifier: workspace:*
         version: link:../series

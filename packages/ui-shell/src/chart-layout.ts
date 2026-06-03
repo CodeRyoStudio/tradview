@@ -1,7 +1,14 @@
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 
-export type DrawingToolId = 'cursor' | 'trendline' | 'hline';
+export type DrawingToolId =
+  | 'cursor'
+  | 'trendline'
+  | 'hline'
+  | 'vline'
+  | 'rectangle'
+  | 'fibonacci'
+  | 'text';
 
 export interface ChartLayoutOptions extends TopBarOptions {
   showLeftToolbar?: boolean;
@@ -11,6 +18,7 @@ export interface ChartLayoutOptions extends TopBarOptions {
 
 export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {}): {
   chartHost: HTMLElement;
+  indicatorHost: HTMLElement;
   topBar: HTMLElement;
 } {
   root.style.display = 'flex';
@@ -29,6 +37,10 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       { id: 'cursor', label: '↖' },
       { id: 'trendline', label: '╱' },
       { id: 'hline', label: '─' },
+      { id: 'vline', label: '│' },
+      { id: 'rectangle', label: '▭' },
+      { id: 'fibonacci', label: 'φ' },
+      { id: 'text', label: 'T' },
     ];
     const btnStyle =
       'width:36px;height:32px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font-size:14px;';
@@ -52,12 +64,12 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   const chartHost = document.createElement('div');
   chartHost.style.cssText = 'flex:1;min-height:0;width:100%;height:100%;position:relative;overflow:hidden;';
   chartColumn.appendChild(chartHost);
-  mountIndicatorPaneHost(chartColumn);
+  const indicatorHost = mountIndicatorPaneHost(chartColumn);
   body.appendChild(chartColumn);
 
   root.appendChild(body);
   const topBar = mountTopBar(root, opts);
   root.insertBefore(topBar, body);
 
-  return { chartHost, topBar };
+  return { chartHost, indicatorHost, topBar };
 }

@@ -1,8 +1,7 @@
 import { createChart, type IChart } from '@tradview/core';
 import { createGatewayDataProvider } from '@tradview/data';
-import { sma } from '@tradview/indicators';
 import { bindChartKeyboard } from '@tradview/interaction';
-import { mountChartLayout, type TopBarOptions } from '@tradview/ui-shell';
+import { mountChartLayout, type DrawingToolId, type TopBarOptions } from '@tradview/ui-shell';
 
 const app = document.getElementById('app')!;
 const connDot = document.getElementById('conn-dot')!;
@@ -25,12 +24,12 @@ const provider = createGatewayDataProvider({
 
 const chartRef: { current: IChart | null } = { current: null };
 
-let drawingTool: 'cursor' | 'trendline' | 'hline' = 'cursor';
+let drawingTool: DrawingToolId = 'cursor';
 
 const shellOpts: TopBarOptions & {
   showLeftToolbar?: boolean;
-  activeDrawingTool?: 'cursor' | 'trendline' | 'hline';
-  onDrawingToolSelect?: (tool: 'cursor' | 'trendline' | 'hline') => void;
+  activeDrawingTool?: DrawingToolId;
+  onDrawingToolSelect?: (tool: DrawingToolId) => void;
 } = {
   showLeftToolbar: true,
   activeDrawingTool: drawingTool,
@@ -45,7 +44,7 @@ const shellOpts: TopBarOptions & {
     chartRef.current?.setSymbol(symbol);
   },
 };
-const { chartHost } = mountChartLayout(app, shellOpts);
+const { chartHost, indicatorHost } = mountChartLayout(app, shellOpts);
 
 let theme: 'dark' | 'light' = 'dark';
 let logScale = false;
@@ -54,6 +53,7 @@ let lastClose: number | null = null;
 
 const chart = createChart(chartHost, {
   dataProvider: provider,
+  indicatorHost,
   symbol: 'BINANCE:BTCUSDT',
   interval: '1h',
   theme,
@@ -127,6 +127,16 @@ chart.on('barUpdate', (bar) => {
   }
 });
 
+chart.on('crosshairChange', (payload) => {
+  const p = payload as {
+    time?: number;
+    price?: number | null;
+    ohlcv?: { c?: number };
+  } | null;
+  if (!p?.ohlcv?.c) return;
+  priceLabel.textContent = `十字：${p.ohlcv.c.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+});
+
 chart.on('visibleRangeChange', (range) => {
   const r = range as { from?: number; to?: number } | undefined;
   if (r?.from != null && r?.to != null) {
@@ -146,11 +156,7 @@ void provider
   })
   .then((h) => {
     barCount = h.bars.length;
-    const closes = h.bars.map((b) => b.c);
-    lastClose = closes[closes.length - 1] ?? null;
-    const ma20 = sma(h.bars, 20);
-    const validMa = ma20.filter((v) => v != null).length;
-    console.log('[demo] history bars:', barCount, 'MA20 points:', validMa);
+    lastClose = h.bars[h.bars.length - 1]?.c ?? null;
     setStatus();
     setConnection('connected');
   })
@@ -160,4 +166,4 @@ void provider
     console.error('[demo] mock unreachable — run: pnpm demo');
   });
 
-console.log('[demo] TradView ready — mock REST /api · WS /ws');
+console.log('[demo] TradView ready — MACD/RSI/KDJ panes · drawings · bridge crosshair');
