@@ -1,5 +1,6 @@
 import { DEFAULT_INTERVALS, type Interval, type SymbolSearchHit } from '@tradview/data';
 import { t } from '@tradview/i18n';
+import { mountSettingsMenu, type SettingsMenuOptions } from './settings-menu.js';
 import { mountSymbolSearch } from './symbol-search.js';
 
 export interface TopBarOptions {
@@ -11,6 +12,7 @@ export interface TopBarOptions {
   onThemeToggle?: () => void;
   onFullscreen?: () => void;
   onScreenshot?: () => void;
+  settings?: SettingsMenuOptions;
 }
 
 export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTMLElement {
@@ -53,6 +55,7 @@ export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTML
   };
 
   bar.appendChild(mkBtn(t('theme.dark', '主題'), opts.onThemeToggle));
+  if (opts.settings) mountSettingsMenu(bar, opts.settings);
   bar.appendChild(mkBtn('⛶', opts.onFullscreen));
   bar.appendChild(mkBtn('📷', opts.onScreenshot));
 

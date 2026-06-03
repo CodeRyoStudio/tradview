@@ -38,6 +38,9 @@ importers:
       '@tradview/data':
         specifier: workspace:*
         version: link:../../packages/data
+      '@tradview/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@tradview/indicators':
         specifier: workspace:*
         version: link:../../packages/indicators

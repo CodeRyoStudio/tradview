@@ -26,24 +26,6 @@
         gap: 16px;
         flex-wrap: wrap;
       }
-      #demo-status {
-        flex-shrink: 0;
-        padding: 6px 12px;
-        font-size: 12px;
-        border-bottom: 1px solid #30363d;
-        background: #161b22;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      #demo-status .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #8b949e;
-      }
-      #demo-status .dot.ok { background: #3fb950; }
-      #demo-status .dot.err { background: #f85149; }
       #demo-error {
         display: none;
         padding: 8px 12px;
@@ -55,17 +37,11 @@
     </style>
   </head>
   <body>
-    <div id="demo-status">
-      <span class="dot" id="conn-dot"></span>
-      <span id="conn-label">連線中…</span>
-      <span id="bar-label">—</span>
-      <span id="price-label">—</span>
-    </div>
     <div id="demo-error"></div>
     <div id="app"></div>
     <footer id="demo-footer">
-      <span>快捷鍵：R 適配 · End 跳到最新 · F 全螢幕 · S 截圖 · L 對數軸 · T 主題</span>
-      <span>資料：mock gateway（REST + WS）</span>
+      <span>快捷鍵：R 適配 · End 最新 · F 全螢幕 · S 截圖 · L 對數 · T 主題 · 右鍵選單 · ⚙ 網格預設關</span>
+      <span>資料：mock gateway</span>
       <span id="demo-url"></span>
     </footer>
     <script type="module" src="/src/main.ts"></script>

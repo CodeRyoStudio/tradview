@@ -112,6 +112,9 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
       case 'host.setTheme':
         if (p.theme === 'dark' || p.theme === 'light') chart.setTheme(p.theme);
         break;
+      case 'host.setShowGrid':
+        if (typeof p.showGrid === 'boolean') chart.setShowGrid(p.showGrid);
+        break;
       case 'host.fitContent':
         chart.fitContent();
         break;

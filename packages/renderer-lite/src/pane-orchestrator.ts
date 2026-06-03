@@ -14,6 +14,7 @@ import {
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
 import { lodDecimateBars } from '@tradview/series';
+import { gridOptions } from './chart-grid.js';
 import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
@@ -32,6 +33,8 @@ export interface PaneOrchestratorOptions {
   theme?: 'dark' | 'light';
   scaleMode?: ScaleMode;
   maxRenderPoints?: number;
+  /** Show chart grid lines (default false). */
+  showGrid?: boolean;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -57,6 +60,7 @@ export class PaneOrchestrator {
   private readonly indicators: IndicatorPaneStack | null;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
+  private showGrid = false;
   private readonly maxRenderPoints: number;
   private barByTime = new Map<number, Bar>();
   private didInitialFit = false;
@@ -64,7 +68,9 @@ export class PaneOrchestrator {
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
     this.dark = opts.theme !== 'light';
+    this.showGrid = opts.showGrid ?? false;
     const layout = this.layoutForTheme(this.dark);
+    const grid = gridOptions(this.showGrid, this.dark);
 
     const mainEl = document.createElement('div');
     mainEl.style.cssText = 'flex:7;min-height:120px;width:100%;position:relative;';
@@ -76,9 +82,10 @@ export class PaneOrchestrator {
     opts.container.append(mainEl, volEl);
     attachPaneResizer(mainEl, volEl, { storageKey: 'tradview:pane:main-volume' });
 
-    this.mainChart = createChart(mainEl, { layout, autoSize: true });
+    this.mainChart = createChart(mainEl, { layout, grid, autoSize: true });
     this.volumeChart = createChart(volEl, {
       layout,
+      grid,
       autoSize: true,
       rightPriceScale: { scaleMargins: { top: 0.8, bottom: 0 } },
     });
@@ -113,7 +120,10 @@ export class PaneOrchestrator {
     this.bus.register(this.volumeChart);
 
     this.indicators = opts.indicatorRoot
-      ? new IndicatorPaneStack(opts.indicatorRoot, this.bus, opts.theme ?? 'dark')
+      ? new IndicatorPaneStack(opts.indicatorRoot, this.bus, {
+          theme: opts.theme ?? 'dark',
+          showGrid: this.showGrid,
+        })
       : null;
 
     this.initOverlay(mainEl);
@@ -122,9 +132,18 @@ export class PaneOrchestrator {
   setTheme(theme: 'dark' | 'light'): void {
     this.dark = theme === 'dark';
     const layout = this.layoutForTheme(this.dark);
-    this.mainChart.applyOptions({ layout });
-    this.volumeChart.applyOptions({ layout });
+    const grid = gridOptions(this.showGrid, this.dark);
+    this.mainChart.applyOptions({ layout, grid });
+    this.volumeChart.applyOptions({ layout, grid });
     this.indicators?.setTheme(theme);
+  }
+
+  setShowGrid(show: boolean): void {
+    this.showGrid = show;
+    const grid = gridOptions(show, this.dark);
+    this.mainChart.applyOptions({ grid });
+    this.volumeChart.applyOptions({ grid });
+    this.indicators?.setShowGrid(show);
   }
 
   setBars(bars: Bar[], gaps?: number[]): void {

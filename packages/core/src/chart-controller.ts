@@ -1,4 +1,4 @@
-import type { DataProvider, HistoryQuery, Interval, SubscribeParams } from '@tradview/data';
+import type { DataProvider, HistoryQuery, Interval, SubscribeParams, SymbolResolver } from '@tradview/data';
 import type { HistoryRequest } from '@tradview/virtual-window';
 import { parseInterval } from '@tradview/data';
 import { BarStore } from '@tradview/series';
@@ -18,6 +18,10 @@ export interface ChartOptions {
   dataProvider: DataProvider;
   fetchPolicy?: FetchPolicy;
   scaleMode?: 'linear' | 'log';
+  /** Grid lines on chart panes (default false). */
+  showGrid?: boolean;
+  /** Optional symbol metadata enrichment (PR-12). */
+  symbolResolver?: SymbolResolver;
 }
 
 export type ChartEvent =
@@ -62,6 +66,7 @@ export class ChartController {
       indicatorRoot: options.indicatorHost,
       theme: options.theme ?? 'dark',
       scaleMode: options.scaleMode ?? 'linear',
+      showGrid: options.showGrid ?? false,
     });
 
     if (options.width) container.style.width = `${options.width}px`;
@@ -119,8 +124,19 @@ export class ChartController {
   }
 
   async searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]> {
-    if (!this.options.dataProvider.searchSymbols) return [];
-    return this.options.dataProvider.searchSymbols(query);
+    const resolver = this.options.symbolResolver;
+    if (resolver?.search) return resolver.search(query);
+    if (this.options.dataProvider.searchSymbols) {
+      return this.options.dataProvider.searchSymbols(query);
+    }
+    return [];
+  }
+
+  async resolveSymbol(symbol: string): Promise<import('@tradview/data').SymbolInfo | null> {
+    if (this.options.symbolResolver) {
+      return this.options.symbolResolver.resolve(symbol);
+    }
+    return { symbol };
   }
 
   on(event: ChartEvent, handler: EventHandler): this {
@@ -152,7 +168,9 @@ export class ChartController {
     this.orchestrator.resetViewState();
     await this.store.setSymbolInterval(symbol, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
+    const info = await this.resolveSymbol(symbol);
     await this.bootstrap();
+    this.emit('symbolChange', info ?? { symbol });
   }
 
   async setInterval(interval: Interval): Promise<void> {
@@ -166,6 +184,11 @@ export class ChartController {
 
   setTheme(theme: 'dark' | 'light'): this {
     this.orchestrator.setTheme(theme);
+    return this;
+  }
+
+  setShowGrid(show: boolean): this {
+    this.orchestrator.setShowGrid(show);
     return this;
   }
 
@@ -235,7 +258,9 @@ export class ChartController {
 
     await this.store.mergeBars(history.bars.map((bar) => ({ bar })));
     this.refreshRender();
-    this.emit('symbolChange', this.store.symbol);
+    void this.resolveSymbol(this.store.symbol).then((info) => {
+      this.emit('symbolChange', info ?? { symbol: this.store.symbol });
+    });
     this.emit('intervalChange', this.store.interval);
 
     const params: SubscribeParams = {

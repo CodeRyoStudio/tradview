@@ -32,6 +32,6 @@ pnpm dev:playground
 | Package | License | Status |
 |---------|---------|--------|
 | `@tradview/data` | MIT | Protocol + mock gateway |
-| `@tradview/core` | MIT | Stub (PR-07+) |
-| `@tradview/ui-shell` | UNLICENSED | Stub (PR-09+) |
-| … | | See DESIGN.md PR Plan |
+| `@tradview/core` | MIT | `createChart`, Bridge, 繪圖 |
+| `@tradview/ui-shell` | UNLICENSED | TV 殼層、設定（網格開關） |
+| … | | See [DESIGN.md](./docs/DESIGN.md) · [EMBEDDING.md](./docs/EMBEDDING.md) |

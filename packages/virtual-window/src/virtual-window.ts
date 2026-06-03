@@ -98,8 +98,7 @@ export class VirtualWindow {
     const loaded = this.store.loadedRanges;
     if (loaded.length === 0) return true;
     const minLoaded = Math.min(...loaded.map((r) => r.fromMs));
-    const threshold = intervalMs(this.store.interval) * this.fetchThresholdBars;
-    return this.visibleFromMs < minLoaded - threshold;
+    return this.visibleFromMs < minLoaded;
   }
 
   /** True when the visible viewport extends right of loaded data (fill-visible-holes only). */
@@ -107,8 +106,7 @@ export class VirtualWindow {
     const loaded = this.store.loadedRanges;
     if (loaded.length === 0) return true;
     const maxLoaded = Math.max(...loaded.map((r) => r.toMs));
-    const threshold = intervalMs(this.store.interval) * this.fetchThresholdBars;
-    return this.visibleToMs > maxLoaded + threshold;
+    return this.visibleToMs > maxLoaded;
   }
 
   planFetches(): HistoryRequest[] {

@@ -11,7 +11,13 @@ import {
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
 import { kdj, macd, rsi, sma } from '@tradview/indicators';
+import { gridOptions } from './chart-grid.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
+
+export interface IndicatorPaneStackOptions {
+  theme?: 'dark' | 'light';
+  showGrid?: boolean;
+}
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
   return Math.floor(tMs / 1000) as UTCTimestamp;
@@ -53,13 +59,16 @@ export class IndicatorPaneStack {
   private readonly kdjD: ISeriesApi<'Line'>;
   private readonly kdjJ: ISeriesApi<'Line'>;
   private dark = true;
+  private showGrid = false;
 
   constructor(
     private readonly root: HTMLElement,
     bus: TimeScaleBus,
-    theme: 'dark' | 'light',
+    opts: IndicatorPaneStackOptions | 'dark' | 'light' = 'dark',
   ) {
-    this.dark = theme === 'dark';
+    const o = typeof opts === 'string' ? { theme: opts, showGrid: false } : opts;
+    this.dark = o.theme !== 'light';
+    this.showGrid = o.showGrid ?? false;
     this.root.style.display = 'flex';
     this.root.style.flexDirection = 'column';
     this.root.style.flex = '2';
@@ -72,9 +81,10 @@ export class IndicatorPaneStack {
     this.root.append(macdWrap.wrap, rsiWrap.wrap, kdjWrap.wrap);
 
     const layout = this.layoutForTheme(this.dark);
-    this.macdChart = createChart(macdWrap.el, { layout, autoSize: true });
-    this.rsiChart = createChart(rsiWrap.el, { layout, autoSize: true });
-    this.kdjChart = createChart(kdjWrap.el, { layout, autoSize: true });
+    const grid = gridOptions(this.showGrid, this.dark);
+    this.macdChart = createChart(macdWrap.el, { layout, grid, autoSize: true });
+    this.rsiChart = createChart(rsiWrap.el, { layout, grid, autoSize: true });
+    this.kdjChart = createChart(kdjWrap.el, { layout, grid, autoSize: true });
 
     for (const c of [this.macdChart, this.rsiChart, this.kdjChart]) bus.register(c);
 
@@ -112,9 +122,18 @@ export class IndicatorPaneStack {
   setTheme(theme: 'dark' | 'light'): void {
     this.dark = theme === 'dark';
     const layout = this.layoutForTheme(this.dark);
-    this.macdChart.applyOptions({ layout });
-    this.rsiChart.applyOptions({ layout });
-    this.kdjChart.applyOptions({ layout });
+    const grid = gridOptions(this.showGrid, this.dark);
+    this.macdChart.applyOptions({ layout, grid });
+    this.rsiChart.applyOptions({ layout, grid });
+    this.kdjChart.applyOptions({ layout, grid });
+  }
+
+  setShowGrid(show: boolean): void {
+    this.showGrid = show;
+    const grid = gridOptions(show, this.dark);
+    this.macdChart.applyOptions({ grid });
+    this.rsiChart.applyOptions({ grid });
+    this.kdjChart.applyOptions({ grid });
   }
 
   fitContent(): void {

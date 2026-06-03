@@ -1,19 +1,21 @@
 import { createChart, type IChart } from '@tradview/core';
-import { createGatewayDataProvider } from '@tradview/data';
+import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@tradview/data';
 import { bindChartKeyboard } from '@tradview/interaction';
-import { mountChartLayout, type DrawingToolId, type TopBarOptions } from '@tradview/ui-shell';
+import { t } from '@tradview/i18n';
+import type { Interval } from '@tradview/data';
+import {
+  loadShowGridPreference,
+  mountChartLayout,
+  type ChartLayoutOptions,
+  type DrawingToolId,
+} from '@tradview/ui-shell';
 
 const app = document.getElementById('app')!;
-const connDot = document.getElementById('conn-dot')!;
-const connLabel = document.getElementById('conn-label')!;
-const barLabel = document.getElementById('bar-label')!;
-const priceLabel = document.getElementById('price-label')!;
 const errorEl = document.getElementById('demo-error')!;
 const urlEl = document.getElementById('demo-url')!;
 
 urlEl.textContent = location.origin;
 
-/** Vite dev/preview proxy `/api` → mock :4010 (paths are /api/v1/… on gateway). */
 const restBase = '';
 const wsBase = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`;
 
@@ -25,12 +27,18 @@ const provider = createGatewayDataProvider({
 const chartRef: { current: IChart | null } = { current: null };
 
 let drawingTool: DrawingToolId = 'cursor';
+let showGrid = loadShowGridPreference();
+let theme: 'dark' | 'light' = 'dark';
+let logScale = false;
+let barCount = 0;
+let lastSymbol = 'BINANCE:BTCUSDT';
+let lastInterval: Interval = '1h';
 
-const shellOpts: TopBarOptions & {
-  showLeftToolbar?: boolean;
-  activeDrawingTool?: DrawingToolId;
-  onDrawingToolSelect?: (tool: DrawingToolId) => void;
-} = {
+const symbolResolver = createPassthroughSymbolResolver((q) =>
+  provider.searchSymbols?.(q) ?? Promise.resolve([]),
+);
+
+const shellOpts: ChartLayoutOptions = {
   showLeftToolbar: true,
   activeDrawingTool: drawingTool,
   onDrawingToolSelect: (tool) => {
@@ -38,42 +46,55 @@ const shellOpts: TopBarOptions & {
     shellOpts.activeDrawingTool = tool;
     chartRef.current?.setDrawingTool(tool);
   },
-  initialSymbol: 'BINANCE:BTCUSDT',
-  onSymbolSearch: (q) => chartRef.current?.searchSymbols(q) ?? provider.searchSymbols?.(q) ?? Promise.resolve([]),
+  initialSymbol: lastSymbol,
+  onSymbolSearch: (q) => symbolResolver.search?.(q) ?? Promise.resolve([]),
   onSymbolSelect: (symbol) => {
     chartRef.current?.setSymbol(symbol);
   },
+  settings: {
+    showGrid,
+    onShowGridChange: (next) => {
+      showGrid = next;
+      chartRef.current?.setShowGrid(next);
+    },
+  },
+  statusBar: {
+    connection: 'connecting',
+    symbol: lastSymbol,
+    interval: lastInterval,
+  },
+  contextMenuActions: [
+    {
+      id: 'fit',
+      label: t('context.fitContent', '適配畫面'),
+      onClick: () => chartRef.current?.fitContent(),
+    },
+    {
+      id: 'realtime',
+      label: t('context.scrollRealtime', '跳到最新'),
+      onClick: () => chartRef.current?.scrollToRealtime(),
+    },
+    {
+      id: 'shot',
+      label: t('context.screenshot', '截圖'),
+      onClick: () => shellOpts.onScreenshot?.(),
+    },
+  ],
 };
-const { chartHost, indicatorHost } = mountChartLayout(app, shellOpts);
 
-let theme: 'dark' | 'light' = 'dark';
-let logScale = false;
-let barCount = 0;
-let lastClose: number | null = null;
+const { chartHost, indicatorHost, statusBar, crosshairLegend } = mountChartLayout(app, shellOpts);
 
 const chart = createChart(chartHost, {
   dataProvider: provider,
+  symbolResolver,
   indicatorHost,
-  symbol: 'BINANCE:BTCUSDT',
-  interval: '1h',
+  symbol: lastSymbol,
+  interval: lastInterval,
   theme,
   scaleMode: 'linear',
+  showGrid,
 });
 chartRef.current = chart;
-
-function setConnection(state: unknown) {
-  const s = String(state ?? 'unknown');
-  connLabel.textContent = `連線：${s}`;
-  connDot.className = 'dot';
-  if (s === 'connected' || s === 'open') connDot.classList.add('ok');
-  else if (s === 'error' || s === 'disconnected') connDot.classList.add('err');
-}
-
-function setStatus() {
-  barLabel.textContent = `K 線：${barCount}`;
-  priceLabel.textContent =
-    lastClose != null ? `收盤：${lastClose.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '收盤：—';
-}
 
 function showError(err: unknown) {
   errorEl.style.display = 'block';
@@ -81,14 +102,19 @@ function showError(err: unknown) {
 }
 
 shellOpts.onIntervalChange = (interval) => {
+  lastInterval = interval;
   chart.setInterval(interval);
+  statusBar.update({ interval });
+  crosshairLegend.setMeta({ interval });
 };
+
 shellOpts.onThemeToggle = () => {
   theme = theme === 'dark' ? 'light' : 'dark';
   chart.setTheme(theme);
   document.body.style.background = theme === 'dark' ? '#0d1117' : '#f6f8fa';
   document.body.style.color = theme === 'dark' ? '#e6edf3' : '#24292f';
 };
+
 shellOpts.onFullscreen = () => chart.setFullscreen(true);
 shellOpts.onScreenshot = () => {
   void chart.exportImage({ pixelRatio: 2 }).then((blob) => {
@@ -115,33 +141,41 @@ bindChartKeyboard({
 });
 
 chart.on('connectionChange', (state) => {
-  setConnection(state);
+  statusBar.update({ connection: String(state ?? 'unknown') });
 });
 
-chart.on('barUpdate', (bar) => {
-  const b = bar as { c?: number; t?: number } | undefined;
-  if (b?.c != null) {
-    lastClose = b.c;
-    barCount += 1;
-    setStatus();
-  }
+chart.on('barUpdate', () => {
+  barCount += 1;
 });
 
 chart.on('crosshairChange', (payload) => {
   const p = payload as {
     time?: number;
-    price?: number | null;
-    ohlcv?: { c?: number };
+    ohlcv?: { o?: number; h?: number; l?: number; c?: number; v?: number };
   } | null;
-  if (!p?.ohlcv?.c) return;
-  priceLabel.textContent = `十字：${p.ohlcv.c.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  if (!p?.ohlcv) {
+    crosshairLegend.hide();
+    return;
+  }
+  crosshairLegend.update({ time: p.time, ohlcv: p.ohlcv });
+  statusBar.update({ ohlcv: p.ohlcv });
 });
 
-chart.on('visibleRangeChange', (range) => {
-  const r = range as { from?: number; to?: number } | undefined;
-  if (r?.from != null && r?.to != null) {
-    barLabel.textContent = `可見：${new Date(r.from).toLocaleString()} — ${new Date(r.to).toLocaleString()}`;
-  }
+chart.on('symbolChange', (info) => {
+  const row = info as { symbol?: string; description?: string; exchange?: string };
+  lastSymbol = row.symbol ?? lastSymbol;
+  const label = row.description
+    ? `${lastSymbol} — ${row.description}`
+    : row.exchange
+      ? `${lastSymbol} · ${row.exchange}`
+      : lastSymbol;
+  statusBar.update({ symbol: label });
+  crosshairLegend.setMeta({ symbol: lastSymbol });
+});
+
+chart.on('intervalChange', (iv) => {
+  lastInterval = iv as Interval;
+  statusBar.update({ interval: lastInterval });
 });
 
 chart.on('error', (err) => showError(err));
@@ -149,21 +183,19 @@ chart.on('error', (err) => showError(err));
 void provider
   .getHistory({
     mode: 'loadMore',
-    symbol: 'BINANCE:BTCUSDT',
-    interval: '1h',
+    symbol: lastSymbol,
+    interval: lastInterval,
     endTime: Date.now(),
     limit: 500,
   })
   .then((h) => {
     barCount = h.bars.length;
-    lastClose = h.bars[h.bars.length - 1]?.c ?? null;
-    setStatus();
-    setConnection('connected');
+    statusBar.update({ connection: 'connected' });
   })
   .catch((e) => {
     showError(e);
-    setConnection('error');
+    statusBar.update({ connection: 'error' });
     console.error('[demo] mock unreachable — run: pnpm demo');
   });
 
-console.log('[demo] TradView ready — MACD/RSI/KDJ panes · drawings · bridge crosshair');
+console.log('[demo] TradView — grid off by default · StatusBar · crosshair legend · context menu');

@@ -15,6 +15,7 @@ export type BridgeInboundType =
   | 'host.setSymbol'
   | 'host.setInterval'
   | 'host.setTheme'
+  | 'host.setShowGrid'
   | 'host.fitContent'
   | 'host.scrollToRealtime'
   | 'host.resize'

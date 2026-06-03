@@ -1,4 +1,7 @@
+import { attachChartContextMenu, type ContextMenuAction } from './context-menu.js';
+import { mountCrosshairLegend } from './crosshair-legend.js';
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
+import { mountStatusBar, type StatusBarOptions } from './status-bar.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 
 export type DrawingToolId =
@@ -14,12 +17,17 @@ export interface ChartLayoutOptions extends TopBarOptions {
   showLeftToolbar?: boolean;
   activeDrawingTool?: DrawingToolId;
   onDrawingToolSelect?: (tool: DrawingToolId) => void;
+  statusBar?: StatusBarOptions;
+  contextMenuActions?: ContextMenuAction[];
 }
 
 export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {}): {
   chartHost: HTMLElement;
   indicatorHost: HTMLElement;
   topBar: HTMLElement;
+  statusBar: ReturnType<typeof mountStatusBar>;
+  crosshairLegend: ReturnType<typeof mountCrosshairLegend>;
+  detachContextMenu: () => void;
 } {
   root.style.display = 'flex';
   root.style.flexDirection = 'column';
@@ -65,11 +73,19 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   chartHost.style.cssText = 'flex:1;min-height:0;width:100%;height:100%;position:relative;overflow:hidden;';
   chartColumn.appendChild(chartHost);
   const indicatorHost = mountIndicatorPaneHost(chartColumn);
+  const statusBar = mountStatusBar(chartColumn, opts.statusBar ?? {});
   body.appendChild(chartColumn);
 
   root.appendChild(body);
   const topBar = mountTopBar(root, opts);
   root.insertBefore(topBar, body);
 
-  return { chartHost, indicatorHost, topBar };
+  const crosshairLegend = mountCrosshairLegend(chartHost, {
+    symbol: opts.initialSymbol,
+  });
+  const detachContextMenu = attachChartContextMenu(chartHost, {
+    actions: opts.contextMenuActions,
+  });
+
+  return { chartHost, indicatorHost, topBar, statusBar, crosshairLegend, detachContextMenu };
 }

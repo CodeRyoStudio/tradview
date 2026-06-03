@@ -14,6 +14,7 @@
     "@tradview/data": "workspace:*",
     "@tradview/indicators": "workspace:*",
     "@tradview/interaction": "workspace:*",
+    "@tradview/i18n": "workspace:*",
     "@tradview/ui-shell": "workspace:*",
     "lightweight-charts": "^5.0.7"
   },
