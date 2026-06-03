@@ -14,7 +14,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Bar, Interval } from '@coderyo/data';
+import { intervalMs, type Bar, type Interval } from '@coderyo/data';
 import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
 import type { IndicatorConfig } from '@coderyo/indicators';
@@ -28,7 +28,7 @@ import {
 } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus, type ChartVisibleRange } from './time-scale-bus.js';
-import { computeIntervalViewport } from './viewport-fit.js';
+import { resolveBarSpacingForInterval } from './viewport-fit.js';
 
 export type { ChartVisibleRange };
 import { BarSmoothAnimator } from './bar-smooth-animator.js';
@@ -63,6 +63,9 @@ export interface PaneOrchestratorOptions {
   smoothPriceUpdate?: boolean;
   smoothPriceDurationMs?: number;
   onIndicatorConfigChange?: (config: IndicatorConfig) => void;
+  /** When true (default), set bar spacing on interval reload — does not change visible bar count. */
+  autoBarSpacingOnInterval?: boolean;
+  barSpacingByInterval?: Partial<Record<Interval, number>>;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -104,6 +107,8 @@ export class PaneOrchestrator {
   private indicatorConfig: IndicatorConfig | null = null;
   private onIndicatorConfigChange?: (config: IndicatorConfig) => void;
   private currentInterval: Interval = '1h';
+  private autoBarSpacingOnInterval = true;
+  private barSpacingByInterval?: Partial<Record<Interval, number>>;
   private priceLine: IPriceLine | null = null;
   private barAnimator: BarSmoothAnimator | null = null;
   private smoothPriceDurationMs = 150;
@@ -190,6 +195,8 @@ export class PaneOrchestrator {
     this.indicatorRoot = opts.indicatorRoot;
     this.indicatorConfig = opts.indicatorConfig ?? null;
     this.onIndicatorConfigChange = opts.onIndicatorConfigChange;
+    this.autoBarSpacingOnInterval = opts.autoBarSpacingOnInterval ?? true;
+    this.barSpacingByInterval = opts.barSpacingByInterval;
     this.pinePlots = opts.pinePlots ?? null;
     this.indicators = this.createIndicatorStack();
 
@@ -407,7 +414,7 @@ export class PaneOrchestrator {
     if (renderBars.length > 0) {
       this.syncChartSize();
       if (!this.didInitialFit && !this.skipNextInitialFit) {
-        this.fitViewportForBars(this.barTimesOrdered);
+        this.applyViewAfterDataReload(renderBars);
         this.didInitialFit = true;
       }
       this.skipNextInitialFit = false;
@@ -465,27 +472,42 @@ export class PaneOrchestrator {
     });
   }
 
-  /** After symbol/interval reload: show a sensible bar count and spacing for the interval. */
-  fitViewportForInterval(interval: Interval, barTimesMs: number[]): void {
-    this.fitViewportForBars(barTimesMs, interval);
-    this.didInitialFit = true;
+  /** After symbol/interval reload: bar spacing for interval + show integrator-loaded span. */
+  applyIntervalBarSpacing(interval?: Interval): void {
+    if (!this.autoBarSpacingOnInterval) return;
+    const iv = interval ?? this.currentInterval;
+    const spacing = resolveBarSpacingForInterval(iv, this.barSpacingByInterval);
+    this.bus.setBarSpacing(spacing);
   }
 
-  private fitViewportForBars(barTimesMs: number[], interval?: Interval): void {
-    const width = this.mainChart.chartElement().parentElement?.clientWidth ?? 0;
-    const iv = interval ?? this.currentInterval;
-    const fit = computeIntervalViewport(barTimesMs, iv, width);
+  setBarSpacingPolicy(opts: {
+    autoBarSpacingOnInterval?: boolean;
+    barSpacingByInterval?: Partial<Record<Interval, number>>;
+  }): void {
+    if (opts.autoBarSpacingOnInterval !== undefined) {
+      this.autoBarSpacingOnInterval = opts.autoBarSpacingOnInterval;
+    }
+    if (opts.barSpacingByInterval !== undefined) {
+      this.barSpacingByInterval = opts.barSpacingByInterval;
+    }
+  }
 
-    if (fit) {
-      this.bus.setVisibleTimeRange(fit.range);
-      this.bus.setBarSpacing(fit.barSpacing);
-      this.scrollToRealtime();
-      return;
+  /** Sync time scale to loaded bars (integrator history); adjust bar spacing only, not bar count. */
+  private applyViewAfterDataReload(renderBars: Bar[]): void {
+    if (this.autoBarSpacingOnInterval) {
+      this.applyIntervalBarSpacing();
+    } else {
+      this.mainChart.timeScale().fitContent();
+      this.volumeChart.timeScale().fitContent();
+      this.indicators?.fitContent();
     }
 
-    this.mainChart.timeScale().fitContent();
-    this.volumeChart.timeScale().fitContent();
-    this.indicators?.fitContent();
+    if (renderBars.length > 0) {
+      const fromMs = renderBars[0]!.t;
+      const toMs = renderBars[renderBars.length - 1]!.t + intervalMs(this.currentInterval);
+      this.bus.setVisibleTimeRange({ fromMs, toMs });
+    }
+    this.scrollToRealtime();
   }
 
   resetViewState(): void {

@@ -130,6 +130,8 @@ export class ChartController {
       smoothPriceUpdate: this.features.smoothPriceUpdate,
       smoothPriceDurationMs: this.features.smoothPriceDurationMs,
       onIndicatorConfigChange: (config) => this.setIndicatorConfig(config),
+      autoBarSpacingOnInterval: this.features.autoBarSpacingOnInterval,
+      barSpacingByInterval: this.features.barSpacingByInterval,
     });
     this.orchestrator.setIntervalContext(interval);
 
@@ -213,6 +215,10 @@ export class ChartController {
     this.virtualWindow.setFetchPolicy(fetchPolicy);
 
     this.orchestrator.setIndicatorConfig(this.features.indicators);
+    this.orchestrator.setBarSpacingPolicy({
+      autoBarSpacingOnInterval: this.features.autoBarSpacingOnInterval,
+      barSpacingByInterval: this.features.barSpacingByInterval,
+    });
     this.orchestrator.setSmoothPriceUpdate(
       this.features.smoothPriceUpdate,
       this.features.smoothPriceDurationMs,

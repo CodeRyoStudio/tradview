@@ -1,4 +1,4 @@
-import type { RealtimeStreamMode } from '@coderyo/data';
+import type { Interval, RealtimeStreamMode } from '@coderyo/data';
 import type { IndicatorConfig } from '@coderyo/indicators';
 import type { FetchPolicy } from '@coderyo/virtual-window';
 
@@ -35,6 +35,13 @@ export interface ChartFeatures {
   tickStream?: boolean;
   /** Run Pine-lite VM in a Web Worker when available (default true). */
   pineWorker?: boolean;
+  /**
+   * On interval/symbol reload, set bar spacing (px) for the interval (default true).
+   * Does not choose how many bars are visible — use history limit / setVisibleRange.
+   */
+  autoBarSpacingOnInterval?: boolean;
+  /** Override default bar spacing per interval (integrator). */
+  barSpacingByInterval?: Partial<Record<Interval, number>>;
 }
 
 export interface ResolvedChartFeatures {
@@ -52,6 +59,8 @@ export interface ResolvedChartFeatures {
   telemetry: boolean;
   tickStream: boolean;
   pineWorker: boolean;
+  autoBarSpacingOnInterval: boolean;
+  barSpacingByInterval?: Partial<Record<Interval, number>>;
 }
 
 export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
@@ -69,6 +78,8 @@ export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
   telemetry: false,
   tickStream: false,
   pineWorker: true,
+  autoBarSpacingOnInterval: true,
+  barSpacingByInterval: undefined,
 };
 
 export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeatures {
@@ -94,6 +105,8 @@ export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeat
     telemetry: partial?.telemetry ?? d.telemetry,
     tickStream: partial?.tickStream ?? d.tickStream,
     pineWorker: partial?.pineWorker ?? d.pineWorker,
+    autoBarSpacingOnInterval: partial?.autoBarSpacingOnInterval ?? d.autoBarSpacingOnInterval,
+    barSpacingByInterval: partial?.barSpacingByInterval ?? d.barSpacingByInterval,
   };
 }
 
@@ -116,6 +129,9 @@ export function mergeChartFeatures(
     telemetry: patch.telemetry ?? current.telemetry,
     tickStream: patch.tickStream ?? current.tickStream,
     pineWorker: patch.pineWorker ?? current.pineWorker,
+    autoBarSpacingOnInterval:
+      patch.autoBarSpacingOnInterval ?? current.autoBarSpacingOnInterval,
+    barSpacingByInterval: patch.barSpacingByInterval ?? current.barSpacingByInterval,
   });
 }
 
