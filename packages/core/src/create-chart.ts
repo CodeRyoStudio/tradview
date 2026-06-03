@@ -62,6 +62,9 @@ export interface IChart {
   /** Integrator push: smooth-update last candle toward `price` (no WS required). */
   updateLastPrice(price: number, timeMs?: number): IChart;
   hasActiveSymbol(): boolean;
+  setLocale(locale: string): IChart;
+  /** Subscribe to realtime bar updates; returns unsubscribe. */
+  subscribeBars(handler: (bar: import('@coderyo/data').Bar) => void): () => void;
   destroy(): void;
 }
 
@@ -164,6 +167,11 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       return wrap(controller, beforeDestroy);
     },
     hasActiveSymbol: () => controller.hasActiveSymbol(),
+    setLocale: (locale) => {
+      controller.setLocale(locale);
+      return wrap(controller, beforeDestroy);
+    },
+    subscribeBars: (handler) => controller.subscribeBars(handler),
     destroy: () => {
       controller.destroy();
       beforeDestroy?.();

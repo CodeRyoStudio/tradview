@@ -82,9 +82,35 @@ class Emitter {
           errors.push(`'${expr.name}' expects ${arity} arguments, got ${expr.args.length}`);
           return false;
         }
-        const fn = expr.name as 'sma' | 'ema' | 'rsi';
+        const fn = expr.name as
+          | 'sma'
+          | 'ema'
+          | 'rsi'
+          | 'highest'
+          | 'lowest'
+          | 'crossover'
+          | 'crossunder';
         if (
-          (fn === 'sma' || fn === 'ema' || fn === 'rsi') &&
+          (fn === 'crossover' || fn === 'crossunder') &&
+          expr.args[0]?.kind === 'ident' &&
+          expr.args[1]?.kind === 'ident' &&
+          SERIES_IDENTIFIERS.has(expr.args[0].name) &&
+          SERIES_IDENTIFIERS.has(expr.args[1].name)
+        ) {
+          this.emit({
+            op: 'call_ind',
+            fn,
+            series: expr.args[0].name,
+            series2: expr.args[1].name,
+          });
+          return true;
+        }
+        if (
+          (fn === 'sma' ||
+            fn === 'ema' ||
+            fn === 'rsi' ||
+            fn === 'highest' ||
+            fn === 'lowest') &&
           expr.args[0]?.kind === 'ident' &&
           SERIES_IDENTIFIERS.has(expr.args[0].name)
         ) {

@@ -1,6 +1,6 @@
 {
   "name": "@coderyo/core",
-  "version": "1.0.0-rc.4",
+  "version": "1.0.0",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -23,7 +23,8 @@
     "@coderyo/bridge": "workspace:*",
     "@coderyo/drawings": "workspace:*",
     "@coderyo/indicators": "workspace:*",
-    "@coderyo/pine-lite": "workspace:*"
+    "@coderyo/pine-lite": "workspace:*",
+    "@coderyo/i18n": "workspace:*"
   },
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",

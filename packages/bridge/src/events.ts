@@ -9,6 +9,7 @@ export type BridgeOutboundType =
   | 'chart.interval'
   | 'chart.symbol'
   | 'chart.visibleRange'
+  | 'chart.barUpdate'
   | 'chart.error';
 
 export type BridgeInboundType =
@@ -18,6 +19,13 @@ export type BridgeInboundType =
   | 'host.setShowGrid'
   | 'host.fitContent'
   | 'host.scrollToRealtime'
+  | 'host.setLogScale'
+  | 'host.setBarSpace'
+  | 'host.setVisibleRange'
+  | 'host.scrollToTimestamp'
+  | 'host.reloadHistory'
+  | 'host.setLocale'
+  | 'host.setFeatures'
   | 'host.resize'
   | 'host.destroy';
 

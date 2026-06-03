@@ -6,9 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-03
+
+### Added
+
+- **IChart viewport API** (#3): `getVisibleRange`, `getBarSpace`, `setBarSpace`, `setVisibleRange`, `scrollToTimestamp`, `reloadHistory`
+- **`setLocale` / `subscribeBars`** on `IChart`; `telemetry` event when `features.telemetry`
+- **Bridge host**: `setLogScale`, `setBarSpace`, `setVisibleRange`, `scrollToTimestamp`, `reloadHistory`, `setLocale`, `setFeatures`; outbound `chart.barUpdate`
+- **History**: chart path uses WS `requestWsHistory` when capabilities allow
+- **`gaps.whitespace`**: LWC whitespace points at session gaps (>1.5× interval)
+- **`streamMode: 'tick'`**: client `TickAggregator` for tick-only streams
+- **Pine-lite**: `highest` / `lowest` / `crossover` / `crossunder`; optional **Web Worker** VM (`features.pineWorker`, default on)
+
 ### Fixed
 
-- **Background tab / window focus**: on `visibilitychange` (visible) and `window` `focus`, chart backfills missed bars via REST `range` instead of leaving gaps until manual refresh
+- **Background tab / window focus**: backfill missed bars on resume (also on WS reconnect)
 
 ## [1.0.0-rc.4] - 2026-06-03
 
@@ -85,6 +97,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 See [docs/API-FREEZE.md](./docs/API-FREEZE.md) §7 (Pine execution stub, Protobuf v1.1, commercial CDN license gate, etc.).
 
+[1.0.0]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0
 [1.0.0-rc.4]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/CodeRyoStudio/tradview/releases/tag/v1.0.0-rc.2

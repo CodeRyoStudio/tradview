@@ -3,7 +3,12 @@ export type IrOp =
   | { op: 'load_series'; name: string }
   | { op: 'load_var'; name: string }
   | { op: 'store_var'; name: string }
-  | { op: 'call_ind'; fn: 'sma' | 'ema' | 'rsi'; series: string }
+  | {
+      op: 'call_ind';
+      fn: 'sma' | 'ema' | 'rsi' | 'highest' | 'lowest' | 'crossover' | 'crossunder';
+      series: string;
+      series2?: string;
+    }
   | { op: 'add' }
   | { op: 'sub' }
   | { op: 'mul' }

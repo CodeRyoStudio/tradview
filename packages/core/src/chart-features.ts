@@ -33,6 +33,8 @@ export interface ChartFeatures {
   protobuf?: boolean;
   telemetry?: boolean;
   tickStream?: boolean;
+  /** Run Pine-lite VM in a Web Worker when available (default true). */
+  pineWorker?: boolean;
 }
 
 export interface ResolvedChartFeatures {
@@ -49,6 +51,7 @@ export interface ResolvedChartFeatures {
   protobuf: boolean;
   telemetry: boolean;
   tickStream: boolean;
+  pineWorker: boolean;
 }
 
 export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
@@ -65,6 +68,7 @@ export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
   protobuf: false,
   telemetry: false,
   tickStream: false,
+  pineWorker: true,
 };
 
 export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeatures {
@@ -89,6 +93,7 @@ export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeat
     protobuf: partial?.protobuf ?? d.protobuf,
     telemetry: partial?.telemetry ?? d.telemetry,
     tickStream: partial?.tickStream ?? d.tickStream,
+    pineWorker: partial?.pineWorker ?? d.pineWorker,
   };
 }
 
@@ -110,6 +115,7 @@ export function mergeChartFeatures(
     protobuf: patch.protobuf ?? current.protobuf,
     telemetry: patch.telemetry ?? current.telemetry,
     tickStream: patch.tickStream ?? current.tickStream,
+    pineWorker: patch.pineWorker ?? current.pineWorker,
   });
 }
 

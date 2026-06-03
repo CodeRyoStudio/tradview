@@ -6,6 +6,7 @@ import {
   LineSeries,
   type CandlestickData,
   type HistogramData,
+  type WhitespaceData,
   type IChartApi,
   type ISeriesApi,
   type IPriceLine,
@@ -361,18 +362,19 @@ export class PaneOrchestrator {
     this.barByTime = new Map(renderBars.map((b) => [b.t, b]));
     this.barTimesOrdered = renderBars.map((b) => b.t);
 
-    const candles: CandlestickData[] = [];
-    const vols: HistogramData<UTCTimestamp>[] = [];
     const gapSet = new Set(gaps ?? []);
     const seenTimes = new Set<number>();
+    type CandlePoint = CandlestickData | WhitespaceData<UTCTimestamp>;
+    const candles: CandlePoint[] = [];
+    const vols: HistogramData<UTCTimestamp>[] = [];
 
     for (let i = 0; i < renderBars.length; i++) {
       const b = renderBars[i]!;
       const time = toUtcSeconds(b.t);
       if (seenTimes.has(time)) continue;
       seenTimes.add(time);
-      if (i > 0 && gapSet.has(b.t)) {
-        // whitespace: skip connecting — LWC uses sparse times
+      if (gapSet.has(b.t)) {
+        candles.push({ time });
       }
       candles.push(barToCandle(b));
       vols.push(barToVolume(b));

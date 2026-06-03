@@ -140,6 +140,9 @@ importers:
       '@coderyo/drawings':
         specifier: workspace:*
         version: link:../drawings
+      '@coderyo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators

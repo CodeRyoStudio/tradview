@@ -8,7 +8,7 @@ TradingView-style embeddable K-line chart framework (see [docs/DESIGN.md](./docs
 
 | 版本 | 狀態 | 說明 |
 |------|------|------|
-| **1.0.0-rc.2** | RC | [API 文檔](./docs/API.md) · [API 凍結](./docs/API-FREEZE.md) · [發布流程](./docs/RELEASE.md) · [CHANGELOG](./CHANGELOG.md) |
+| **1.0.0** | Stable | [API 文檔](./docs/API.md) · [API 凍結](./docs/API-FREEZE.md) · [發布流程](./docs/RELEASE.md) · [CHANGELOG](./CHANGELOG.md) |
 
 ```bash
 # RC 發布前完整檢查

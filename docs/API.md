@@ -1,6 +1,6 @@
 # TradView API 參考
 
-> **版本**：`1.0.0-rc.4` · **Embed API**：`apiVersion: 1`（`TRADVIEW_API_VERSION`）  
+> **版本**：`1.0.0` · **Embed API**：`apiVersion: 1`（`TRADVIEW_API_VERSION`）  
 > **npm scope**：`@coderyo/*` · **Bridge schema**：`bridgeSchemaVersion: 1`
 
 本文描述整合方使用的公開 API。架構與協議細節見 [DESIGN.md](./DESIGN.md)；凍結承諾見 [API-FREEZE.md](./API-FREEZE.md)；嵌入範例見 [EMBEDDING.md](./EMBEDDING.md)。
@@ -138,6 +138,8 @@ const chart = createChart(
 | `setVisibleRange(range)` | `IChart` | 還原可見時間範圍 |
 | `scrollToTimestamp(tsMs, animationMs?)` | `IChart` | 將指定時間對齊視窗右緣 |
 | `reloadHistory()` | `Promise<IChart>` | 重新拉取近期歷史，**不**重置捲動/縮放 |
+| `setLocale(locale)` | `IChart` | 切換 `@coderyo/i18n` 語系 |
+| `subscribeBars(handler)` | `() => void` | 訂閱 `barUpdate`，回傳 unsubscribe |
 | `resize(size?)` | `IChart` | `{ width?, height? }` |
 | `setFullscreen(enabled)` | `IChart` | 全螢幕容器 |
 | `exportImage(opts?)` | `Promise<Blob>` | PNG；`pixelRatio` 預設 `2` |
@@ -205,7 +207,8 @@ const teardown = wireChartBridge({
 |------|------|------|
 | `fetchPolicy` | `'lazy-left-only' \| 'fill-visible-holes'` | 向左懶加載；後者由 `gaps.fillVisibleHoles` 強制 |
 | `streamMode` | `'bar' \| 'tick' \| 'bar+tick'` | WS 訂閱模式 |
-| `gaps.whitespace` | `boolean` | 非交易時段留白（預留） |
+| `gaps.whitespace` | `boolean` | 資料缺口插入 LWC whitespace |
+| `pineWorker` | `boolean` | Pine VM 使用 Worker（預設 `true`） |
 | `gaps.fillVisibleHoles` | `boolean` | `true` 時使用 `fill-visible-holes` 拉洞 |
 | `drawings.layer` | `boolean` | 繪圖互動層；`false` 時 API 仍可用 |
 | `drawings.persist` | `boolean` | `localStorage` 持久化 |
@@ -243,6 +246,7 @@ chart.off('symbolChange', handler);
 | `drawingContextMenu` | `{ clientX, clientY, drawing }` |
 | `requestCursorTool` | — |
 | `featuresChange` | `ResolvedChartFeatures` |
+| `telemetry` | `{ event, ... }`（需 `features.telemetry`） |
 
 ---
 

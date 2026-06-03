@@ -13,10 +13,17 @@ import type {
 import { floorBarOpenTime, intervalMs } from '@coderyo/data';
 import type { HistoryRequest } from '@coderyo/virtual-window';
 import { parseInterval } from '@coderyo/data';
-import { BarStore } from '@coderyo/series';
+import { BarStore, computeGapStartTimes, TickAggregator } from '@coderyo/series';
+import { setLocale as setI18nLocale } from '@coderyo/i18n';
+import { fetchChartHistory } from './fetch-chart-history.js';
 import { VirtualWindow, type FetchPolicy } from '@coderyo/virtual-window';
 import { DrawingManager } from '@coderyo/drawings';
-import { compilePineLite, runPineLite, type PineIrProgram } from '@coderyo/pine-lite';
+import {
+  compilePineLite,
+  runPineLiteAsync,
+  terminatePineWorker,
+  type PineIrProgram,
+} from '@coderyo/pine-lite';
 import { PaneOrchestrator, type ChartVisibleRange } from '@coderyo/renderer-lite';
 
 export type { ChartVisibleRange };
@@ -64,7 +71,8 @@ export type ChartEvent =
   | 'drawingSelectionChange'
   | 'drawingContextMenu'
   | 'requestCursorTool'
-  | 'featuresChange';
+  | 'featuresChange'
+  | 'telemetry';
 
 type EventHandler = (payload?: unknown) => void;
 
@@ -84,6 +92,7 @@ export class ChartController {
   private offCrosshair: (() => void) | null = null;
   private features: ResolvedChartFeatures;
   private pineIr: PineIrProgram | null = null;
+  private tickAggregator: TickAggregator | null = null;
   private catchUpInFlight = false;
   private lastCatchUpAt = 0;
   private offPageResume: (() => void) | null = null;
@@ -232,14 +241,35 @@ export class ChartController {
       this.orchestrator.setPinePlots(null);
       return;
     }
-    const result = runPineLite(this.pineIr, bars);
-    this.orchestrator.setPinePlots(
-      result.plots.map((p) => ({
-        title: p.title,
-        values: p.values,
-        color: undefined,
-      })),
-    );
+    const ir = this.pineIr;
+    const useWorker = this.features.pineWorker;
+    void runPineLiteAsync(ir, bars, { useWorker }).then((result) => {
+      if (this.destroyed || this.pineIr !== ir) return;
+      this.orchestrator.setPinePlots(
+        result.plots.map((p) => ({
+          title: p.title,
+          values: p.values,
+          color: undefined,
+        })),
+      );
+    });
+  }
+
+  private trackTelemetry(event: string, data?: Record<string, unknown>): void {
+    if (!this.features.telemetry) return;
+    this.emit('telemetry', { event, ...data });
+  }
+
+  setLocale(locale: string): this {
+    setI18nLocale(locale);
+    this.trackTelemetry('locale', { locale });
+    return this;
+  }
+
+  subscribeBars(handler: (bar: Bar) => void): () => void {
+    const wrapper = (payload?: unknown) => handler(payload as Bar);
+    this.on('barUpdate', wrapper);
+    return () => this.off('barUpdate', wrapper);
   }
 
   /** Integrator push: update last candle close (and H/L) without WS. */
@@ -297,6 +327,7 @@ export class ChartController {
       this.refreshRender(loadGen);
     }
     this.emit('barUpdate', bar);
+    this.trackTelemetry('barUpdate', { t: bar.t, partial });
   }
 
   private applyDrawingLayer(): void {
@@ -477,7 +508,7 @@ export class ChartController {
     const interval = this.store.interval;
 
     try {
-      const history = await this.options.dataProvider.getHistory({
+      const history = await fetchChartHistory(this.options.dataProvider, {
         mode: 'loadMore',
         symbol,
         interval,
@@ -541,6 +572,7 @@ export class ChartController {
     this.drawingManager?.destroy();
     void this.teardownSubscription();
     this.orchestrator.destroy();
+    terminatePineWorker();
     this.emit('destroyed', { chartId: this.options.chartId ?? 'default' });
     this.emit('connectionChange', 'disconnected');
   }
@@ -564,7 +596,14 @@ export class ChartController {
     const symbol = this.store.symbol;
     const interval = this.store.interval;
     const endTime = Date.now();
-    const history = await this.options.dataProvider.getHistory({
+    if (this.features.protobuf) {
+      this.emit('error', {
+        code: 'PROTOBUF_UNAVAILABLE',
+        message: 'Protobuf encoding requires protocol v1.1 (not in 1.0.0)',
+      });
+    }
+
+    const history = await fetchChartHistory(this.options.dataProvider, {
       mode: 'loadMore',
       symbol,
       interval,
@@ -587,26 +626,41 @@ export class ChartController {
     const streamMode: RealtimeStreamMode = this.features.tickStream
       ? 'bar+tick'
       : this.features.streamMode;
+    const tickOnly = streamMode === 'tick';
 
     const params: SubscribeParams = {
       symbol,
       interval,
-      channels: this.features.tickStream ? ['bar', 'tick'] : ['bar'],
+      channels: tickOnly ? ['tick'] : this.features.tickStream ? ['bar', 'tick'] : ['bar'],
       streamMode,
     };
+
+    this.tickAggregator = tickOnly
+      ? new TickAggregator(interval, (bar, partial) => {
+          if (!this.isLoadGenerationCurrent(loadGen)) return;
+          if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+          void this.applyRealtimeBar(bar, partial, loadGen);
+        })
+      : null;
 
     await this.options.dataProvider.connect?.();
     if (!this.isLoadGenerationCurrent(loadGen)) return;
 
     const sub = await this.options.dataProvider.subscribe(params, {
-      onBar: (bar, meta) => {
-        if (!this.isLoadGenerationCurrent(loadGen)) return;
-        if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-        void this.applyRealtimeBar(bar, meta.partial, loadGen);
-      },
+      onBar: tickOnly
+        ? undefined
+        : (bar, meta) => {
+            if (!this.isLoadGenerationCurrent(loadGen)) return;
+            if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+            void this.applyRealtimeBar(bar, meta.partial, loadGen);
+          },
       onTick: (tick) => {
         if (!this.isLoadGenerationCurrent(loadGen)) return;
         if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+        if (this.tickAggregator) {
+          this.tickAggregator.ingest(tick);
+          return;
+        }
         const bar = this.buildBarFromPrice(tick.price, tick.t);
         void this.applyRealtimeBar(bar, true, loadGen);
       },
@@ -626,6 +680,8 @@ export class ChartController {
   }
 
   private async teardownSubscription(): Promise<void> {
+    this.tickAggregator?.flush();
+    this.tickAggregator = null;
     if (this.subscriptionId) {
       await this.options.dataProvider.unsubscribe(this.subscriptionId);
       this.subscriptionId = null;
@@ -680,7 +736,7 @@ export class ChartController {
     const symbol = this.store.symbol;
 
     try {
-      const history = await this.options.dataProvider.getHistory({
+      const history = await fetchChartHistory(this.options.dataProvider, {
         mode: 'range',
         symbol,
         interval,
@@ -715,7 +771,10 @@ export class ChartController {
     try {
       for (const req of reqs) {
         if (!this.isLoadGenerationCurrent(loadGen)) return;
-        const history = await this.options.dataProvider.getHistory(toHistoryQuery(req));
+        const history = await fetchChartHistory(
+          this.options.dataProvider,
+          toHistoryQuery(req),
+        );
         if (!this.isLoadGenerationCurrent(loadGen)) return;
         if (history.bars.length === 0) continue;
         await this.store.mergeBars(
@@ -750,7 +809,13 @@ export class ChartController {
     const bars = this.virtualWindow.getBarsForRender();
     if (bars.length === 0) return;
 
-    this.orchestrator.setBars(bars);
+    const gaps = this.features.gaps.whitespace
+      ? computeGapStartTimes(
+          bars.map((b) => b.t),
+          this.store.interval,
+        )
+      : undefined;
+    this.orchestrator.setBars(bars, gaps);
     this.applyPinePlots(bars);
     this.drawingManager?.redraw();
     this.emit('visibleRangeChange', {

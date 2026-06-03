@@ -54,13 +54,58 @@ function seriesAt(bars: Bar[], series: string, index: number): number {
   }
 }
 
+function highestAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let max = -Infinity;
+  for (let i = index - p + 1; i <= index; i++) {
+    const v = seriesAt(bars, series, i);
+    if (v > max) max = v;
+  }
+  return Number.isFinite(max) ? max : null;
+}
+
+function lowestAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let min = Infinity;
+  for (let i = index - p + 1; i <= index; i++) {
+    const v = seriesAt(bars, series, i);
+    if (v < min) min = v;
+  }
+  return Number.isFinite(min) ? min : null;
+}
+
+function crossAt(
+  bars: Bar[],
+  seriesA: string,
+  seriesB: string,
+  index: number,
+  mode: 'over' | 'under',
+): number {
+  if (index < 1) return 0;
+  const a0 = seriesAt(bars, seriesA, index);
+  const b0 = seriesAt(bars, seriesB, index);
+  const a1 = seriesAt(bars, seriesA, index - 1);
+  const b1 = seriesAt(bars, seriesB, index - 1);
+  if (mode === 'over') return a1 <= b1 && a0 > b0 ? 1 : 0;
+  return a1 >= b1 && a0 < b0 ? 1 : 0;
+}
+
 function indicatorAt(
-  fn: 'sma' | 'ema' | 'rsi',
+  fn: 'sma' | 'ema' | 'rsi' | 'highest' | 'lowest' | 'crossover' | 'crossunder',
   bars: Bar[],
   series: string,
   index: number,
   period: number,
+  series2?: string,
 ): number | null {
+  if (fn === 'crossover' || fn === 'crossunder') {
+    if (!series2) return 0;
+    return crossAt(bars, series, series2, index, fn === 'crossover' ? 'over' : 'under');
+  }
+  if (fn === 'highest') return highestAt(bars, series, index, period);
+  if (fn === 'lowest') return lowestAt(bars, series, index, period);
   const src = barsForSeries(bars, series);
   const p = Math.max(1, Math.floor(period));
   const slice = src.slice(0, index + 1);
@@ -101,8 +146,13 @@ function execOp(
       break;
     }
     case 'call_ind': {
+      if (op.fn === 'crossover' || op.fn === 'crossunder') {
+        const v = indicatorAt(op.fn, bars, op.series, barIndex, 0, op.series2);
+        stack.push(v ?? 0);
+        break;
+      }
       const period = pop();
-      const v = indicatorAt(op.fn, bars, op.series, barIndex, period);
+      const v = indicatorAt(op.fn, bars, op.series, barIndex, period, op.series2);
       stack.push(v ?? NaN);
       break;
     }

@@ -1,12 +1,15 @@
 {
   "name": "@coderyo/pine-lite",
-  "version": "1.0.0-rc.4",
+  "version": "1.0.0",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./pine.worker": {
+      "import": "./dist/pine.worker.js"
     }
   },
   "scripts": {

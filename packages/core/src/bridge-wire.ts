@@ -21,6 +21,7 @@ const CHART_EVENT_TO_BRIDGE: Partial<Record<ChartEvent, BridgeOutboundType>> = {
   intervalChange: 'chart.interval',
   crosshairChange: 'chart.crosshair',
   destroyed: 'chart.destroyed',
+  barUpdate: 'chart.barUpdate',
 };
 
 export interface WireChartBridgeOptions {
@@ -128,6 +129,10 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   handlers.set('destroyed', () => {
     post('chart.destroyed', { chartId });
   });
+  handlers.set('barUpdate', (bar) => {
+    const b = bar as { t?: number; c?: number };
+    post('chart.barUpdate', { chartId, t: b?.t, c: b?.c });
+  });
 
   for (const [ev, fn] of handlers) {
     const bridgeType = CHART_EVENT_TO_BRIDGE[ev];
@@ -164,6 +169,36 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
           height: typeof p.height === 'number' ? p.height : undefined,
         });
         postResize();
+        break;
+      case 'host.setLogScale':
+        if (typeof p.enabled === 'boolean') chart.setLogScale(p.enabled);
+        break;
+      case 'host.setBarSpace':
+        if (typeof p.px === 'number') chart.setBarSpace(p.px);
+        break;
+      case 'host.setVisibleRange':
+        if (typeof p.fromMs === 'number' && typeof p.toMs === 'number') {
+          chart.setVisibleRange({ fromMs: p.fromMs, toMs: p.toMs });
+        }
+        break;
+      case 'host.scrollToTimestamp':
+        if (typeof p.tsMs === 'number') {
+          chart.scrollToTimestamp(
+            p.tsMs,
+            typeof p.animationMs === 'number' ? p.animationMs : undefined,
+          );
+        }
+        break;
+      case 'host.reloadHistory':
+        void chart.reloadHistory();
+        break;
+      case 'host.setLocale':
+        if (typeof p.locale === 'string') chart.setLocale(p.locale);
+        break;
+      case 'host.setFeatures':
+        if (p.features && typeof p.features === 'object') {
+          chart.setFeatures(p.features as import('./chart-features.js').ChartFeatures);
+        }
         break;
       case 'host.destroy':
         chart.destroy();

@@ -66,6 +66,8 @@ export function runPineLite(ir: PineIrProgram, bars: import('@coderyo/data').Bar
   return runPineIr(ir, bars);
 }
 
+export { runPineLiteAsync, terminatePineWorker, type RunPineLiteAsyncOptions } from './worker-client.js';
+
 export const PINE_SAMPLE_SCRIPT = `// Pine-lite — if / while / for、比較、and/or/not
 var len = 20
 if (close > 0) {
