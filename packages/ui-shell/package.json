@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@tradview/ui-shell",
   "version": "0.0.0",
   "license": "UNLICENSED",
@@ -14,6 +14,10 @@
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tradview/data": "workspace:*",
+    "@tradview/i18n": "workspace:*"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",
