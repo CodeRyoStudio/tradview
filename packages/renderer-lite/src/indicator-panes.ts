@@ -21,6 +21,7 @@ import {
   ema,
 } from '@coderyo/indicators';
 import { gridOptions } from './chart-grid.js';
+import { attachPaneResizer } from './pane-resize.js';
 import type { TimeScaleBus } from './time-scale-bus.js';
 
 export type IndicatorPaneId = 'macd' | 'rsi' | 'kdj';
@@ -39,6 +40,28 @@ function barsForSource(bars: Bar[], source: IndicatorConfig['source']): Bar[] {
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
   return Math.floor(tMs / 1000) as UTCTimestamp;
+}
+
+/** PR-21: detect in-place tail updates vs full recompute. */
+export function detectIndicatorBarMutation(
+  prevTimes: number[],
+  bars: Bar[],
+): 'full' | 'tail-append' | 'tail-update' {
+  if (prevTimes.length === 0 || bars.length < prevTimes.length) return 'full';
+  const prefixLen = Math.min(prevTimes.length, bars.length);
+  for (let i = 0; i < prefixLen - 1; i++) {
+    if (bars[i]!.t !== prevTimes[i]) return 'full';
+  }
+  if (bars.length === prevTimes.length) {
+    return bars.length > 0 && bars[bars.length - 1]!.t === prevTimes[prevTimes.length - 1]
+      ? 'tail-update'
+      : 'full';
+  }
+  if (bars.length - prevTimes.length > 8) return 'full';
+  for (let i = 0; i < prevTimes.length; i++) {
+    if (bars[i]!.t !== prevTimes[i]) return 'full';
+  }
+  return 'tail-append';
 }
 
 function lineData(bars: Bar[], values: (number | null)[]): LineData<UTCTimestamp>[] {
@@ -82,6 +105,8 @@ export class IndicatorPaneStack {
   private readonly macdWrap: HTMLElement;
   private readonly rsiWrap: HTMLElement;
   private readonly kdjWrap: HTMLElement;
+  private readonly detachResizers: Array<() => void> = [];
+  private lastBarTimes: number[] = [];
   private onConfigChange?: (config: IndicatorConfig) => void;
 
   constructor(
@@ -107,6 +132,18 @@ export class IndicatorPaneStack {
     this.rsiWrap = rsiPane.wrap;
     this.kdjWrap = kdjPane.wrap;
     this.root.append(macdPane.wrap, rsiPane.wrap, kdjPane.wrap);
+    this.detachResizers.push(
+      attachPaneResizer(macdPane.wrap, rsiPane.wrap, {
+        storageKey: 'tradview:pane:macd-rsi',
+        minTopPx: 72,
+        minBottomPx: 72,
+      }),
+      attachPaneResizer(rsiPane.wrap, kdjPane.wrap, {
+        storageKey: 'tradview:pane:rsi-kdj',
+        minTopPx: 72,
+        minBottomPx: 72,
+      }),
+    );
     this.applyPaneVisibility();
 
     const layout = this.layoutForTheme(this.dark);
@@ -157,26 +194,90 @@ export class IndicatorPaneStack {
     this.kdjK.setData([]);
     this.kdjD.setData([]);
     this.kdjJ.setData([]);
+    this.lastBarTimes = [];
+  }
+
+  private warmupLookback(): number {
+    const c = this.config;
+    return (
+      Math.max(
+        c.macdSlow + c.macdSignal,
+        c.rsiPeriod,
+        c.kdjPeriod + c.kdjKSmooth + c.kdjDSmooth,
+      ) + 5
+    );
+  }
+
+  private detectBarMutation(bars: Bar[]): 'full' | 'tail-append' | 'tail-update' {
+    return detectIndicatorBarMutation(this.lastBarTimes, bars);
+  }
+
+  private pushSeriesUpdates(
+    series: ISeriesApi<'Line'>,
+    bars: Bar[],
+    values: (number | null)[],
+    fromIndex: number,
+  ): void {
+    for (let i = fromIndex; i < bars.length; i++) {
+      const v = values[i];
+      if (v == null) continue;
+      series.update({ time: toUtcSeconds(bars[i]!.t), value: v });
+    }
+  }
+
+  private pushHistUpdates(
+    series: ISeriesApi<'Histogram'>,
+    bars: Bar[],
+    values: (number | null)[],
+    fromIndex: number,
+  ): void {
+    for (let i = fromIndex; i < bars.length; i++) {
+      const v = values[i];
+      if (v == null) continue;
+      series.update({
+        time: toUtcSeconds(bars[i]!.t),
+        value: v,
+        color: v >= 0 ? '#26a69a88' : '#ef535088',
+      });
+    }
   }
 
   setBars(bars: Bar[]): void {
-    if (bars.length === 0) return;
+    if (bars.length === 0) {
+      this.clearBars();
+      return;
+    }
+
+    const mutation = this.detectBarMutation(bars);
+    this.lastBarTimes = bars.map((b) => b.t);
     const src = barsForSource(bars, this.config.source);
     const m = macd(src, this.config.macdFast, this.config.macdSlow, this.config.macdSignal);
-    this.macdLine.setData(lineData(bars, m.macd));
-    this.macdSignal.setData(lineData(bars, m.signal));
-    this.macdHist.setData(histData(bars, m.histogram));
-
-    this.rsiLine.setData(lineData(bars, rsi(src, this.config.rsiPeriod)));
-
+    const r = rsi(src, this.config.rsiPeriod);
     const k = kdj(src, this.config.kdjPeriod, this.config.kdjKSmooth, this.config.kdjDSmooth);
-    this.kdjK.setData(lineData(bars, k.k));
-    this.kdjD.setData(lineData(bars, k.d));
-    this.kdjJ.setData(lineData(bars, k.j));
 
-    this.macdChart.timeScale().fitContent();
-    this.rsiChart.timeScale().fitContent();
-    this.kdjChart.timeScale().fitContent();
+    if (mutation === 'full') {
+      this.macdLine.setData(lineData(bars, m.macd));
+      this.macdSignal.setData(lineData(bars, m.signal));
+      this.macdHist.setData(histData(bars, m.histogram));
+      this.rsiLine.setData(lineData(bars, r));
+      this.kdjK.setData(lineData(bars, k.k));
+      this.kdjD.setData(lineData(bars, k.d));
+      this.kdjJ.setData(lineData(bars, k.j));
+      this.macdChart.timeScale().fitContent();
+      this.rsiChart.timeScale().fitContent();
+      this.kdjChart.timeScale().fitContent();
+    } else {
+      const from =
+        mutation === 'tail-update' ? Math.max(0, bars.length - 1) : Math.max(0, bars.length - this.warmupLookback());
+      this.pushSeriesUpdates(this.macdLine, bars, m.macd, from);
+      this.pushSeriesUpdates(this.macdSignal, bars, m.signal, from);
+      this.pushHistUpdates(this.macdHist, bars, m.histogram, from);
+      this.pushSeriesUpdates(this.rsiLine, bars, r, from);
+      this.pushSeriesUpdates(this.kdjK, bars, k.k, from);
+      this.pushSeriesUpdates(this.kdjD, bars, k.d, from);
+      this.pushSeriesUpdates(this.kdjJ, bars, k.j, from);
+    }
+
     this.resize();
   }
 
@@ -223,6 +324,8 @@ export class IndicatorPaneStack {
   }
 
   destroy(): void {
+    for (const detach of this.detachResizers) detach();
+    this.detachResizers.length = 0;
     this.macdChart.remove();
     this.rsiChart.remove();
     this.kdjChart.remove();
