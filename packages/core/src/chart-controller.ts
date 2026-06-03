@@ -102,8 +102,10 @@ export class ChartController {
 
     const overlay = this.orchestrator.getOverlayCanvas();
     if (overlay) {
+      this.orchestrator.setOverlayPointerEvents('none');
       this.drawingManager = new DrawingManager({
         canvas: overlay,
+        interactionHost: overlay.parentElement ?? undefined,
         chartId: options.chartId ?? 'default',
         symbol,
         interval,
@@ -174,7 +176,7 @@ export class ChartController {
 
   setDrawingTool(tool: import('@tradview/drawings').DrawingTool): this {
     this.drawingManager?.setTool(tool);
-    this.orchestrator.setOverlayPointerEvents('auto');
+    this.orchestrator.setOverlayPointerEvents(tool === 'cursor' ? 'none' : 'auto');
     return this;
   }
 

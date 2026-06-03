@@ -17,6 +17,8 @@ const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 1];
 
 export interface DrawingManagerOptions {
   canvas: HTMLCanvasElement;
+  /** Main chart pane (overlay parent); cursor-mode hit tests use capture here while overlay is pass-through. */
+  interactionHost?: HTMLElement;
   chartId: string;
   symbol: string;
   interval: string;
@@ -61,8 +63,12 @@ export class DrawingManager {
   private readonly ctx: DrawingContext;
   private readonly handleRadius: number;
   private labelDragIndex: number | null = null;
+  private readonly interactionHost: HTMLElement | null;
+  private hostListenersAttached = false;
+  private moveListenerTarget: HTMLElement | null = null;
 
   constructor(private readonly opts: DrawingManagerOptions) {
+    this.interactionHost = opts.interactionHost ?? opts.canvas.parentElement;
     this.ctx = {
       chartId: opts.chartId,
       symbol: opts.symbol,
@@ -71,14 +77,12 @@ export class DrawingManager {
     this.key = storageKey(this.ctx.chartId, this.ctx.symbol, this.ctx.interval);
     this.drawings = loadDrawings(this.key).drawings;
     this.handleRadius = 6 * devicePixelRatio;
-    this.applyPointerMode();
     opts.canvas.addEventListener('pointerdown', this.onDown);
-    opts.canvas.addEventListener('pointermove', this.onMove);
-    opts.canvas.addEventListener('pointerup', this.onUp);
-    opts.canvas.addEventListener('pointercancel', this.onUp);
     window.addEventListener('keydown', this.onKeyDown);
     opts.canvas.addEventListener('contextmenu', this.onContextMenu);
     opts.canvas.style.touchAction = 'none';
+    if (this.interactionHost) this.interactionHost.style.touchAction = 'none';
+    this.applyPointerMode();
   }
 
   setTool(tool: DrawingTool): void {
@@ -160,7 +164,34 @@ export class DrawingManager {
   }
 
   private applyPointerMode(): void {
-    this.opts.canvas.style.pointerEvents = 'auto';
+    const cursor = this.tool === 'cursor';
+    this.opts.canvas.style.pointerEvents = cursor ? 'none' : 'auto';
+    const moveTarget = cursor && this.interactionHost ? this.interactionHost : this.opts.canvas;
+    this.setMoveListeners(moveTarget);
+
+    if (!this.interactionHost) return;
+    if (cursor && !this.hostListenersAttached) {
+      this.interactionHost.addEventListener('pointerdown', this.onHostPointerDown, true);
+      this.interactionHost.addEventListener('contextmenu', this.onHostContextMenu, true);
+      this.hostListenersAttached = true;
+    } else if (!cursor && this.hostListenersAttached) {
+      this.interactionHost.removeEventListener('pointerdown', this.onHostPointerDown, true);
+      this.interactionHost.removeEventListener('contextmenu', this.onHostContextMenu, true);
+      this.hostListenersAttached = false;
+    }
+  }
+
+  private setMoveListeners(target: HTMLElement): void {
+    if (this.moveListenerTarget === target) return;
+    if (this.moveListenerTarget) {
+      this.moveListenerTarget.removeEventListener('pointermove', this.onMove);
+      this.moveListenerTarget.removeEventListener('pointerup', this.onUp);
+      this.moveListenerTarget.removeEventListener('pointercancel', this.onUp);
+    }
+    this.moveListenerTarget = target;
+    target.addEventListener('pointermove', this.onMove);
+    target.addEventListener('pointerup', this.onUp);
+    target.addEventListener('pointercancel', this.onUp);
   }
 
   setContext(symbol: string, interval: string): void {
@@ -218,10 +249,18 @@ export class DrawingManager {
 
   destroy(): void {
     this.opts.canvas.removeEventListener('pointerdown', this.onDown);
-    this.opts.canvas.removeEventListener('pointermove', this.onMove);
-    this.opts.canvas.removeEventListener('pointerup', this.onUp);
-    this.opts.canvas.removeEventListener('pointercancel', this.onUp);
+    if (this.moveListenerTarget) {
+      this.moveListenerTarget.removeEventListener('pointermove', this.onMove);
+      this.moveListenerTarget.removeEventListener('pointerup', this.onUp);
+      this.moveListenerTarget.removeEventListener('pointercancel', this.onUp);
+      this.moveListenerTarget = null;
+    }
     this.opts.canvas.removeEventListener('contextmenu', this.onContextMenu);
+    if (this.interactionHost && this.hostListenersAttached) {
+      this.interactionHost.removeEventListener('pointerdown', this.onHostPointerDown, true);
+      this.interactionHost.removeEventListener('contextmenu', this.onHostContextMenu, true);
+      this.hostListenersAttached = false;
+    }
     window.removeEventListener('keydown', this.onKeyDown);
   }
 
@@ -231,6 +270,22 @@ export class DrawingManager {
 
   private onContextMenu = (e: MouseEvent) => {
     if (this.tool !== 'cursor') return;
+    this.openDrawingContextMenu(e);
+  };
+
+  private onHostContextMenu = (e: MouseEvent) => {
+    if (this.tool !== 'cursor') return;
+    const pt = this.hitPointFromClient(e.clientX, e.clientY);
+    if (!pt) return;
+    const onDrawing =
+      this.hitTestAnchorAny(pt.x, pt.y) != null || this.hitTestDrawing(pt.x, pt.y) != null;
+    if (!onDrawing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.openDrawingContextMenu(e);
+  };
+
+  private openDrawingContextMenu(e: MouseEvent): void {
     e.preventDefault();
     const pt = this.hitPointFromClient(e.clientX, e.clientY);
     if (pt) {
@@ -244,6 +299,14 @@ export class DrawingManager {
       clientY: e.clientY,
       drawing: this.getSelected(),
     });
+  };
+
+  private onHostPointerDown = (e: PointerEvent) => {
+    if (this.tool !== 'cursor') return;
+    if (this.handleCursorPointerDown(e)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
   };
 
   private paint(ctx: CanvasRenderingContext2D, d: DrawingRecord): void {
@@ -383,50 +446,56 @@ export class DrawingManager {
     }
   };
 
-  private onDown = (e: PointerEvent) => {
+  private handleCursorPointerDown(e: PointerEvent): boolean {
     const pt = this.hitPoint(e);
-    if (!pt) return;
+    if (!pt) return false;
 
-    if (this.tool === 'cursor') {
-      const anchor = this.hitTestAnchorAny(pt.x, pt.y);
-      if (anchor) {
-        const d = this.getDrawing(anchor.drawingId);
-        if (d && getDrawingStyle(d).locked) return;
-        this.selectedId = anchor.drawingId;
-        this.drag = { kind: 'anchor', drawingId: anchor.drawingId, pointIndex: anchor.pointIndex };
-        this.labelDragIndex = anchor.pointIndex;
+    const anchor = this.hitTestAnchorAny(pt.x, pt.y);
+    if (anchor) {
+      const d = this.getDrawing(anchor.drawingId);
+      if (d && getDrawingStyle(d).locked) return true;
+      this.selectedId = anchor.drawingId;
+      this.drag = { kind: 'anchor', drawingId: anchor.drawingId, pointIndex: anchor.pointIndex };
+      this.labelDragIndex = anchor.pointIndex;
+      this.capturePointer(e);
+      this.redraw();
+      this.emitSelection();
+      return true;
+    }
+
+    const id = this.hitTestDrawing(pt.x, pt.y);
+    this.selectedId = id;
+    if (id) {
+      const d = this.getDrawing(id);
+      if (d && !getDrawingStyle(d).locked) {
+        this.drag = {
+          kind: 'body',
+          drawingId: id,
+          startPoints: d.points.map((p) => ({ ...p })),
+          startT: pt.t,
+          startPrice: pt.price,
+        };
         this.capturePointer(e);
-        this.redraw();
-        this.emitSelection();
-        return;
       }
+      this.redraw();
+      this.emitSelection();
+      return true;
+    }
 
-      const id = this.hitTestDrawing(pt.x, pt.y);
-      this.selectedId = id;
-      if (id) {
-        const d = this.getDrawing(id);
-        if (d && !getDrawingStyle(d).locked) {
-          this.drag = {
-            kind: 'body',
-            drawingId: id,
-            startPoints: d.points.map((p) => ({ ...p })),
-            startT: pt.t,
-            startPrice: pt.price,
-          };
-          this.capturePointer(e);
-        }
-        this.redraw();
-        this.emitSelection();
-        return;
-      }
-
+    if (this.selectedId) {
       this.selectedId = null;
       this.drag = null;
       this.redraw();
       this.emitSelection();
-      this.beginChartPassthrough(e);
-      return;
     }
+    return false;
+  }
+
+  private onDown = (e: PointerEvent) => {
+    if (this.tool === 'cursor') return;
+
+    const pt = this.hitPoint(e);
+    if (!pt) return;
 
     const type = this.tool === 'hline' ? 'hline' : this.tool;
     this.draft = {
@@ -513,8 +582,10 @@ export class DrawingManager {
 
   private capturePointer(e: PointerEvent): void {
     this.activePointerId = e.pointerId;
+    const target =
+      this.tool === 'cursor' && this.interactionHost ? this.interactionHost : this.opts.canvas;
     try {
-      this.opts.canvas.setPointerCapture(e.pointerId);
+      target.setPointerCapture(e.pointerId);
     } catch {
       /* ignore */
     }
@@ -522,62 +593,15 @@ export class DrawingManager {
 
   private releasePointer(e: PointerEvent): void {
     this.activePointerId = null;
+    const target =
+      this.tool === 'cursor' && this.interactionHost ? this.interactionHost : this.opts.canvas;
     try {
-      if (this.opts.canvas.hasPointerCapture(e.pointerId)) {
-        this.opts.canvas.releasePointerCapture(e.pointerId);
+      if (target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId);
       }
     } catch {
       /* ignore */
     }
-  }
-
-  private beginChartPassthrough(e: PointerEvent): void {
-    this.opts.canvas.style.pointerEvents = 'none';
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    if (target && target !== this.opts.canvas) {
-      target.dispatchEvent(this.clonePointerEvent(e, 'pointerdown'));
-    }
-
-    const move = (ev: PointerEvent) => {
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      if (el && el !== this.opts.canvas) {
-        el.dispatchEvent(this.clonePointerEvent(ev, 'pointermove'));
-      }
-    };
-
-    const end = (ev: PointerEvent) => {
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      if (el && el !== this.opts.canvas) {
-        el.dispatchEvent(this.clonePointerEvent(ev, 'pointerup'));
-      }
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
-      window.removeEventListener('pointercancel', end);
-      this.applyPointerMode();
-    };
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end, { once: true });
-    window.addEventListener('pointercancel', end, { once: true });
-  }
-
-  private clonePointerEvent(e: PointerEvent, type: string): PointerEvent {
-    return new PointerEvent(type, {
-      bubbles: true,
-      cancelable: true,
-      clientX: e.clientX,
-      clientY: e.clientY,
-      screenX: e.screenX,
-      screenY: e.screenY,
-      pointerId: e.pointerId,
-      pointerType: e.pointerType,
-      buttons: e.buttons,
-      button: e.button,
-      altKey: e.altKey,
-      ctrlKey: e.ctrlKey,
-      metaKey: e.metaKey,
-      shiftKey: e.shiftKey,
-    });
   }
 
   private getDrawing(id: string): DrawingRecord | undefined {
