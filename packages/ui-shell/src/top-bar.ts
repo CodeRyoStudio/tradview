@@ -1,9 +1,16 @@
 import { DEFAULT_INTERVALS, type Interval, type SymbolSearchHit } from '@coderyo/data';
-import { t } from '@coderyo/i18n';
+import type { I18nProvider } from './i18n-provider.js';
+import { mountLogoSlot, type LogoSlotOptions } from './logo-slot.js';
 import { mountSettingsMenu, type SettingsMenuOptions } from './settings-menu.js';
+import {
+  createSymbolSearchDialog,
+  mountSymbolSearchDialogTrigger,
+} from './symbol-search-dialog.js';
 import { mountSymbolSearch } from './symbol-search.js';
+import { mountThemeToggle } from './theme-toggle.js';
+import type { ThemeProvider } from './theme-provider.js';
 
-export type SymbolInputMode = 'manual' | 'search' | 'none';
+export type SymbolInputMode = 'manual' | 'search' | 'dialog' | 'none';
 
 export interface TopBarOptions {
   intervals?: Interval[];
@@ -14,6 +21,10 @@ export interface TopBarOptions {
   onSymbolSelect?: (symbol: string) => void;
   onIntervalChange?: (interval: Interval) => void;
   onThemeToggle?: () => void;
+  onThemeChange?: (theme: 'dark' | 'light') => void;
+  themeProvider?: ThemeProvider;
+  i18n?: I18nProvider;
+  logo?: LogoSlotOptions | false;
   onFullscreen?: () => void;
   onScreenshot?: () => void;
   settings?: SettingsMenuOptions;
@@ -23,13 +34,17 @@ export interface TopBarOptions {
 
 function mountManualSymbolInput(
   parent: HTMLElement,
-  opts: { initialSymbol?: string; onSymbolSelect?: (symbol: string) => void },
+  opts: {
+    initialSymbol?: string;
+    onSymbolSelect?: (symbol: string) => void;
+    i18n?: I18nProvider;
+  },
 ): void {
   const wrap = document.createElement('div');
   wrap.style.cssText = 'display:flex;align-items:center;gap:4px;margin-right:8px;';
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = t('symbol.search', 'Symbol');
+  input.placeholder = opts.i18n?.t('symbol.search', 'Symbol') ?? 'Symbol';
   input.value = opts.initialSymbol ?? '';
   input.style.cssText =
     'width:140px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:12px;';
@@ -55,10 +70,17 @@ export function mountTopBar(
   parent: HTMLElement,
   opts: TopBarOptions = {},
 ): { el: HTMLElement; setActiveInterval: (interval: Interval) => void } {
+  const i18n = opts.i18n;
+  const tKey = (key: string, fallback: string) => i18n?.t(key, fallback) ?? fallback;
+
   const bar = document.createElement('div');
   bar.className = 'tv-topbar';
   bar.style.cssText =
-    'display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid #30363d;background:#161b22;flex-shrink:0;box-sizing:border-box;width:100%;min-width:0;overflow-x:auto;overflow-y:visible;position:relative;';
+    'display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid var(--tv-border,#30363d);background:var(--tv-surface,#161b22);flex-shrink:0;box-sizing:border-box;width:100%;min-width:0;overflow-x:auto;overflow-y:visible;position:relative;';
+
+  if (opts.logo !== false) {
+    mountLogoSlot(bar, opts.logo ?? { label: 'TradView' });
+  }
 
   const symbolMode = opts.symbolInput ?? 'manual';
   if (symbolMode === 'search' && opts.onSymbolSearch && opts.onSymbolSelect) {
@@ -67,10 +89,22 @@ export function mountTopBar(
       onSearch: opts.onSymbolSearch,
       onSelect: opts.onSymbolSelect,
     });
+  } else if (symbolMode === 'dialog' && opts.onSymbolSearch && opts.onSymbolSelect) {
+    const dialog = createSymbolSearchDialog({
+      initialSymbol: opts.initialSymbol,
+      onSearch: opts.onSymbolSearch,
+      onSelect: opts.onSymbolSelect,
+      i18n,
+    });
+    mountSymbolSearchDialogTrigger(bar, dialog, {
+      initialSymbol: opts.initialSymbol,
+      i18n,
+    });
   } else if (symbolMode === 'manual' && opts.onSymbolSelect) {
     mountManualSymbolInput(bar, {
       initialSymbol: opts.initialSymbol,
       onSymbolSelect: opts.onSymbolSelect,
+      i18n,
     });
   }
 
@@ -94,7 +128,7 @@ export function mountTopBar(
   for (const iv of intervals) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = t(`interval.${iv}`, iv);
+    btn.textContent = tKey(`interval.${iv}`, iv);
     btn.style.cssText = btnStyle;
     btn.onclick = () => {
       if (activeInterval === iv) return;
@@ -122,7 +156,15 @@ export function mountTopBar(
     return b;
   };
 
-  bar.appendChild(mkBtn(t('theme.dark', '主題'), opts.onThemeToggle));
+  if (opts.themeProvider) {
+    mountThemeToggle(bar, {
+      themeProvider: opts.themeProvider,
+      i18n,
+      onThemeChange: opts.onThemeChange,
+    });
+  } else {
+    bar.appendChild(mkBtn(tKey('theme.dark', '主題'), opts.onThemeToggle));
+  }
   if (opts.showSettings && opts.settings) mountSettingsMenu(bar, opts.settings);
   bar.appendChild(mkBtn('⛶', opts.onFullscreen));
   bar.appendChild(mkBtn('📷', opts.onScreenshot));

@@ -1,4 +1,9 @@
 export * from './top-bar.js';
+export * from './theme-provider.js';
+export * from './i18n-provider.js';
+export * from './logo-slot.js';
+export * from './theme-toggle.js';
+export * from './symbol-search-dialog.js';
 export * from './chart-layout.js';
 export * from './layout-features.js';
 export type { DrawingToolId } from './chart-layout.js';

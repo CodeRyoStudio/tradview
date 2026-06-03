@@ -8,6 +8,9 @@ import {
   loadReturnToCursorPreference,
   loadShowGridPreference,
   createDemoLayoutOptions,
+  createI18nProvider,
+  createThemeProvider,
+  loadTheme,
   mountChartLayout,
   mountCodeSnippetPanel,
   mountPineEditorPanel,
@@ -35,7 +38,9 @@ const chartRef: { current: IChart | null } = { current: null };
 let drawingTool: DrawingToolId = 'cursor';
 let showGrid = loadShowGridPreference();
 let returnToCursor = loadReturnToCursorPreference();
-let theme: 'dark' | 'light' = 'dark';
+const themeProvider = createThemeProvider(loadTheme());
+const i18n = createI18nProvider('zh-TW');
+let theme: 'dark' | 'light' = themeProvider.getTheme();
 let logScale = false;
 let lastSymbol = 'BINANCE:BTCUSDT';
 let lastInterval: Interval = '1h';
@@ -46,6 +51,8 @@ const symbolResolver = createPassthroughSymbolResolver((q) =>
 );
 
 const shellOpts = createDemoLayoutOptions({
+  themeProvider,
+  i18n,
   intervals: EXTENDED_INTERVALS,
   activeDrawingTool: drawingTool,
   onDrawingToolSelect: (tool) => {
@@ -152,8 +159,8 @@ shellOpts.onIntervalChange = (interval) => {
   updateShellMeta();
 };
 
-shellOpts.onThemeToggle = () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
+shellOpts.onThemeChange = (next) => {
+  theme = next;
   chart.setTheme(theme);
   document.body.style.background = theme === 'dark' ? '#0d1117' : '#f6f8fa';
   document.body.style.color = theme === 'dark' ? '#e6edf3' : '#24292f';
@@ -211,7 +218,10 @@ bindChartKeyboard({
     logScale = !logScale;
     chart.setLogScale(logScale);
   },
-  toggleTheme: () => shellOpts.onThemeToggle?.(),
+  toggleTheme: () => {
+    const next = themeProvider.toggle();
+    shellOpts.onThemeChange?.(next);
+  },
   selectCursorTool: () => {
     chart.setDrawingTool('cursor');
     setActiveDrawingTool('cursor');

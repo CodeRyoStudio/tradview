@@ -12,6 +12,8 @@ import { mountStatusBar, type StatusBarOptions } from './status-bar.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 import type { SettingsPanelOptions } from './settings-panel.js';
 import { bindShortcutsModal } from './shortcuts-modal.js';
+import { createI18nProvider, type I18nProvider } from './i18n-provider.js';
+import { createThemeProvider, type ThemeProvider } from './theme-provider.js';
 
 export type { LayoutFeatures, ResolvedLayoutFeatures } from './layout-features.js';
 export { resolveLayoutFeatures, DEFAULT_LAYOUT_FEATURES, createDemoLayoutOptions } from './layout-features.js';
@@ -38,6 +40,8 @@ const DRAWING_TOOLS: Array<{ id: DrawingToolId; label: string }> = [
 const MOBILE_MQ = '(max-width: 768px)';
 
 export interface ChartLayoutOptions extends TopBarOptions {
+  themeProvider?: ThemeProvider;
+  i18n?: I18nProvider;
   showTopBar?: boolean;
   showLeftToolbar?: boolean;
   showBottomToolbar?: boolean;
@@ -52,7 +56,7 @@ export interface ChartLayoutOptions extends TopBarOptions {
   showContextMenu?: boolean;
   showSettings?: boolean;
   showShortcuts?: boolean;
-  symbolInput?: 'manual' | 'search' | 'none';
+  symbolInput?: 'manual' | 'search' | 'dialog' | 'none';
   onDrawingStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;
   onDrawingSelectionBind?: (bind: (drawing: import('@coderyo/drawings').DrawingRecord | null) => void) => void;
 }
@@ -112,7 +116,11 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   root.style.minWidth = '0';
   root.style.boxSizing = 'border-box';
   root.style.overflow = 'visible';
-  root.style.background = '#0d1117';
+  const themeProvider = opts.themeProvider ?? createThemeProvider();
+  const i18nProvider = opts.i18n ?? createI18nProvider();
+  themeProvider.subscribe((theme) => {
+    root.style.background = theme === 'dark' ? '#0d1117' : '#f6f8fa';
+  });
 
   let activeTool: DrawingToolId = opts.activeDrawingTool ?? 'cursor';
   let setActiveDesktop: ((t: DrawingToolId) => void) | null = null;
@@ -218,6 +226,12 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
         Object.assign(opts, {
           symbolInput: f.symbolInput,
           showSettings: f.showSettings,
+          themeProvider: opts.themeProvider ?? themeProvider,
+          i18n: opts.i18n ?? i18nProvider,
+          onThemeChange: (theme: 'dark' | 'light') => {
+            opts.onThemeChange?.(theme);
+            if (!opts.onThemeChange) opts.onThemeToggle?.();
+          },
         }),
       );
       topBar = mounted.el;

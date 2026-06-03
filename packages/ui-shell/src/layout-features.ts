@@ -11,7 +11,7 @@ export interface LayoutFeatures {
   showSettings?: boolean;
   showShortcuts?: boolean;
   /** When TopBar is on and no search API: manual symbol input (default). */
-  symbolInput?: 'manual' | 'search' | 'none';
+  symbolInput?: 'manual' | 'search' | 'dialog' | 'none';
 }
 
 export interface ResolvedLayoutFeatures {
@@ -24,7 +24,7 @@ export interface ResolvedLayoutFeatures {
   showContextMenu: boolean;
   showSettings: boolean;
   showShortcuts: boolean;
-  symbolInput: 'manual' | 'search' | 'none';
+  symbolInput: 'manual' | 'search' | 'dialog' | 'none';
 }
 
 export const DEFAULT_LAYOUT_FEATURES: ResolvedLayoutFeatures = {
