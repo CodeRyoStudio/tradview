@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@tradview/virtual-window",
   "version": "0.0.0",
   "license": "MIT",
@@ -11,9 +11,13 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tradview/data": "workspace:*",
+    "@tradview/series": "workspace:*"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",
