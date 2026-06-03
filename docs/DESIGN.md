@@ -248,6 +248,41 @@ bridge → core (peer)
 
 ## 6. Public TypeScript API（公開 API）
 
+### 6.0 整合方優先（Integrator-first）
+
+> **TradView 是可嵌入框架，不是獨立交易終端。** `apps/playground` 與 `createDemo*` 僅為**參考實作**，不得成為能力的唯一入口。
+
+| 層級 | 套件 | 整合方如何控制 |
+|------|------|----------------|
+| **L0 圖表能力** | `@coderyo/core` — `createChart` / `IChart` / `ChartFeatures` | 程式呼叫；**預設最小**（無商品、無指標、無繪圖互動層、見 `DEFAULT_CHART_FEATURES`） |
+| **L1 參考殼層** | `@coderyo/ui-shell` — `mountChartLayout` | 各 `show*` **預設 `false`**；每個 UI 行為經 **callback** 由宿主自行接線至 `IChart`（殼層不會自動綁 chart） |
+| **L2 遠端宿主** | `@coderyo/bridge` | `host.*` 白名單應與 `IChart` 對齊（WebView / RN / Flutter） |
+| **L3 展示** | `apps/playground`、CDN demo | 僅示範接線方式 |
+
+**新功能流程（強制）：** ① 擴充 `IChart` 或 `ChartFeatures`（及必要時 Bridge `host.*`）→ ② 更新 [API.md](./API.md) → ③（可選）在 ui-shell 增加參考 UI → ④ Playground 接線範例。
+
+**反模式：** 只在 Settings 面板、TopBar 或 Playground 實作，而 `IChart` 無對應方法（宿主無法用自己的 UI 觸發）。
+
+**權威 API 清單：** 以 [API.md](./API.md) 與 `packages/core` 匯出型別為準；下方 §6.1 片段為概要，可能落後於 RC 實作。
+
+#### 能力對照（v1）
+
+| 能力 | `IChart` / `ChartFeatures` | Bridge `host.*` | 僅 ui-shell / Playground |
+|------|---------------------------|-----------------|---------------------------|
+| 商品、週期 | `setSymbol` / `setInterval` | `host.setSymbol` / `host.setInterval` | TopBar callback |
+| 主題、網格、對數軸 | `setTheme` / `setShowGrid` / `setLogScale` | `host.setTheme` / `host.setShowGrid` / `host.setLogScale` | TopBar、Settings |
+| 視窗、縮放 | `getVisibleRange` / `setBarSpace` / `setVisibleRange` / `scrollToTimestamp` | 對應 `host.*` | — |
+| 指標參數 | `setIndicatorConfig` / `setFeatures.indicators` | **未覆蓋** | Settings 表單 |
+| 清空指標、畫線 | `clearAllIndicators` / `clearAllDrawings` | **未覆蓋** | Settings 按鈕 |
+| 繪圖 | `setDrawingTool`、`deleteSelectedDrawing` 等 | **未覆蓋** | LeftToolbar、右鍵選單 |
+| 全螢幕、截圖 | `setFullscreen` / `exportImage` | **未覆蓋** | TopBar |
+| Pine 腳本 | `setFeatures({ pineEnabled, pineScript })` | `host.setFeatures`（泛用 patch） | `mountPineEditorPanel`（Playground 掛載） |
+| 主題 / i18n DOM | —（圖表內 `setTheme` / `setLocale`） | `host.setLocale` | `createThemeProvider` / `createI18nProvider`（可選注入 layout） |
+| 指標窗格 × 關閉 | `setIndicatorConfig({ showMacd: false, … })` | **未覆蓋** | 窗格右上角按鈕 |
+| 資料、認證 | `DataProvider` / `AuthHooks`（`@coderyo/data`） | — | — |
+
+---
+
 ### 6.1 工廠與鏈式 API
 
 ```typescript
