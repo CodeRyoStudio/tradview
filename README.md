@@ -2,6 +2,8 @@
 
 TradingView-style embeddable K-line chart framework (see [docs/DESIGN.md](./docs/DESIGN.md)).
 
+**Repository:** https://github.com/CodeRyoStudio/tradview
+
 ## Quick start
 
 ```bash
