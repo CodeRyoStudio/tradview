@@ -29,5 +29,6 @@ run('pnpm', ['typecheck']);
 run('pnpm', ['lint']);
 run('pnpm', ['build:cdn']);
 run('pnpm', ['check:cdn-size']);
+run('pnpm', ['check:lwc-size']);
 
 console.log('\n[check-rc] All gates passed.');

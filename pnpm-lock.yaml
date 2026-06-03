@@ -92,6 +92,19 @@ importers:
         specifier: ^6.3.5
         version: 6.4.3(@types/node@22.19.19)(tsx@4.22.4)
 
+  bundle/lwc-gate:
+    dependencies:
+      '@coderyo/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.4.3(@types/node@22.19.19)(tsx@4.22.4)
+
   packages/bridge:
     devDependencies:
       '@coderyo/eslint-config':
@@ -398,6 +411,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.0
         version: 6.43.0
+      '@coderyo/core':
+        specifier: workspace:*
+        version: link:../core
       '@coderyo/data':
         specifier: workspace:*
         version: link:../data

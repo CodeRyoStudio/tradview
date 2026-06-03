@@ -20,6 +20,23 @@ export {
 } from './chart-controller.js';
 export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';
 export {
+  type ChartStorageAdapter,
+  createLocalChartStorage,
+  defaultChartStorage,
+  loadIndicatorConfig,
+  saveIndicatorConfig,
+} from './indicator-storage.js';
+export {
+  DEFAULT_INDICATOR_CONFIG,
+  clearedIndicatorConfig,
+  hasVisibleIndicatorPanes,
+  hasMainChartOverlays,
+  hasAnyActiveIndicators,
+  indicatorConfigStorageKey,
+  type IndicatorConfig,
+  type IndicatorSource,
+} from '@coderyo/indicators';
+export {
   compilePineLite,
   runPineLite,
   PINE_SAMPLE_SCRIPT,

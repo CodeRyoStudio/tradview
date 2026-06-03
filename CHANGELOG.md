@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-06-03
+
+### Added
+
+- **Bridge host**: `setIndicatorConfig`, `clearAllIndicators`, `clearAllDrawings`, `setDrawingTool`
+- **core**: `indicatorPersist` load/save via `ChartStorageAdapter` (`loadIndicatorConfig`, `saveIndicatorConfig`, `createLocalChartStorage`)
+- **core** re-exports: `clearedIndicatorConfig`, `hasVisibleIndicatorPanes`, `hasMainChartOverlays`, `hasAnyActiveIndicators`, `DEFAULT_INDICATOR_CONFIG`
+
+### Changed
+
+- **ui-shell**: indicator config persistence delegates to `@coderyo/core` (same storage keys)
+- **docs**: [API.md](./docs/API.md) / [API-FREEZE.md](./docs/API-FREEZE.md) synced with Bridge and `clearAll*` APIs
+
 ## [1.0.2] - 2026-06-03
 
 ### Fixed

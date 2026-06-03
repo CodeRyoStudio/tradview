@@ -1,5 +1,9 @@
 import type { IndicatorConfig } from '@coderyo/indicators';
-import { DEFAULT_INDICATOR_CONFIG, indicatorConfigStorageKey } from '@coderyo/indicators';
+import {
+  defaultChartStorage,
+  loadIndicatorConfig as loadIndicatorConfigFromCore,
+  saveIndicatorConfig as saveIndicatorConfigToCore,
+} from '@coderyo/core';
 
 export const GRID_SETTING_KEY = 'tradview:settings:showGrid';
 export const RETURN_CURSOR_KEY = 'tradview:settings:returnToCursorAfterDraw';
@@ -36,24 +40,16 @@ export function saveReturnToCursorPreference(v: boolean): void {
   }
 }
 
+/** @deprecated Prefer `@coderyo/core` `loadIndicatorConfig(storage, …)` when not using ui-shell. */
 export function loadIndicatorConfig(symbol: string, interval: string): IndicatorConfig {
-  try {
-    const raw = localStorage.getItem(indicatorConfigStorageKey(symbol, interval));
-    if (!raw) return { ...DEFAULT_INDICATOR_CONFIG };
-    return { ...DEFAULT_INDICATOR_CONFIG, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_INDICATOR_CONFIG };
-  }
+  return loadIndicatorConfigFromCore(defaultChartStorage, symbol, interval);
 }
 
+/** @deprecated Prefer `@coderyo/core` `saveIndicatorConfig(storage, …)` when not using ui-shell. */
 export function saveIndicatorConfig(
   symbol: string,
   interval: string,
   config: IndicatorConfig,
 ): void {
-  try {
-    localStorage.setItem(indicatorConfigStorageKey(symbol, interval), JSON.stringify(config));
-  } catch {
-    /* ignore */
-  }
+  saveIndicatorConfigToCore(defaultChartStorage, symbol, interval, config);
 }

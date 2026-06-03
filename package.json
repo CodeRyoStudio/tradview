@@ -16,6 +16,7 @@
     "demo:serve": "node scripts/demo.mjs --mode=preview",
     "build:cdn": "pnpm --filter @coderyo/cdn-bundle build",
     "check:cdn-size": "node scripts/check-cdn-size.mjs",
+    "check:lwc-size": "node scripts/check-lwc-size.mjs",
     "version:sync": "node scripts/sync-versions.mjs",
     "check:rc": "node scripts/check-rc.mjs",
     "publish:rc": "pnpm check:rc && pnpm -r publish --access public --tag rc --no-git-checks"

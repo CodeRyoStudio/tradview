@@ -5,13 +5,25 @@ import {
   type BridgeInboundType,
   type BridgeOutboundType,
 } from '@coderyo/bridge';
+import type { DrawingTool } from '@coderyo/drawings';
 import type { Interval } from '@coderyo/data';
+import type { IndicatorConfig } from '@coderyo/indicators';
 import type { CrosshairPayload } from '@coderyo/renderer-lite';
 import type { ChartController, ChartEvent } from './chart-controller.js';
 import type { IChart } from './create-chart.js';
 import { TRADVIEW_VERSION } from './version.js';
 
 export const TRADVIEW_API_VERSION = 1 as const;
+
+const DRAWING_TOOLS = new Set<DrawingTool>([
+  'cursor',
+  'trendline',
+  'hline',
+  'vline',
+  'rectangle',
+  'fibonacci',
+  'text',
+]);
 
 const CHART_EVENT_TO_BRIDGE: Partial<Record<ChartEvent, BridgeOutboundType>> = {
   connectionChange: 'chart.connectionChange',
@@ -198,6 +210,22 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
       case 'host.setFeatures':
         if (p.features && typeof p.features === 'object') {
           chart.setFeatures(p.features as import('./chart-features.js').ChartFeatures);
+        }
+        break;
+      case 'host.setIndicatorConfig':
+        if (p.config && typeof p.config === 'object') {
+          chart.setIndicatorConfig(p.config as IndicatorConfig);
+        }
+        break;
+      case 'host.clearAllIndicators':
+        chart.clearAllIndicators();
+        break;
+      case 'host.clearAllDrawings':
+        chart.clearAllDrawings();
+        break;
+      case 'host.setDrawingTool':
+        if (typeof p.tool === 'string' && DRAWING_TOOLS.has(p.tool as DrawingTool)) {
+          chart.setDrawingTool(p.tool as DrawingTool);
         }
         break;
       case 'host.destroy':

@@ -26,6 +26,10 @@ export type BridgeInboundType =
   | 'host.reloadHistory'
   | 'host.setLocale'
   | 'host.setFeatures'
+  | 'host.setIndicatorConfig'
+  | 'host.clearAllIndicators'
+  | 'host.clearAllDrawings'
+  | 'host.setDrawingTool'
   | 'host.resize'
   | 'host.destroy';
 

@@ -16,7 +16,6 @@ import {
   mountPineEditorPanel,
   loadPineScriptPreference,
   openDrawingContextMenu,
-  saveIndicatorConfig,
   type DrawingToolId,
 } from '@coderyo/ui-shell';
 import type { IndicatorConfig } from '@coderyo/indicators';
@@ -79,7 +78,6 @@ const shellOpts = createDemoLayoutOptions({
     },
     onIndicatorConfigChange: (cfg) => {
       indicatorConfig = cfg;
-      saveIndicatorConfig(lastSymbol, lastInterval, cfg);
       chartRef.current?.setIndicatorConfig(cfg);
     },
     onClearAllIndicators: () => {
@@ -87,7 +85,6 @@ const shellOpts = createDemoLayoutOptions({
       if (!cfg) return;
       indicatorConfig = cfg;
       shellOpts.settings!.indicatorConfig = cfg;
-      saveIndicatorConfig(lastSymbol, lastInterval, cfg);
     },
     onClearAllDrawings: () => {
       chartRef.current?.clearAllDrawings();
@@ -163,10 +160,7 @@ const updateShellMeta = () => {
 
 shellOpts.onIntervalChange = (interval) => {
   lastInterval = interval;
-  indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
-  shellOpts.settings!.indicatorConfig = indicatorConfig;
-  chart.setInterval(interval);
-  chart.setIndicatorConfig(indicatorConfig);
+  void chart.setInterval(interval);
   updateShellMeta();
 };
 
@@ -289,8 +283,6 @@ chart.on('crosshairChange', (payload) => {
 chart.on('symbolChange', (info) => {
   const row = info as { symbol?: string; description?: string; exchange?: string };
   lastSymbol = row.symbol ?? lastSymbol;
-  indicatorConfig = loadIndicatorConfig(lastSymbol, lastInterval);
-  chart.setIndicatorConfig(indicatorConfig);
   const label = row.description
     ? `${lastSymbol} — ${row.description}`
     : row.exchange
@@ -312,7 +304,6 @@ chart.on('featuresChange', () => {
   if (!cfg) return;
   indicatorConfig = cfg as IndicatorConfig;
   if (shellOpts.settings) shellOpts.settings.indicatorConfig = indicatorConfig;
-  saveIndicatorConfig(lastSymbol, lastInterval, indicatorConfig);
 });
 
 chart.on('error', (err) => showError(err));

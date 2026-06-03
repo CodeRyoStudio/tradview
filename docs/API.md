@@ -120,6 +120,7 @@ const chart = createChart(
 | `bridgeCrosshairThrottleMs` | `number` | `0` | 十字線節流（毫秒） |
 | `fetchPolicy` | `FetchPolicy` | — | **已棄用**，用 `features.fetchPolicy` |
 | `indicatorConfig` | `IndicatorConfig` | — | **已棄用**，用 `features.indicators` |
+| `chartStorage` | `ChartStorageAdapter` | `localStorage` | `indicatorPersist` 使用的 storage 後端 |
 
 ### `IChart` 方法
 
@@ -153,6 +154,8 @@ const chart = createChart(
 | `updateSelectedDrawingStyle(patch)` | `void` | 樣式 |
 | `deselectDrawing()` | `void` | 取消選取 |
 | `setIndicatorConfig(config)` | `void` | `null` 關閉所有指標窗格 |
+| `clearAllIndicators()` | `IndicatorConfig` | 關閉所有指標窗格與主圖疊加，回傳套用後的 config |
+| `clearAllDrawings()` | `number` | 刪除目前 symbol/interval 下全部繪圖，回傳刪除數量 |
 | `setReturnToCursorAfterDraw(v)` | `IChart` | 繪圖行為 |
 | `updateLastPrice(price, timeMs?)` | `IChart` | 整合方 push 最新價（可不訂閱 WS） |
 | `setFeatures(patch)` | `IChart` | 執行期更新 feature |
@@ -213,7 +216,7 @@ const teardown = wireChartBridge({
 | `drawings.layer` | `boolean` | 繪圖互動層；`false` 時 API 仍可用 |
 | `drawings.persist` | `boolean` | `localStorage` 持久化 |
 | `indicators` | `IndicatorConfig \| null` | `null` = 無 MA / 無子窗格 |
-| `indicatorPersist` | `boolean` | 指標參數寫入 storage |
+| `indicatorPersist` | `boolean` | 指標參數寫入 storage（`loadIndicatorConfig` / `saveIndicatorConfig`，key 見 `@coderyo/indicators`） |
 | `smoothPriceUpdate` | `boolean` | 最後一根 K 線 + 價格線平滑插值（預設 `false`） |
 | `smoothPriceDurationMs` | `number` | 平滑動畫時長（預設 `150`） |
 | `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `boolean` | `tickStream` 啟用 WS tick；其餘多為預留 |
@@ -440,6 +443,17 @@ bridge.onMessage((msg) => { /* host.* */ });
 | `host.fitContent` | — |
 | `host.scrollToRealtime` | — |
 | `host.resize` | `{ width?, height? }` |
+| `host.setLogScale` | `{ enabled: boolean }` |
+| `host.setBarSpace` | `{ px: number }` |
+| `host.setVisibleRange` | `{ fromMs, toMs }` |
+| `host.scrollToTimestamp` | `{ tsMs, animationMs? }` |
+| `host.reloadHistory` | — |
+| `host.setLocale` | `{ locale: string }` |
+| `host.setFeatures` | `{ features: ChartFeatures }` |
+| `host.setIndicatorConfig` | `{ config: IndicatorConfig }` |
+| `host.clearAllIndicators` | — |
+| `host.clearAllDrawings` | — |
+| `host.setDrawingTool` | `{ tool: DrawingTool }` |
 | `host.destroy` | — |
 
 入站訊息需通過 `isBridgeInbound(msg)` 校驗（`@coderyo/bridge`）。
@@ -492,7 +506,21 @@ interface IndicatorConfig {
 }
 ```
 
-預設參數：`DEFAULT_INDICATOR_CONFIG`（`@coderyo/indicators`）。
+預設參數：`DEFAULT_INDICATOR_CONFIG`（`@coderyo/core` 或 `@coderyo/indicators` 匯出）。
+
+### 輔助函式（`@coderyo/core` 再匯出）
+
+| 函式 | 說明 |
+|------|------|
+| `clearedIndicatorConfig(base?)` | 關閉所有指標窗格與主圖疊加 |
+| `hasVisibleIndicatorPanes(config)` | MACD / RSI / KDJ 子窗格是否可見 |
+| `hasMainChartOverlays(config)` | MA / EMA / BOLL / 量 MA 是否啟用 |
+| `hasAnyActiveIndicators(config)` | 上述任一為真 |
+| `loadIndicatorConfig(storage, symbol, interval)` | 從 storage 讀取（`indicatorPersist` 內建使用） |
+| `saveIndicatorConfig(storage, symbol, interval, config)` | 寫入 storage |
+| `createLocalChartStorage()` | 預設 `localStorage` 適配器 |
+
+`features.indicatorPersist: true` 時，圖表在 `setSymbol` / `setInterval` 會自動載入，在 `setIndicatorConfig` 會自動儲存。
 
 ---
 

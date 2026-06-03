@@ -42,6 +42,8 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 | `reloadHistory()` | 重拉近期歷史，保留 viewport |
 | `setLocale(locale)` | 切換 `@coderyo/i18n` 語系 |
 | `subscribeBars(handler)` | 訂閱 `barUpdate`，回傳 unsubscribe |
+| `clearAllIndicators()` | 關閉所有指標，回傳 `IndicatorConfig` |
+| `clearAllDrawings()` | 刪除當前 context 全部繪圖，回傳數量 |
 
 ### `ChartEvent`（1.0.0 新增）
 
@@ -59,6 +61,11 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 | `streamMode: 'tick'` | — | 僅 tick 訂閱時用 `TickAggregator` 合成 K 線 |
 | `telemetry` | `false` | 觸發 `telemetry` 事件 |
 | `protobuf` | `false` | 仍為 v1.0 JSON；`true` 時提示 v1.1 未就緒 |
+| `indicatorPersist` | `false` | `true` 時自動 load/save 指標參數（`ChartStorageAdapter`） |
+
+### `@coderyo/core` 再匯出（1.0.x 擴充）
+
+`clearedIndicatorConfig`, `hasVisibleIndicatorPanes`, `hasMainChartOverlays`, `hasAnyActiveIndicators`, `DEFAULT_INDICATOR_CONFIG`, `loadIndicatorConfig`, `saveIndicatorConfig`, `createLocalChartStorage`, `ChartStorageAdapter`
 
 ---
 
@@ -66,7 +73,7 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 ### 新增 inbound `host.*`
 
-`host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`
+`host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`, `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`
 
 ### 新增 outbound
 

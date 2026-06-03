@@ -34,6 +34,12 @@ import {
   type ChartFeatures,
   type ResolvedChartFeatures,
 } from './chart-features.js';
+import {
+  defaultChartStorage,
+  loadIndicatorConfig,
+  saveIndicatorConfig,
+  type ChartStorageAdapter,
+} from './indicator-storage.js';
 
 export interface ChartOptions {
   width?: number;
@@ -57,6 +63,8 @@ export interface ChartOptions {
   drawingDefaults?: { returnToCursorAfterDraw?: boolean };
   /** @deprecated Use features.indicators */
   indicatorConfig?: IndicatorConfig;
+  /** Storage backend for `features.indicatorPersist` (default `localStorage`). */
+  chartStorage?: ChartStorageAdapter;
 }
 
 export type ChartEvent =
@@ -98,11 +106,13 @@ export class ChartController {
   private offPageResume: (() => void) | null = null;
   /** After clearAllIndicators(); blocks Pine replot until script/features change. */
   private pinePlotsSuppressed = false;
+  private readonly chartStorage: ChartStorageAdapter;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly options: ChartOptions,
   ) {
+    this.chartStorage = options.chartStorage ?? defaultChartStorage;
     this.features = resolveChartFeatures({
       ...options.features,
       fetchPolicy: options.features?.fetchPolicy ?? options.fetchPolicy,
@@ -186,6 +196,7 @@ export class ChartController {
     });
 
     this.bindPageResumeCatchUp();
+    this.applyPersistedIndicatorsOnInit(options);
 
     if (this.hasActiveSymbol()) {
       void this.bootstrap(this.loadGeneration);
@@ -441,6 +452,34 @@ export class ChartController {
   setIndicatorConfig(config: IndicatorConfig | null): void {
     this.features = mergeChartFeatures(this.features, { indicators: config });
     this.orchestrator.setIndicatorConfig(config);
+    if (config && this.features.indicatorPersist && this.hasActiveSymbol()) {
+      saveIndicatorConfig(
+        this.chartStorage,
+        this.store.symbol,
+        this.store.interval,
+        config,
+      );
+    }
+    this.emit('featuresChange', this.getFeatures());
+  }
+
+  private applyPersistedIndicatorsOnInit(options: ChartOptions): void {
+    if (!this.features.indicatorPersist || !this.hasActiveSymbol()) return;
+    const explicit =
+      options.features?.indicators !== undefined || options.indicatorConfig !== undefined;
+    if (explicit) return;
+    this.applyPersistedIndicatorsForContext();
+  }
+
+  private applyPersistedIndicatorsForContext(): void {
+    if (!this.features.indicatorPersist || !this.hasActiveSymbol()) return;
+    const loaded = loadIndicatorConfig(
+      this.chartStorage,
+      this.store.symbol,
+      this.store.interval,
+    );
+    this.features = mergeChartFeatures(this.features, { indicators: loaded });
+    this.orchestrator.setIndicatorConfig(loaded);
     this.emit('featuresChange', this.getFeatures());
   }
 
@@ -468,6 +507,7 @@ export class ChartController {
     await this.teardownSubscription();
     await this.store.setSymbolInterval(trimmed, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
+    this.applyPersistedIndicatorsForContext();
     const info = await this.resolveSymbol(symbol);
     await this.bootstrap(gen);
     this.emit('symbolChange', info ?? { symbol });
@@ -479,6 +519,7 @@ export class ChartController {
     await this.teardownSubscription();
     await this.store.setSymbolInterval(this.store.symbol, interval);
     this.drawingManager?.setContext(this.store.symbol, interval);
+    this.applyPersistedIndicatorsForContext();
     if (this.hasActiveSymbol()) {
       await this.bootstrap(gen);
     }
