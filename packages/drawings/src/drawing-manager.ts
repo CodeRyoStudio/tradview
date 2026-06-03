@@ -66,6 +66,8 @@ export class DrawingManager {
   private readonly interactionHost: HTMLElement | null;
   private hostListenersAttached = false;
   private moveListenerTarget: HTMLElement | null = null;
+  private layerVisible = true;
+  private persistenceEnabled = true;
 
   constructor(private readonly opts: DrawingManagerOptions) {
     this.interactionHost = opts.interactionHost ?? opts.canvas.parentElement;
@@ -83,6 +85,24 @@ export class DrawingManager {
     opts.canvas.style.touchAction = 'none';
     if (this.interactionHost) this.interactionHost.style.touchAction = 'none';
     this.applyPointerMode();
+  }
+
+  getTool(): DrawingTool {
+    return this.tool;
+  }
+
+  setLayerVisible(visible: boolean): void {
+    this.layerVisible = visible;
+    this.opts.canvas.style.visibility = visible ? 'visible' : 'hidden';
+    if (!visible) {
+      this.opts.canvas.style.pointerEvents = 'none';
+    } else {
+      this.applyPointerMode();
+    }
+  }
+
+  setPersistence(enabled: boolean): void {
+    this.persistenceEnabled = enabled;
   }
 
   setTool(tool: DrawingTool): void {
@@ -302,7 +322,7 @@ export class DrawingManager {
   };
 
   private onHostPointerDown = (e: PointerEvent) => {
-    if (this.tool !== 'cursor') return;
+    if (!this.layerVisible || this.tool !== 'cursor') return;
     if (this.handleCursorPointerDown(e)) {
       e.stopPropagation();
       e.preventDefault();
@@ -433,6 +453,7 @@ export class DrawingManager {
   }
 
   private persist(): void {
+    if (!this.persistenceEnabled) return;
     saveDrawings(this.key, { version: 1, drawings: this.drawings });
   }
 
@@ -492,7 +513,7 @@ export class DrawingManager {
   }
 
   private onDown = (e: PointerEvent) => {
-    if (this.tool === 'cursor') return;
+    if (!this.layerVisible || this.tool === 'cursor') return;
 
     const pt = this.hitPoint(e);
     if (!pt) return;

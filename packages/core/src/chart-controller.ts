@@ -1,32 +1,49 @@
 import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
 import type { IndicatorConfig } from '@tradview/indicators';
-import { DEFAULT_INDICATOR_CONFIG } from '@tradview/indicators';
-import type { DataProvider, HistoryQuery, Interval, SubscribeParams, SymbolResolver } from '@tradview/data';
+
+import type {
+  DataProvider,
+  HistoryQuery,
+  Interval,
+  RealtimeStreamMode,
+  SubscribeParams,
+  SymbolResolver,
+} from '@tradview/data';
 import type { HistoryRequest } from '@tradview/virtual-window';
 import { parseInterval } from '@tradview/data';
 import { BarStore } from '@tradview/series';
 import { VirtualWindow, type FetchPolicy } from '@tradview/virtual-window';
 import { DrawingManager } from '@tradview/drawings';
 import { PaneOrchestrator } from '@tradview/renderer-lite';
+import {
+  mergeChartFeatures,
+  PENDING_SYMBOL,
+  resolveChartFeatures,
+  type ChartFeatures,
+  type ResolvedChartFeatures,
+} from './chart-features.js';
 
 export interface ChartOptions {
   width?: number;
   height?: number;
   theme?: 'dark' | 'light';
   interval?: Interval;
+  /** Omit for empty chart until setSymbol(). */
   symbol?: string;
   chartId?: string;
   /** Host element below main chart for MACD/RSI/KDJ panes (from ui-shell layout). */
   indicatorHost?: HTMLElement;
   dataProvider: DataProvider;
+  /** Integrator feature flags (minimal defaults). */
+  features?: ChartFeatures;
+  /** @deprecated Use features.fetchPolicy */
   fetchPolicy?: FetchPolicy;
   scaleMode?: 'linear' | 'log';
   /** Grid lines on chart panes (default false). */
   showGrid?: boolean;
-  /** Optional symbol metadata enrichment (PR-12). */
   symbolResolver?: SymbolResolver;
-  /** Default false — stay on drawing tool after placing a shape. */
   drawingDefaults?: { returnToCursorAfterDraw?: boolean };
+  /** @deprecated Use features.indicators */
   indicatorConfig?: IndicatorConfig;
 }
 
@@ -41,7 +58,8 @@ export type ChartEvent =
   | 'destroyed'
   | 'drawingSelectionChange'
   | 'drawingContextMenu'
-  | 'requestCursorTool';
+  | 'requestCursorTool'
+  | 'featuresChange';
 
 type EventHandler = (payload?: unknown) => void;
 
@@ -59,27 +77,39 @@ export class ChartController {
   private loadGeneration = 0;
   private drawingManager: DrawingManager | null = null;
   private offCrosshair: (() => void) | null = null;
+  private features: ResolvedChartFeatures;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly options: ChartOptions,
   ) {
-    // container exposed via getContainer() for bridge/embed
-    const symbol = options.symbol ?? 'BINANCE:BTCUSDT';
-    const interval = parseInterval(options.interval ?? '1h');
-
-    this.store = new BarStore(symbol, interval);
-    this.virtualWindow = new VirtualWindow(this.store, {
-      fetchPolicy: options.fetchPolicy ?? 'lazy-left-only',
+    this.features = resolveChartFeatures({
+      ...options.features,
+      fetchPolicy: options.features?.fetchPolicy ?? options.fetchPolicy,
+      indicators:
+        options.features?.indicators !== undefined
+          ? options.features.indicators
+          : options.indicatorConfig !== undefined
+            ? options.indicatorConfig
+            : undefined,
     });
+
+    const symbol = options.symbol?.trim() || PENDING_SYMBOL;
+    const interval = parseInterval(options.interval ?? '1h');
+    const fetchPolicy = this.features.gaps.fillVisibleHoles
+      ? 'fill-visible-holes'
+      : this.features.fetchPolicy;
+
+    this.store = new BarStore(symbol || PENDING_SYMBOL, interval);
+    this.virtualWindow = new VirtualWindow(this.store, { fetchPolicy });
     this.orchestrator = new PaneOrchestrator({
       container,
       indicatorRoot: options.indicatorHost,
       theme: options.theme ?? 'dark',
       scaleMode: options.scaleMode ?? 'linear',
       showGrid: options.showGrid ?? false,
+      indicatorConfig: this.features.indicators,
     });
-    this.orchestrator.setIndicatorConfig(options.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG);
 
     if (options.width) container.style.width = `${options.width}px`;
     if (options.height) container.style.height = `${options.height}px`;
@@ -121,13 +151,63 @@ export class ChartController {
           this.emit('drawingSelectionChange', { id, record }),
         onContextMenu: (payload) => this.emit('drawingContextMenu', payload),
       });
+      this.drawingManager.setPersistence(this.features.drawings.persist);
+      this.applyDrawingLayer();
     }
 
     this.offCrosshair = this.orchestrator.subscribeCrosshair((payload) => {
       this.emit('crosshairChange', payload);
     });
 
-    void this.bootstrap(this.loadGeneration);
+    if (this.hasActiveSymbol()) {
+      void this.bootstrap(this.loadGeneration);
+    } else {
+      this.emit('connectionChange', 'disconnected');
+    }
+  }
+
+  getFeatures(): ResolvedChartFeatures {
+    return { ...this.features };
+  }
+
+  setFeatures(patch: ChartFeatures): this {
+    this.features = mergeChartFeatures(this.features, patch);
+    this.applyFeatures();
+    this.emit('featuresChange', this.getFeatures());
+    return this;
+  }
+
+  hasActiveSymbol(): boolean {
+    const s = this.store.symbol;
+    return s.length > 0 && s !== PENDING_SYMBOL;
+  }
+
+  private applyFeatures(): void {
+    const fetchPolicy = this.features.gaps.fillVisibleHoles
+      ? 'fill-visible-holes'
+      : this.features.fetchPolicy;
+    this.virtualWindow.setFetchPolicy(fetchPolicy);
+
+    this.orchestrator.setIndicatorConfig(this.features.indicators);
+    this.drawingManager?.setPersistence(this.features.drawings.persist);
+    this.applyDrawingLayer();
+  }
+
+  private applyDrawingLayer(): void {
+    if (!this.drawingManager) return;
+    this.drawingManager.setLayerVisible(this.features.drawings.layer);
+    this.syncOverlayPointerEvents();
+  }
+
+  private syncOverlayPointerEvents(): void {
+    if (!this.drawingManager) return;
+    const layer = this.features.drawings.layer;
+    if (!layer) {
+      this.orchestrator.setOverlayPointerEvents('none');
+      return;
+    }
+    const tool = this.drawingManager.getTool();
+    this.orchestrator.setOverlayPointerEvents(tool === 'cursor' ? 'none' : 'auto');
   }
 
   getContainer(): HTMLElement {
@@ -178,7 +258,7 @@ export class ChartController {
 
   setDrawingTool(tool: import('@tradview/drawings').DrawingTool): this {
     this.drawingManager?.setTool(tool);
-    this.orchestrator.setOverlayPointerEvents(tool === 'cursor' ? 'none' : 'auto');
+    this.syncOverlayPointerEvents();
     return this;
   }
 
@@ -202,8 +282,10 @@ export class ChartController {
     this.drawingManager?.deselect();
   }
 
-  setIndicatorConfig(config: IndicatorConfig): void {
+  setIndicatorConfig(config: IndicatorConfig | null): void {
+    this.features = mergeChartFeatures(this.features, { indicators: config });
     this.orchestrator.setIndicatorConfig(config);
+    this.emit('featuresChange', this.getFeatures());
   }
 
   setReturnToCursorAfterDraw(v: boolean): void {
@@ -211,9 +293,11 @@ export class ChartController {
   }
 
   async setSymbol(symbol: string): Promise<void> {
+    const trimmed = symbol.trim();
+    if (!trimmed) return;
     const gen = this.beginDataContextChange();
     await this.teardownSubscription();
-    await this.store.setSymbolInterval(symbol, this.store.interval);
+    await this.store.setSymbolInterval(trimmed, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
     const info = await this.resolveSymbol(symbol);
     await this.bootstrap(gen);
@@ -225,7 +309,9 @@ export class ChartController {
     await this.teardownSubscription();
     await this.store.setSymbolInterval(this.store.symbol, interval);
     this.drawingManager?.setContext(this.store.symbol, interval);
-    await this.bootstrap(gen);
+    if (this.hasActiveSymbol()) {
+      await this.bootstrap(gen);
+    }
   }
 
   setTheme(theme: 'dark' | 'light'): this {
@@ -329,11 +415,15 @@ export class ChartController {
     });
     this.emit('intervalChange', interval);
 
+    const streamMode: RealtimeStreamMode = this.features.tickStream
+      ? 'bar+tick'
+      : this.features.streamMode;
+
     const params: SubscribeParams = {
       symbol,
       interval,
-      channels: ['bar'],
-      streamMode: 'bar',
+      channels: this.features.tickStream ? ['bar', 'tick'] : ['bar'],
+      streamMode,
     };
 
     await this.options.dataProvider.connect?.();

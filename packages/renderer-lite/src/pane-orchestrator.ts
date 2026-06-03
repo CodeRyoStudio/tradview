@@ -16,7 +16,7 @@ import type { Bar } from '@tradview/data';
 import { lodDecimateBars } from '@tradview/series';
 import { gridOptions } from './chart-grid.js';
 import type { IndicatorConfig } from '@tradview/indicators';
-import { DEFAULT_INDICATOR_CONFIG } from '@tradview/indicators';
+
 import { IndicatorPaneStack, maOverlayLine, volMaOverlayLine } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
@@ -37,6 +37,8 @@ export interface PaneOrchestratorOptions {
   maxRenderPoints?: number;
   /** Show chart grid lines (default false). */
   showGrid?: boolean;
+  /** null = no MA overlays and no MACD/RSI/KDJ panes. */
+  indicatorConfig?: IndicatorConfig | null;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -59,14 +61,15 @@ export class PaneOrchestrator {
   private readonly volumeSeries: ISeriesApi<'Histogram'>;
   private readonly maSeries: ISeriesApi<'Line'>;
   private readonly volMaSeries: ISeriesApi<'Line'>;
-  private readonly indicators: IndicatorPaneStack | null;
+  private readonly indicatorRoot?: HTMLElement;
+  private indicators: IndicatorPaneStack | null;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
   private showGrid = false;
   private readonly maxRenderPoints: number;
   private barByTime = new Map<number, Bar>();
   private didInitialFit = false;
-  private indicatorConfig: IndicatorConfig = DEFAULT_INDICATOR_CONFIG;
+  private indicatorConfig: IndicatorConfig | null = null;
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -122,13 +125,9 @@ export class PaneOrchestrator {
     this.bus.register(this.mainChart);
     this.bus.register(this.volumeChart);
 
-    this.indicators = opts.indicatorRoot
-      ? new IndicatorPaneStack(opts.indicatorRoot, this.bus, {
-          theme: opts.theme ?? 'dark',
-          showGrid: this.showGrid,
-          config: this.indicatorConfig,
-        })
-      : null;
+    this.indicatorRoot = opts.indicatorRoot;
+    this.indicatorConfig = opts.indicatorConfig ?? null;
+    this.indicators = this.createIndicatorStack();
 
     this.initOverlay(mainEl);
   }
@@ -142,10 +141,17 @@ export class PaneOrchestrator {
     this.indicators?.setTheme(theme);
   }
 
-  setIndicatorConfig(config: IndicatorConfig): void {
+  setIndicatorConfig(config: IndicatorConfig | null): void {
     this.indicatorConfig = config;
-    this.indicators?.setConfig(config);
+    if (!config) {
+      this.indicators = null;
+      this.maSeries.setData([]);
+      this.volMaSeries.setData([]);
+      return;
+    }
+    if (!this.indicators) this.indicators = this.createIndicatorStack();
     const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
+    this.indicators?.setConfig(config);
     if (bars.length > 0) {
       this.maSeries.setData(maOverlayLine(bars, config.maPeriod, config.source));
       this.volMaSeries.setData(volMaOverlayLine(bars, config.volMaPeriod));
@@ -183,12 +189,17 @@ export class PaneOrchestrator {
     }
 
     this.mainSeries.setData(candles);
-    this.maSeries.setData(
-      maOverlayLine(renderBars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
-    );
     this.volumeSeries.setData(vols);
-    this.volMaSeries.setData(volMaOverlayLine(renderBars, this.indicatorConfig.volMaPeriod));
-    this.indicators?.setBars(renderBars);
+    if (this.indicatorConfig) {
+      this.maSeries.setData(
+        maOverlayLine(renderBars, this.indicatorConfig.maPeriod, this.indicatorConfig.source),
+      );
+      this.volMaSeries.setData(volMaOverlayLine(renderBars, this.indicatorConfig.volMaPeriod));
+      this.indicators?.setBars(renderBars);
+    } else {
+      this.maSeries.setData([]);
+      this.volMaSeries.setData([]);
+    }
 
     if (renderBars.length > 0) {
       this.syncChartSize();
@@ -237,6 +248,15 @@ export class PaneOrchestrator {
       }
     }
     return bestDt < 120_000 ? best : null;
+  }
+
+  private createIndicatorStack(): IndicatorPaneStack | null {
+    if (!this.indicatorRoot || !this.indicatorConfig) return null;
+    return new IndicatorPaneStack(this.indicatorRoot, this.bus, {
+      theme: this.dark ? 'dark' : 'light',
+      showGrid: this.showGrid,
+      config: this.indicatorConfig,
+    });
   }
 
   resetViewState(): void {

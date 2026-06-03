@@ -4,5 +4,13 @@ export {
   type CreateChartOptions,
   TRADVIEW_API_VERSION,
   TRADVIEW_VERSION,
+  type ChartFeatures,
+  type ResolvedChartFeatures,
+  resolveChartFeatures,
+  DEFAULT_CHART_FEATURES,
+  PENDING_SYMBOL,
+  createDemoChartFeatures,
+  createDemoChartOptions,
 } from './create-chart.js';
 export { ChartController, type ChartOptions, type ChartEvent } from './chart-controller.js';
+export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';

@@ -2,9 +2,19 @@ import { attachChartContextMenu, type ContextMenuAction } from './context-menu.j
 import { mountCrosshairLegend } from './crosshair-legend.js';
 import { mountDrawingPropertiesPanel } from './drawing-properties-panel.js';
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
+import {
+  mergeLayoutFeatures,
+  resolveLayoutFeatures,
+  type LayoutFeatures,
+  type ResolvedLayoutFeatures,
+} from './layout-features.js';
 import { mountStatusBar, type StatusBarOptions } from './status-bar.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 import type { SettingsPanelOptions } from './settings-panel.js';
+import { bindShortcutsModal } from './shortcuts-modal.js';
+
+export type { LayoutFeatures, ResolvedLayoutFeatures } from './layout-features.js';
+export { resolveLayoutFeatures, DEFAULT_LAYOUT_FEATURES, createDemoLayoutOptions } from './layout-features.js';
 
 export type DrawingToolId =
   | 'cursor'
@@ -28,7 +38,9 @@ const DRAWING_TOOLS: Array<{ id: DrawingToolId; label: string }> = [
 const MOBILE_MQ = '(max-width: 768px)';
 
 export interface ChartLayoutOptions extends TopBarOptions {
+  showTopBar?: boolean;
   showLeftToolbar?: boolean;
+  showBottomToolbar?: boolean;
   activeDrawingTool?: DrawingToolId;
   onDrawingToolSelect?: (tool: DrawingToolId) => void;
   statusBar?: StatusBarOptions;
@@ -37,6 +49,10 @@ export interface ChartLayoutOptions extends TopBarOptions {
   showStatusBar?: boolean;
   showCrosshairLegend?: boolean;
   showPropertiesPanel?: boolean;
+  showContextMenu?: boolean;
+  showSettings?: boolean;
+  showShortcuts?: boolean;
+  symbolInput?: 'manual' | 'search' | 'none';
   onDrawingStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;
   onDrawingSelectionBind?: (bind: (drawing: import('@tradview/drawings').DrawingRecord | null) => void) => void;
 }
@@ -83,7 +99,11 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   detachContextMenu: () => void;
   setActiveDrawingTool: (tool: DrawingToolId) => void;
   propertiesPanel: ReturnType<typeof mountDrawingPropertiesPanel>;
+  setLayoutFeatures: (patch: LayoutFeatures) => void;
+  getLayoutFeatures: () => ResolvedLayoutFeatures;
 } {
+  let layoutFeatures = resolveLayoutFeatures(opts);
+
   root.style.display = 'flex';
   root.style.flexDirection = 'column';
   root.style.height = '100%';
@@ -115,26 +135,6 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   bottomBar.style.cssText =
     'display:none;flex-shrink:0;gap:6px;padding:6px 8px;border-top:1px solid #30363d;background:#161b22;overflow-x:auto;';
 
-  if (opts.showLeftToolbar !== false) {
-    const desktopTools = mountToolButtons(leftAside, activeTool, onToolSelect, 'column');
-    setActiveDesktop = desktopTools.setActive;
-    body.appendChild(leftAside);
-
-    bottomBar.style.display = 'none';
-    bottomBar.style.flexDirection = 'row';
-    const mobileTools = mountToolButtons(bottomBar, activeTool, onToolSelect, 'row');
-    setActiveMobile = mobileTools.setActive;
-
-    const mq = window.matchMedia(MOBILE_MQ);
-    const applyLayout = () => {
-      const mobile = mq.matches;
-      leftAside.style.display = mobile ? 'none' : 'flex';
-      bottomBar.style.display = mobile ? 'flex' : 'none';
-    };
-    mq.addEventListener('change', applyLayout);
-    applyLayout();
-  }
-
   const chartColumn = document.createElement('div');
   chartColumn.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;';
 
@@ -144,52 +144,91 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
 
   const indicatorHost = mountIndicatorPaneHost(chartColumn);
 
-  const showStatus = opts.showStatusBar ?? false;
-  const statusBar = showStatus
-    ? mountStatusBar(chartColumn, opts.statusBar ?? {})
-    : { el: document.createElement('div'), update: () => {} };
+  const statusBar = mountStatusBar(chartColumn, opts.statusBar ?? {});
 
   body.appendChild(chartColumn);
 
-  const propertiesPanel =
-    opts.showPropertiesPanel !== false
-      ? mountDrawingPropertiesPanel(body, { onStyleChange: opts.onDrawingStyleChange })
-      : {
-          el: document.createElement('aside'),
-          bind: () => {},
-        };
-
-  if (opts.showPropertiesPanel === false) {
-    propertiesPanel.el.style.display = 'none';
-  }
+  const propertiesPanel = mountDrawingPropertiesPanel(body, {
+    onStyleChange: opts.onDrawingStyleChange,
+  });
 
   opts.onDrawingSelectionBind?.(propertiesPanel.bind);
 
   root.appendChild(body);
-  if (opts.showLeftToolbar !== false) {
-    root.appendChild(bottomBar);
-  }
+  root.appendChild(bottomBar);
 
-  const topBar = mountTopBar(root, opts);
+  let topBar: HTMLElement = document.createElement('div');
+  topBar.style.display = 'none';
   root.insertBefore(topBar, body);
 
-  const crosshairLegend =
-    opts.showCrosshairLegend !== false
-      ? mountCrosshairLegend(chartHost, { symbol: opts.initialSymbol })
-      : {
-          el: document.createElement('div'),
-          update: () => {},
-          setMeta: () => {},
-          hide: () => {},
-        };
+  const crosshairLegend = mountCrosshairLegend(chartHost, { symbol: opts.initialSymbol });
 
-  if (opts.showCrosshairLegend === false) {
-    crosshairLegend.el.style.display = 'none';
-  }
+  let detachContextMenu = () => {};
+  let shortcutsBound = false;
 
-  const detachContextMenu = attachChartContextMenu(chartHost, {
-    actions: opts.contextMenuActions,
-  });
+  const mountLeftToolbar = () => {
+    if (leftAside.parentElement) return;
+    const desktopTools = mountToolButtons(leftAside, activeTool, onToolSelect, 'column');
+    setActiveDesktop = desktopTools.setActive;
+    body.insertBefore(leftAside, chartColumn);
+
+    bottomBar.style.flexDirection = 'row';
+    const mobileTools = mountToolButtons(bottomBar, activeTool, onToolSelect, 'row');
+    setActiveMobile = mobileTools.setActive;
+
+    const mq = window.matchMedia(MOBILE_MQ);
+    const applyLayout = () => {
+      const mobile = mq.matches;
+      leftAside.style.display = mobile ? 'none' : 'flex';
+      const showBottom = layoutFeatures.showBottomToolbar !== false;
+      bottomBar.style.display = mobile && showBottom ? 'flex' : 'none';
+    };
+    mq.addEventListener('change', applyLayout);
+    applyLayout();
+  };
+
+  const unmountLeftToolbar = () => {
+    leftAside.remove();
+    bottomBar.innerHTML = '';
+    setActiveDesktop = null;
+    setActiveMobile = null;
+  };
+
+  const applyLayoutFeatures = () => {
+    const f = layoutFeatures;
+
+    if (f.showTopBar) {
+      topBar.remove();
+      topBar = mountTopBar(root, {
+        ...opts,
+        symbolInput: f.symbolInput,
+        showSettings: f.showSettings,
+      });
+    } else {
+      topBar.style.display = 'none';
+    }
+
+    if (f.showLeftToolbar) mountLeftToolbar();
+    else unmountLeftToolbar();
+
+    crosshairLegend.el.style.display = f.showCrosshairLegend ? '' : 'none';
+    statusBar.el.style.display = f.showStatusBar ? '' : 'none';
+    propertiesPanel.el.style.display = f.showPropertiesPanel ? '' : 'none';
+
+    detachContextMenu();
+    if (f.showContextMenu) {
+      detachContextMenu = attachChartContextMenu(chartHost, {
+        actions: opts.contextMenuActions,
+      });
+    }
+
+    if (f.showShortcuts && !shortcutsBound) {
+      bindShortcutsModal();
+      shortcutsBound = true;
+    }
+  };
+
+  applyLayoutFeatures();
 
   return {
     chartHost,
@@ -200,5 +239,10 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     detachContextMenu,
     setActiveDrawingTool,
     propertiesPanel,
+    setLayoutFeatures: (patch) => {
+      layoutFeatures = mergeLayoutFeatures(layoutFeatures, patch);
+      applyLayoutFeatures();
+    },
+    getLayoutFeatures: () => ({ ...layoutFeatures }),
   };
 }

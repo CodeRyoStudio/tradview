@@ -29,7 +29,7 @@ export interface VirtualWindowOptions {
 export class VirtualWindow {
   visibleFromMs = 0;
   visibleToMs = 0;
-  readonly fetchPolicy: FetchPolicy;
+  fetchPolicy: FetchPolicy;
   readonly pageSize: number;
   readonly fetchThresholdBars: number;
   readonly warmupBarCount: number;
@@ -47,6 +47,10 @@ export class VirtualWindow {
   setVisibleRange(range: VisibleRange): void {
     this.visibleFromMs = range.fromMs;
     this.visibleToMs = range.toMs;
+  }
+
+  setFetchPolicy(policy: FetchPolicy): void {
+    this.fetchPolicy = policy;
   }
 
   getRenderRange(): { renderFromMs: number; renderToMs: number } {

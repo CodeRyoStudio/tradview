@@ -1,18 +1,17 @@
-import { createChart, type IChart } from '@tradview/core';
+import { createChart, createDemoChartOptions, type IChart } from '@tradview/core';
 import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@tradview/data';
 import type { Interval } from '@tradview/data';
 import { bindChartKeyboard } from '@tradview/interaction';
 import { t } from '@tradview/i18n';
 import {
-  bindShortcutsModal,
   loadIndicatorConfig,
   loadReturnToCursorPreference,
   loadShowGridPreference,
+  createDemoLayoutOptions,
   mountChartLayout,
   mountCodeSnippetPanel,
   openDrawingContextMenu,
   saveIndicatorConfig,
-  type ChartLayoutOptions,
   type DrawingToolId,
 } from '@tradview/ui-shell';
 
@@ -42,11 +41,7 @@ const symbolResolver = createPassthroughSymbolResolver((q) =>
   provider.searchSymbols?.(q) ?? Promise.resolve([]),
 );
 
-const shellOpts: ChartLayoutOptions = {
-  showLeftToolbar: true,
-  showCrosshairLegend: true,
-  showStatusBar: true,
-  showPropertiesPanel: true,
+const shellOpts = createDemoLayoutOptions({
   activeDrawingTool: drawingTool,
   onDrawingToolSelect: (tool) => {
     drawingTool = tool;
@@ -98,7 +93,8 @@ const shellOpts: ChartLayoutOptions = {
       onClick: () => shellOpts.onScreenshot?.(),
     },
   ],
-};
+  symbolInput: 'search',
+});
 
 let bindDrawingProps: ((d: import('@tradview/drawings').DrawingRecord | null) => void) | null =
   null;
@@ -116,18 +112,20 @@ const {
   propertiesPanel,
 } = mountChartLayout(app, shellOpts);
 
-const chart = createChart(chartHost, {
-  dataProvider: provider,
-  symbolResolver,
-  indicatorHost,
-  symbol: lastSymbol,
-  interval: lastInterval,
-  theme,
-  scaleMode: 'linear',
-  showGrid,
-  indicatorConfig,
-  drawingDefaults: { returnToCursorAfterDraw: returnToCursor },
-});
+const chart = createChart(
+  chartHost,
+  createDemoChartOptions({
+    dataProvider: provider,
+    symbolResolver,
+    indicatorHost,
+    symbol: lastSymbol,
+    interval: lastInterval,
+    theme,
+    showGrid,
+    indicatorConfig,
+    returnToCursorAfterDraw: returnToCursor,
+  }),
+);
 chartRef.current = chart;
 
 mountCodeSnippetPanel(document.body, () =>
@@ -147,8 +145,6 @@ const chart = createChart(document.getElementById('chart'), {
   // showStatusBar: false (layout, integrator debug)
 });`,
 );
-
-bindShortcutsModal();
 
 function showError(err: unknown) {
   errorEl.style.display = 'block';

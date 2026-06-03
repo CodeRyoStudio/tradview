@@ -1,17 +1,25 @@
 import type { BridgeAdapter } from '@tradview/bridge';
+import type { BridgeOutboundType } from '@tradview/bridge';
 import type { DrawingRecord, DrawingStyleMeta } from '@tradview/drawings';
 import type { IndicatorConfig } from '@tradview/indicators';
 import type { DataProvider } from '@tradview/data';
 import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
+import type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
 import { TRADVIEW_VERSION } from './version.js';
 
 export { TRADVIEW_API_VERSION, TRADVIEW_VERSION };
+export type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
+export { resolveChartFeatures, DEFAULT_CHART_FEATURES, PENDING_SYMBOL } from './chart-features.js';
+export { createDemoChartFeatures, createDemoChartOptions } from './demo-presets.js';
 
 export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   dataProvider: DataProvider;
   bridge?: BridgeAdapter;
   chartId?: string;
+  /** If set, only these bridge outbound events are posted. */
+  bridgeOutboundEvents?: BridgeOutboundType[];
+  bridgeCrosshairThrottleMs?: number;
 }
 
 export interface IChart {
@@ -34,8 +42,11 @@ export interface IChart {
   toggleLockSelectedDrawing(): boolean;
   updateSelectedDrawingStyle(patch: DrawingStyleMeta): void;
   deselectDrawing(): void;
-  setIndicatorConfig(config: IndicatorConfig): void;
+  setIndicatorConfig(config: IndicatorConfig | null): void;
   setReturnToCursorAfterDraw(v: boolean): void;
+  setFeatures(patch: ChartFeatures): IChart;
+  getFeatures(): ResolvedChartFeatures;
+  hasActiveSymbol(): boolean;
   destroy(): void;
 }
 
@@ -110,6 +121,12 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       controller.setReturnToCursorAfterDraw(v);
       return wrap(controller, beforeDestroy);
     },
+    setFeatures: (patch) => {
+      controller.setFeatures(patch);
+      return wrap(controller, beforeDestroy);
+    },
+    getFeatures: () => controller.getFeatures(),
+    hasActiveSymbol: () => controller.hasActiveSymbol(),
     destroy: () => {
       controller.destroy();
       beforeDestroy?.();
@@ -135,6 +152,8 @@ export function createChart(
       chart,
       bridge: options.bridge,
       chartId: options.chartId,
+      outboundEvents: options.bridgeOutboundEvents,
+      crosshairThrottleMs: options.bridgeCrosshairThrottleMs,
     });
   }
   return chart;

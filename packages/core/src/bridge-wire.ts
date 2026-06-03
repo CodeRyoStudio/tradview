@@ -1,5 +1,10 @@
 import type { BridgeAdapter } from '@tradview/bridge';
-import { BRIDGE_SCHEMA_VERSION, isBridgeInbound, type BridgeInboundType } from '@tradview/bridge';
+import {
+  BRIDGE_SCHEMA_VERSION,
+  isBridgeInbound,
+  type BridgeInboundType,
+  type BridgeOutboundType,
+} from '@tradview/bridge';
 import type { Interval } from '@tradview/data';
 import type { CrosshairPayload } from '@tradview/renderer-lite';
 import type { ChartController, ChartEvent } from './chart-controller.js';
@@ -8,98 +13,128 @@ import { TRADVIEW_VERSION } from './version.js';
 
 export const TRADVIEW_API_VERSION = 1 as const;
 
+const CHART_EVENT_TO_BRIDGE: Partial<Record<ChartEvent, BridgeOutboundType>> = {
+  connectionChange: 'chart.connectionChange',
+  visibleRangeChange: 'chart.visibleRange',
+  error: 'chart.error',
+  symbolChange: 'chart.symbol',
+  intervalChange: 'chart.interval',
+  crosshairChange: 'chart.crosshair',
+  destroyed: 'chart.destroyed',
+};
+
 export interface WireChartBridgeOptions {
   controller: ChartController;
   chart: IChart;
   bridge: BridgeAdapter;
   chartId?: string;
+  /** Allowlist of outbound bridge events; default all mapped events. */
+  outboundEvents?: BridgeOutboundType[];
+  crosshairThrottleMs?: number;
 }
 
 export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   const chartId = opts.chartId ?? `chart-${Date.now()}`;
   const { bridge, chart, controller } = opts;
+  const allow = opts.outboundEvents ? new Set(opts.outboundEvents) : null;
 
-  bridge.post({
-    type: 'chart.ready',
-    payload: {
-      chartId,
-      bridgeSchemaVersion: BRIDGE_SCHEMA_VERSION,
-      apiVersion: TRADVIEW_API_VERSION,
-      version: TRADVIEW_VERSION,
-    },
+  const shouldPost = (type: BridgeOutboundType): boolean =>
+    allow === null || allow.has(type);
+
+  const post = (type: BridgeOutboundType, payload: Record<string, unknown>) => {
+    if (!shouldPost(type)) return;
+    bridge.post({ type, payload });
+  };
+
+  post('chart.ready', {
+    chartId,
+    bridgeSchemaVersion: BRIDGE_SCHEMA_VERSION,
+    apiVersion: TRADVIEW_API_VERSION,
+    version: TRADVIEW_VERSION,
   });
 
   const postResize = () => {
     const el = controller.getContainer();
     const r = el.getBoundingClientRect();
-    bridge.post({
-      type: 'chart.resize',
-      payload: { chartId, width: Math.round(r.width), height: Math.round(r.height) },
+    post('chart.resize', {
+      chartId,
+      width: Math.round(r.width),
+      height: Math.round(r.height),
     });
   };
-  postResize();
+  if (shouldPost('chart.resize')) postResize();
+
+  let crosshairTimer: ReturnType<typeof setTimeout> | null = null;
+  let crosshairPending: CrosshairPayload | null = null;
+  const throttleMs = opts.crosshairThrottleMs ?? 0;
+
+  const flushCrosshair = () => {
+    crosshairTimer = null;
+    const p = crosshairPending;
+    crosshairPending = null;
+    if (!p) return;
+    post('chart.crosshair', {
+      chartId,
+      time: p.time,
+      price: p.price,
+      ohlcv: p.ohlcv,
+      symbol: controller.getSymbol(),
+      interval: controller.getInterval(),
+    });
+  };
 
   const handlers = new Map<ChartEvent, (p?: unknown) => void>();
 
   handlers.set('connectionChange', (state) => {
-    bridge.post({
-      type: 'chart.connectionChange',
-      payload: { chartId, state },
-    });
+    post('chart.connectionChange', { chartId, state });
   });
   handlers.set('visibleRangeChange', (range) => {
     const r = range as { from?: number; to?: number };
-    bridge.post({
-      type: 'chart.visibleRange',
-      payload: { chartId, from: r.from, to: r.to },
-    });
+    post('chart.visibleRange', { chartId, from: r.from, to: r.to });
   });
   handlers.set('error', (err) => {
     const e = err as { code?: string; message?: string };
-    bridge.post({
-      type: 'chart.error',
-      payload: {
-        chartId,
-        code: e?.code ?? 'UNKNOWN',
-        message: e?.message ?? String(err),
-      },
+    post('chart.error', {
+      chartId,
+      code: e?.code ?? 'UNKNOWN',
+      message: e?.message ?? String(err),
     });
   });
   handlers.set('symbolChange', (symbol) => {
-    bridge.post({
-      type: 'chart.symbol',
-      payload: { chartId, symbol: String(symbol ?? '') },
-    });
+    post('chart.symbol', { chartId, symbol: String(symbol ?? '') });
   });
   handlers.set('intervalChange', (interval) => {
-    bridge.post({
-      type: 'chart.interval',
-      payload: { chartId, interval: String(interval ?? '') },
-    });
+    post('chart.interval', { chartId, interval: String(interval ?? '') });
   });
   handlers.set('crosshairChange', (payload) => {
     const p = payload as CrosshairPayload | null;
     if (!p) return;
-    bridge.post({
-      type: 'chart.crosshair',
-      payload: {
+    if (throttleMs <= 0) {
+      post('chart.crosshair', {
         chartId,
         time: p.time,
         price: p.price,
         ohlcv: p.ohlcv,
         symbol: controller.getSymbol(),
         interval: controller.getInterval(),
-      },
-    });
+      });
+      return;
+    }
+    crosshairPending = p;
+    if (!crosshairTimer) {
+      crosshairTimer = setTimeout(flushCrosshair, throttleMs);
+    }
   });
   handlers.set('destroyed', () => {
-    bridge.post({
-      type: 'chart.destroyed',
-      payload: { chartId },
-    });
+    post('chart.destroyed', { chartId });
   });
 
-  for (const [ev, fn] of handlers) chart.on(ev, fn);
+  for (const [ev, fn] of handlers) {
+    const bridgeType = CHART_EVENT_TO_BRIDGE[ev];
+    if (!bridgeType || shouldPost(bridgeType)) {
+      chart.on(ev, fn);
+    }
+  }
 
   const offHost = bridge.onMessage((msg) => {
     if (!isBridgeInbound(msg)) return;
@@ -139,6 +174,7 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   });
 
   return () => {
+    if (crosshairTimer) clearTimeout(crosshairTimer);
     offHost();
     for (const [ev, fn] of handlers) chart.off(ev, fn);
   };

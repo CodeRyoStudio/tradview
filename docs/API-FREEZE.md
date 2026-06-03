@@ -32,26 +32,37 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 | 選項 | 說明 |
 |------|------|
 | `dataProvider` | **必填** |
-| `symbol` / `interval` | 預設商品與週期 |
+| `symbol` / `interval` | 可省略 `symbol` → 空白圖直到 `setSymbol` |
+| `features` | `ChartFeatures`；**最小預設**（見 [EMBEDDING.md](./EMBEDDING.md)） |
 | `theme` | `'dark' \| 'light'` |
 | `width` / `height` | 容器尺寸 |
 | `chartId` | 繪圖儲存與 bridge 識別 |
 | `indicatorHost` | 指標窗宿主元素 |
 | `symbolResolver` | 可選 |
-| `fetchPolicy` | `'lazy-left-only'`（預設） |
+| `fetchPolicy` | **已棄用**，請用 `features.fetchPolicy` |
 | `scaleMode` | `'linear' \| 'log'` |
 | `showGrid` | 預設 `false` |
 | `drawingDefaults.returnToCursorAfterDraw` | 預設 `false` |
-| `indicatorConfig` | MACD/RSI/KDJ/MA 參數 |
+| `indicatorConfig` | **已棄用**，請用 `features.indicators` |
 | `bridge` | 可選 `BridgeAdapter` |
+| `bridgeOutboundEvents` | Bridge outbound 白名單 |
+| `bridgeCrosshairThrottleMs` | 十字線節流 |
+
+### `ChartFeatures`（RC 新增，向後相容）
+
+`fetchPolicy`, `streamMode`, `gaps.whitespace`, `gaps.fillVisibleHoles`, `drawings.layer`, `drawings.persist`, `indicators`, `indicatorPersist`, `pineEnabled`, `protobuf`, `telemetry`, `tickStream` — 預設見 `DEFAULT_CHART_FEATURES`。
 
 ### `IChart` 方法（已實作且凍結）
 
-`setSymbol`, `setInterval`, `setTheme`, `setShowGrid`, `setLogScale`, `fitContent`, `scrollToRealtime`, `resize`, `setFullscreen`, `exportImage`, `on`, `off`, `searchSymbols`, `setDrawingTool`, `deleteSelectedDrawing`, `copySelectedDrawing`, `toggleLockSelectedDrawing`, `updateSelectedDrawingStyle`, `deselectDrawing`, `setIndicatorConfig`, `setReturnToCursorAfterDraw`, `destroy`
+`setSymbol`, `setInterval`, `setTheme`, `setShowGrid`, `setLogScale`, `fitContent`, `scrollToRealtime`, `resize`, `setFullscreen`, `exportImage`, `on`, `off`, `searchSymbols`, `setDrawingTool`, `deleteSelectedDrawing`, `copySelectedDrawing`, `toggleLockSelectedDrawing`, `updateSelectedDrawingStyle`, `deselectDrawing`, `setIndicatorConfig`, `setReturnToCursorAfterDraw`, **`setFeatures`**, **`getFeatures`**, **`hasActiveSymbol`**, `destroy`
 
 ### `ChartEvent`（已實作且凍結）
 
-`connectionChange`, `barUpdate`, `error`, `visibleRangeChange`, `symbolChange`, `intervalChange`, `crosshairChange`, `destroyed`, `drawingSelectionChange`, `drawingContextMenu`, `requestCursorTool`
+`connectionChange`, `barUpdate`, `error`, `visibleRangeChange`, `symbolChange`, `intervalChange`, `crosshairChange`, `destroyed`, `drawingSelectionChange`, `drawingContextMenu`, `requestCursorTool`, **`featuresChange`**
+
+### 輔助（RC 新增）
+
+`wireChartBridge`, `resolveChartFeatures`, `DEFAULT_CHART_FEATURES`, `PENDING_SYMBOL`, `createDemoChartFeatures`, `createDemoChartOptions`
 
 ### 常數
 
@@ -90,7 +101,11 @@ TradView.mountChartLayout
 
 ## 5. 凍結：`mountChartLayout`（ui-shell）
 
-`ChartLayoutOptions`：`showLeftToolbar`, `activeDrawingTool`, `onDrawingToolSelect`, `showStatusBar`（預設 false）, `showCrosshairLegend`（預設 true）, `showPropertiesPanel`, `settings`（網格 / 指標 / 畫完切回游標）, TopBar 回呼等。
+**殼層預設全關**（RC integrator 變更）：`showTopBar`, `showLeftToolbar`, `showBottomToolbar`, `showCrosshairLegend`, `showStatusBar`, `showPropertiesPanel`, `showContextMenu`, `showSettings`, `showShortcuts` 皆預設 `false`。
+
+`ChartLayoutOptions` 另含：`activeDrawingTool`, `onDrawingToolSelect`, `symbolInput`（`'manual' \| 'search' \| 'none'`）, `settings`, TopBar 回呼等。
+
+執行期：`setLayoutFeatures` / `getLayoutFeatures`；Demo 用 `createDemoLayoutOptions`。
 
 ---
 

@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Integrator feature flags**: `ChartFeatures`, `chart.setFeatures` / `getFeatures`, `featuresChange`, `hasActiveSymbol`
+- **Minimal defaults**: no symbol until `setSymbol`; no indicators unless `features.indicators`; drawing layer off by default
+- **Layout flags**: shell UI off by default; `setLayoutFeatures`; `createDemoLayoutOptions` / `createDemoChartOptions` for Playground
+- **Bridge outbound allowlist**: `bridgeOutboundEvents` / `wireChartBridge({ outboundEvents })`
+- **Docs**: [EMBEDDING.md](./docs/EMBEDDING.md) feature matrix; API-FREEZE §2/§5 updated
+
+### Changed (breaking for embedders relying on old defaults)
+
+- `mountChartLayout`: crosshair legend & shell chrome default **false** (use demo presets or explicit opts)
+- `createChart`: no default symbol/MA/indicators; `showCrosshairLegend` moved to layout only
+
 ## [1.0.0-rc.1] - 2026-06-03
 
 ### Added
