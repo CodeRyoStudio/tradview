@@ -31,6 +31,16 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   apps/playground:
+    dependencies:
+      '@tradview/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../../packages/data
+      '@tradview/ui-shell':
+        specifier: workspace:*
+        version: link:../../packages/ui-shell
     devDependencies:
       '@tradview/tsconfig':
         specifier: workspace:*
@@ -82,6 +92,19 @@ importers:
         version: 5.9.3
 
   packages/core:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
+      '@tradview/renderer-lite':
+        specifier: workspace:*
+        version: link:../renderer-lite
+      '@tradview/series':
+        specifier: workspace:*
+        version: link:../series
+      '@tradview/virtual-window':
+        specifier: workspace:*
+        version: link:../virtual-window
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -164,6 +187,10 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   packages/indicators:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -218,6 +245,13 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   packages/renderer-lite:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
+      lightweight-charts:
+        specifier: ^5.0.7
+        version: 5.2.0
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -254,6 +288,10 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   packages/series:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -272,6 +310,13 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   packages/ui-shell:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
+      '@tradview/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -290,6 +335,13 @@ importers:
         version: 3.2.6(@types/node@22.19.19)(tsx@4.22.4)
 
   packages/virtual-window:
+    dependencies:
+      '@tradview/data':
+        specifier: workspace:*
+        version: link:../data
+      '@tradview/series':
+        specifier: workspace:*
+        version: link:../series
     devDependencies:
       '@tradview/eslint-config':
         specifier: workspace:*
@@ -1307,6 +1359,9 @@ packages:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
     engines: {node: '>=12.0.0'}
 
+  fancy-canvas@2.1.0:
+    resolution: {integrity: sha512-nifxXJ95JNLFR2NgRV4/MxVP45G9909wJTEKz5fg/TZS20JJZA6hfgRVh/bC9bwl2zBtBNcYPjiBE4njQHVBwQ==}
+
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
@@ -1413,6 +1468,9 @@ packages:
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
+
+  lightweight-charts@5.2.0:
+    resolution: {integrity: sha512-ey3Vas8UhV06ni+LT9TA1nEe4y8So4Mi6CL/oarNHFMyTktz/xy8e8+oh04Q//eO3t6etvFXgayz2fClyFQb5w==}
 
   lilconfig@3.1.3:
     resolution: {integrity: sha512-/vlFKAoH5Cgt3Ie+JLhRbwOsCQePABiU3tJ1egGvyQ+33R/vcwM2Zl2QR/LzjsBeItPt3oSVXapn+m4nQDvpzw==}
@@ -2621,6 +2679,8 @@ snapshots:
 
   expect-type@1.3.0: {}
 
+  fancy-canvas@2.1.0: {}
+
   fast-deep-equal@3.1.3: {}
 
   fast-json-stable-stringify@2.1.0: {}
@@ -2705,6 +2765,10 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
       type-check: 0.4.0
+
+  lightweight-charts@5.2.0:
+    dependencies:
+      fancy-canvas: 2.1.0
 
   lilconfig@3.1.3: {}
 

@@ -1,2 +1,2 @@
-﻿/** @tradview/core — stub (PR-01) */
-export const PACKAGE_NAME = '@tradview/core' as const;
+export { createChart, type IChart, type CreateChartOptions } from './create-chart.js';
+export { ChartController, type ChartOptions, type ChartEvent } from './chart-controller.js';

@@ -9,6 +9,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@tradview/core": "workspace:*",
+    "@tradview/data": "workspace:*",
+    "@tradview/ui-shell": "workspace:*"
+  },
   "devDependencies": {
     "@tradview/tsconfig": "workspace:*",
     "typescript": "^5.8.3",
