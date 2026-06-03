@@ -90,6 +90,7 @@ export class BarStore {
       const cached = this.cache.get(key);
       if (cached) {
         this.state = cached.state;
+        this.state.generation += 1;
         cached.lastAccess = Date.now();
         return;
       }

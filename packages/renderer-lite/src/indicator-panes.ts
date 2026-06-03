@@ -132,6 +132,16 @@ export class IndicatorPaneStack {
     this.kdjWrap.style.display = this.config.showKdj ? '' : 'none';
   }
 
+  clearBars(): void {
+    this.macdLine.setData([]);
+    this.macdSignal.setData([]);
+    this.macdHist.setData([]);
+    this.rsiLine.setData([]);
+    this.kdjK.setData([]);
+    this.kdjD.setData([]);
+    this.kdjJ.setData([]);
+  }
+
   setBars(bars: Bar[]): void {
     if (bars.length === 0) return;
     const src = barsForSource(bars, this.config.source);

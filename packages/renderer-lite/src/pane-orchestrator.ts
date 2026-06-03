@@ -241,6 +241,18 @@ export class PaneOrchestrator {
 
   resetViewState(): void {
     this.didInitialFit = false;
+    this.bus.visibleFromMs = 0;
+    this.bus.visibleToMs = 0;
+  }
+
+  /** Clear series while symbol/interval data reloads (avoids overlapping candles). */
+  clearBars(): void {
+    this.barByTime = new Map();
+    this.mainSeries.setData([]);
+    this.maSeries.setData([]);
+    this.volumeSeries.setData([]);
+    this.volMaSeries.setData([]);
+    this.indicators?.clearBars();
   }
 
   fitContent(): void {

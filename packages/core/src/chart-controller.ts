@@ -55,6 +55,8 @@ export class ChartController {
   private readonly resizeObserver: ResizeObserver;
   private loadingMore = false;
   private visibleRangeInitialized = false;
+  /** Bumped on symbol/interval change to drop stale bootstrap / loadMore / WS merges. */
+  private loadGeneration = 0;
   private drawingManager: DrawingManager | null = null;
   private offCrosshair: (() => void) | null = null;
 
@@ -125,7 +127,7 @@ export class ChartController {
       this.emit('crosshairChange', payload);
     });
 
-    void this.bootstrap();
+    void this.bootstrap(this.loadGeneration);
   }
 
   getContainer(): HTMLElement {
@@ -209,23 +211,21 @@ export class ChartController {
   }
 
   async setSymbol(symbol: string): Promise<void> {
+    const gen = this.beginDataContextChange();
     await this.teardownSubscription();
-    this.visibleRangeInitialized = false;
-    this.orchestrator.resetViewState();
     await this.store.setSymbolInterval(symbol, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
     const info = await this.resolveSymbol(symbol);
-    await this.bootstrap();
+    await this.bootstrap(gen);
     this.emit('symbolChange', info ?? { symbol });
   }
 
   async setInterval(interval: Interval): Promise<void> {
+    const gen = this.beginDataContextChange();
     await this.teardownSubscription();
-    this.visibleRangeInitialized = false;
-    this.orchestrator.resetViewState();
     await this.store.setSymbolInterval(this.store.symbol, interval);
     this.drawingManager?.setContext(this.store.symbol, interval);
-    await this.bootstrap();
+    await this.bootstrap(gen);
   }
 
   setTheme(theme: 'dark' | 'light'): this {
@@ -290,45 +290,74 @@ export class ChartController {
     this.emit('connectionChange', 'disconnected');
   }
 
-  private async bootstrap(): Promise<void> {
-    if (this.destroyed) return;
+  private beginDataContextChange(): number {
+    this.loadGeneration += 1;
+    this.visibleRangeInitialized = false;
+    this.virtualWindow.setVisibleRange({ fromMs: 0, toMs: 0 });
+    this.orchestrator.resetViewState();
+    this.orchestrator.clearBars();
+    return this.loadGeneration;
+  }
 
+  private isLoadGenerationCurrent(gen: number): boolean {
+    return !this.destroyed && gen === this.loadGeneration;
+  }
+
+  private async bootstrap(loadGen: number): Promise<void> {
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
+
+    const symbol = this.store.symbol;
+    const interval = this.store.interval;
     const endTime = Date.now();
     const history = await this.options.dataProvider.getHistory({
       mode: 'loadMore',
-      symbol: this.store.symbol,
-      interval: this.store.interval,
+      symbol,
+      interval,
       endTime,
       limit: 500,
     });
 
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
+    if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+
     await this.store.mergeBars(history.bars.map((bar) => ({ bar })));
-    this.refreshRender();
-    void this.resolveSymbol(this.store.symbol).then((info) => {
-      this.emit('symbolChange', info ?? { symbol: this.store.symbol });
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
+    this.refreshRender(loadGen);
+    void this.resolveSymbol(symbol).then((info) => {
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+      this.emit('symbolChange', info ?? { symbol });
     });
-    this.emit('intervalChange', this.store.interval);
+    this.emit('intervalChange', interval);
 
     const params: SubscribeParams = {
-      symbol: this.store.symbol,
-      interval: this.store.interval,
+      symbol,
+      interval,
       channels: ['bar'],
       streamMode: 'bar',
     };
 
     await this.options.dataProvider.connect?.();
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
 
     const sub = await this.options.dataProvider.subscribe(params, {
       onBar: (bar, meta) => {
-        void this.store.mergeRealtime({
-          bar,
-          partial: meta.partial,
-        }).then(() => this.refreshRender());
+        if (!this.isLoadGenerationCurrent(loadGen)) return;
+        if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+        void this.store
+          .mergeRealtime({
+            bar,
+            partial: meta.partial,
+          })
+          .then(() => this.refreshRender(loadGen));
         this.emit('barUpdate', bar);
       },
       onConnectionChange: (state) => this.emit('connectionChange', state),
       onError: (err) => this.emit('error', err),
     });
+    if (!this.isLoadGenerationCurrent(loadGen)) {
+      await this.options.dataProvider.unsubscribe(sub.id);
+      return;
+    }
     this.subscriptionId = sub.id;
   }
 
@@ -341,20 +370,24 @@ export class ChartController {
 
   private async maybeLoadMore(): Promise<void> {
     if (this.destroyed || this.loadingMore) return;
+    const loadGen = this.loadGeneration;
     const reqs = this.virtualWindow.planFetches();
     if (reqs.length === 0) return;
 
     this.loadingMore = true;
     try {
       for (const req of reqs) {
+        if (!this.isLoadGenerationCurrent(loadGen)) return;
         const history = await this.options.dataProvider.getHistory(toHistoryQuery(req));
+        if (!this.isLoadGenerationCurrent(loadGen)) return;
         if (history.bars.length === 0) continue;
         await this.store.mergeBars(
           history.bars.map((bar) => ({ bar, source: 'rest' as const })),
           req.mode === 'loadMore',
         );
       }
-      this.refreshRender();
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+      this.refreshRender(loadGen);
     } catch (err) {
       this.emit('error', err);
     } finally {
@@ -362,7 +395,9 @@ export class ChartController {
     }
   }
 
-  private refreshRender(): void {
+  private refreshRender(loadGen = this.loadGeneration): void {
+    if (!this.isLoadGenerationCurrent(loadGen)) return;
+
     const times = this.store.sortedTimes;
     if (times.length === 0) return;
 
