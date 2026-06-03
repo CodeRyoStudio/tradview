@@ -10,3 +10,4 @@ coverage/
 *.log
 mcps/
 agent-tools/
+terminals/

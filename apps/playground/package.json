@@ -12,7 +12,10 @@
   "dependencies": {
     "@tradview/core": "workspace:*",
     "@tradview/data": "workspace:*",
-    "@tradview/ui-shell": "workspace:*"
+    "@tradview/indicators": "workspace:*",
+    "@tradview/interaction": "workspace:*",
+    "@tradview/ui-shell": "workspace:*",
+    "lightweight-charts": "^5.0.7"
   },
   "devDependencies": {
     "@tradview/tsconfig": "workspace:*",

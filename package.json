@@ -10,7 +10,10 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "dev:mock": "pnpm --filter @tradview/cli-dev dev:mock",
-    "dev:playground": "pnpm --filter @tradview/playground dev"
+    "dev:playground": "pnpm --filter @tradview/playground dev",
+    "demo": "node scripts/demo.mjs --mode=dev",
+    "demo:build": "pnpm build && pnpm --filter @tradview/playground build",
+    "demo:serve": "node scripts/demo.mjs --mode=preview"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",

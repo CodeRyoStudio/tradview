@@ -38,9 +38,18 @@ importers:
       '@tradview/data':
         specifier: workspace:*
         version: link:../../packages/data
+      '@tradview/indicators':
+        specifier: workspace:*
+        version: link:../../packages/indicators
+      '@tradview/interaction':
+        specifier: workspace:*
+        version: link:../../packages/interaction
       '@tradview/ui-shell':
         specifier: workspace:*
         version: link:../../packages/ui-shell
+      lightweight-charts:
+        specifier: ^5.0.7
+        version: 5.2.0
     devDependencies:
       '@tradview/tsconfig':
         specifier: workspace:*

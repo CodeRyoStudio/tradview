@@ -9,6 +9,7 @@ export interface IChart {
   setSymbol(symbol: string): IChart;
   setInterval(interval: import('@tradview/data').Interval): IChart;
   setTheme(theme: 'dark' | 'light'): IChart;
+  setLogScale(enabled: boolean): IChart;
   fitContent(): IChart;
   scrollToRealtime(): IChart;
   resize(size?: { width?: number; height?: number }): IChart;
@@ -31,6 +32,10 @@ function wrap(controller: ChartController): IChart {
     },
     setTheme: (t) => {
       controller.setTheme(t);
+      return wrap(controller);
+    },
+    setLogScale: (enabled) => {
+      controller.setLogScale(enabled);
       return wrap(controller);
     },
     fitContent: () => {

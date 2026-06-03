@@ -1,17 +1,27 @@
 import { createChart } from '@tradview/core';
 import { createGatewayDataProvider } from '@tradview/data';
+import { sma } from '@tradview/indicators';
+import { bindChartKeyboard } from '@tradview/interaction';
 import { mountChartLayout, type TopBarOptions } from '@tradview/ui-shell';
 
-const root = document.getElementById('app')!;
+const app = document.getElementById('app')!;
+const connDot = document.getElementById('conn-dot')!;
+const connLabel = document.getElementById('conn-label')!;
+const barLabel = document.getElementById('bar-label')!;
+const priceLabel = document.getElementById('price-label')!;
+const errorEl = document.getElementById('demo-error')!;
+const urlEl = document.getElementById('demo-url')!;
+
+urlEl.textContent = location.origin;
+
 const shellOpts: TopBarOptions & { showLeftToolbar?: boolean } = {
   showLeftToolbar: true,
 };
-const { chartHost } = mountChartLayout(root, shellOpts);
+const { chartHost } = mountChartLayout(app, shellOpts);
 
-const restBase = import.meta.env.DEV ? '/api' : 'http://127.0.0.1:4010';
-const wsBase = import.meta.env.DEV
-  ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`
-  : 'ws://127.0.0.1:4010/ws?v=1.0';
+/** Vite dev/preview proxy `/api` → mock :4010 (paths are /api/v1/… on gateway). */
+const restBase = '';
+const wsBase = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`;
 
 const provider = createGatewayDataProvider({
   restBaseUrl: restBase,
@@ -19,14 +29,36 @@ const provider = createGatewayDataProvider({
 });
 
 let theme: 'dark' | 'light' = 'dark';
+let logScale = false;
+let barCount = 0;
+let lastClose: number | null = null;
 
 const chart = createChart(chartHost, {
   dataProvider: provider,
   symbol: 'BINANCE:BTCUSDT',
   interval: '1h',
   theme,
-  height: chartHost.clientHeight,
+  scaleMode: 'linear',
 });
+
+function setConnection(state: unknown) {
+  const s = String(state ?? 'unknown');
+  connLabel.textContent = `連線：${s}`;
+  connDot.className = 'dot';
+  if (s === 'connected' || s === 'open') connDot.classList.add('ok');
+  else if (s === 'error' || s === 'disconnected') connDot.classList.add('err');
+}
+
+function setStatus() {
+  barLabel.textContent = `K 線：${barCount}`;
+  priceLabel.textContent =
+    lastClose != null ? `收盤：${lastClose.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '收盤：—';
+}
+
+function showError(err: unknown) {
+  errorEl.style.display = 'block';
+  errorEl.textContent = err instanceof Error ? err.message : String(err);
+}
 
 shellOpts.onIntervalChange = (interval) => {
   chart.setInterval(interval);
@@ -34,7 +66,8 @@ shellOpts.onIntervalChange = (interval) => {
 shellOpts.onThemeToggle = () => {
   theme = theme === 'dark' ? 'light' : 'dark';
   chart.setTheme(theme);
-  root.style.background = theme === 'dark' ? '#0d1117' : '#f6f8fa';
+  document.body.style.background = theme === 'dark' ? '#0d1117' : '#f6f8fa';
+  document.body.style.color = theme === 'dark' ? '#e6edf3' : '#24292f';
 };
 shellOpts.onFullscreen = () => chart.setFullscreen(true);
 shellOpts.onScreenshot = () => {
@@ -42,18 +75,68 @@ shellOpts.onScreenshot = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'tradview-chart.png';
+    a.download = `tradview-${Date.now()}.png`;
     a.click();
     URL.revokeObjectURL(url);
   });
 };
 
+bindChartKeyboard({
+  fitContent: () => chart.fitContent(),
+  scrollToRealtime: () => chart.scrollToRealtime(),
+  toggleFullscreen: () => chart.setFullscreen(true),
+  exportImage: () => shellOpts.onScreenshot?.(),
+  toggleLogScale: () => {
+    logScale = !logScale;
+    chart.setLogScale(logScale);
+  },
+  toggleTheme: () => shellOpts.onThemeToggle?.(),
+});
+
 chart.on('connectionChange', (state) => {
-  console.log('[playground] connection', state);
+  setConnection(state);
 });
 
-chart.on('barUpdate', () => {
-  /* live */
+chart.on('barUpdate', (bar) => {
+  const b = bar as { c?: number; t?: number } | undefined;
+  if (b?.c != null) {
+    lastClose = b.c;
+    barCount += 1;
+    setStatus();
+  }
 });
 
-console.log('[playground] TradView chart ready — ensure mock: pnpm dev:mock');
+chart.on('visibleRangeChange', (range) => {
+  const r = range as { from?: number; to?: number } | undefined;
+  if (r?.from != null && r?.to != null) {
+    barLabel.textContent = `可見：${new Date(r.from).toLocaleString()} — ${new Date(r.to).toLocaleString()}`;
+  }
+});
+
+chart.on('error', (err) => showError(err));
+
+void provider
+  .getHistory({
+    mode: 'loadMore',
+    symbol: 'BINANCE:BTCUSDT',
+    interval: '1h',
+    endTime: Date.now(),
+    limit: 500,
+  })
+  .then((h) => {
+    barCount = h.bars.length;
+    const closes = h.bars.map((b) => b.c);
+    lastClose = closes[closes.length - 1] ?? null;
+    const ma20 = sma(h.bars, 20);
+    const validMa = ma20.filter((v) => v != null).length;
+    console.log('[demo] history bars:', barCount, 'MA20 points:', validMa);
+    setStatus();
+    setConnection('connected');
+  })
+  .catch((e) => {
+    showError(e);
+    setConnection('error');
+    console.error('[demo] mock unreachable — run: pnpm demo');
+  });
+
+console.log('[demo] TradView ready — mock REST /api · WS /ws');

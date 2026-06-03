@@ -118,6 +118,20 @@ export class PaneOrchestrator {
     }
   }
 
+  fitContent(): void {
+    this.mainChart.timeScale().fitContent();
+    this.volumeChart.timeScale().fitContent();
+  }
+
+  scrollToRealtime(): void {
+    this.mainChart.timeScale().scrollToRealTime();
+    this.volumeChart.timeScale().scrollToRealTime();
+  }
+
+  setLogScale(enabled: boolean): void {
+    this.mainChart.priceScale('right').applyOptions({ mode: enabled ? 1 : 0 });
+  }
+
   resize(): void {
     this.mainChart.applyOptions({ autoSize: true });
     this.volumeChart.applyOptions({ autoSize: true });

@@ -1,4 +1,5 @@
-import type { DataProvider, Interval, SubscribeParams } from '@tradview/data';
+import type { DataProvider, HistoryQuery, Interval, SubscribeParams } from '@tradview/data';
+import type { HistoryRequest } from '@tradview/virtual-window';
 import { parseInterval } from '@tradview/data';
 import { BarStore } from '@tradview/series';
 import { VirtualWindow, type FetchPolicy } from '@tradview/virtual-window';
@@ -30,6 +31,8 @@ export class ChartController {
   private readonly handlers = new Map<ChartEvent, Set<EventHandler>>();
   private subscriptionId: string | null = null;
   private destroyed = false;
+  private readonly resizeObserver: ResizeObserver;
+  private loadingMore = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -50,6 +53,15 @@ export class ChartController {
 
     if (options.width) container.style.width = `${options.width}px`;
     if (options.height) container.style.height = `${options.height}px`;
+
+    this.resizeObserver = new ResizeObserver(() => {
+      if (!this.destroyed) this.resize();
+    });
+    this.resizeObserver.observe(container);
+
+    this.orchestrator.bus.subscribeTransform(() => {
+      void this.maybeLoadMore();
+    });
 
     void this.bootstrap();
   }
@@ -90,10 +102,17 @@ export class ChartController {
   }
 
   fitContent(): this {
+    this.orchestrator.fitContent();
     return this;
   }
 
   scrollToRealtime(): this {
+    this.orchestrator.scrollToRealtime();
+    return this;
+  }
+
+  setLogScale(enabled: boolean): this {
+    this.orchestrator.setLogScale(enabled);
     return this;
   }
 
@@ -123,6 +142,7 @@ export class ChartController {
 
   destroy(): void {
     this.destroyed = true;
+    this.resizeObserver.disconnect();
     void this.teardownSubscription();
     this.orchestrator.destroy();
     this.emit('connectionChange', 'disconnected');
@@ -173,6 +193,29 @@ export class ChartController {
     }
   }
 
+  private async maybeLoadMore(): Promise<void> {
+    if (this.destroyed || this.loadingMore) return;
+    const reqs = this.virtualWindow.planFetches();
+    if (reqs.length === 0) return;
+
+    this.loadingMore = true;
+    try {
+      for (const req of reqs) {
+        const history = await this.options.dataProvider.getHistory(toHistoryQuery(req));
+        if (history.bars.length === 0) continue;
+        await this.store.mergeBars(
+          history.bars.map((bar) => ({ bar, source: 'rest' as const })),
+          req.mode === 'loadMore',
+        );
+      }
+      this.refreshRender();
+    } catch (err) {
+      this.emit('error', err);
+    } finally {
+      this.loadingMore = false;
+    }
+  }
+
   private refreshRender(): void {
     const bars = this.virtualWindow.getBarsForRender();
     if (bars.length === 0) return;
@@ -190,4 +233,23 @@ export class ChartController {
   private emit(event: ChartEvent, payload?: unknown): void {
     for (const h of this.handlers.get(event) ?? []) h(payload);
   }
+}
+
+function toHistoryQuery(req: HistoryRequest): HistoryQuery {
+  if (req.mode === 'loadMore') {
+    return {
+      mode: 'loadMore',
+      symbol: req.symbol,
+      interval: req.interval,
+      endTime: req.endTime ?? Date.now(),
+      limit: req.limit,
+    };
+  }
+  return {
+    mode: 'range',
+    symbol: req.symbol,
+    interval: req.interval,
+    from: req.fromMs ?? 0,
+    to: req.toMs ?? Date.now(),
+  };
 }
