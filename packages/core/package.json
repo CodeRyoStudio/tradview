@@ -19,7 +19,9 @@
     "@tradview/data": "workspace:*",
     "@tradview/series": "workspace:*",
     "@tradview/virtual-window": "workspace:*",
-    "@tradview/renderer-lite": "workspace:*"
+    "@tradview/renderer-lite": "workspace:*",
+    "@tradview/bridge": "workspace:*",
+    "@tradview/drawings": "workspace:*"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",

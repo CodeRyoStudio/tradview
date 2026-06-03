@@ -1,3 +1,5 @@
+export * from './events.js';
+
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'failed';
 
 export interface BridgeEvent {

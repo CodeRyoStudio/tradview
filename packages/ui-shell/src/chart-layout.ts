@@ -1,8 +1,12 @@
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 
+export type DrawingToolId = 'cursor' | 'trendline' | 'hline';
+
 export interface ChartLayoutOptions extends TopBarOptions {
   showLeftToolbar?: boolean;
+  activeDrawingTool?: DrawingToolId;
+  onDrawingToolSelect?: (tool: DrawingToolId) => void;
 }
 
 export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {}): {
@@ -21,7 +25,24 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     const left = document.createElement('aside');
     left.style.cssText =
       'width:48px;border-right:1px solid #30363d;background:#161b22;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:8px;';
-    left.innerHTML = '<span style="color:#8b949e;font-size:18px">✛</span>';
+    const tools: Array<{ id: DrawingToolId; label: string }> = [
+      { id: 'cursor', label: '↖' },
+      { id: 'trendline', label: '╱' },
+      { id: 'hline', label: '─' },
+    ];
+    const btnStyle =
+      'width:36px;height:32px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font-size:14px;';
+    const activeStyle =
+      'width:36px;height:32px;background:#388bfd;color:#fff;border:1px solid #58a6ff;border-radius:4px;cursor:pointer;font-size:14px;';
+    for (const tool of tools) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = tool.id;
+      btn.textContent = tool.label;
+      btn.style.cssText = opts.activeDrawingTool === tool.id ? activeStyle : btnStyle;
+      btn.onclick = () => opts.onDrawingToolSelect?.(tool.id);
+      left.appendChild(btn);
+    }
     body.appendChild(left);
   }
 

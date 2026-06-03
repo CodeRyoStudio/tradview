@@ -8,3 +8,5 @@ export interface PineCompileResult {
 export function compilePineLite(_source: string): PineCompileResult {
   return { ok: true, errors: [], ir: { version: 0, plots: [] } };
 }
+
+export * from './vm.js';

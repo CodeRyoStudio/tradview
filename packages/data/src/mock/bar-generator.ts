@@ -56,7 +56,6 @@ export function generateBars(opts: BarGeneratorOptions): Bar[] {
   const seed = hashSeed(opts.symbol) ^ (Math.floor(opts.endTime / ms) >>> 0);
   const rand = mulberry32(seed);
   const vol = volatilityFor(opts.symbol, opts.interval);
-  const bars: Bar[] = [];
 
   let close = opts.anchorClose ?? opts.basePrice ?? defaultBasePrice(opts.symbol);
 

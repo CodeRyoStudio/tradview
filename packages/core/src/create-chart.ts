@@ -1,8 +1,14 @@
+import type { BridgeAdapter } from '@tradview/bridge';
 import type { DataProvider } from '@tradview/data';
+import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
+
+export { TRADVIEW_API_VERSION };
 
 export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   dataProvider: DataProvider;
+  bridge?: BridgeAdapter;
+  chartId?: string;
 }
 
 export interface IChart {
@@ -17,53 +23,63 @@ export interface IChart {
   exportImage(opts?: { pixelRatio?: number }): Promise<Blob>;
   on(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
   off(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
+  searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]>;
+  setDrawingTool(tool: import('@tradview/drawings').DrawingTool): IChart;
   destroy(): void;
 }
 
-function wrap(controller: ChartController): IChart {
+function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
   return {
     setSymbol: (s) => {
       void controller.setSymbol(s);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     setInterval: (i) => {
       void controller.setInterval(i);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     setTheme: (t) => {
       controller.setTheme(t);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     setLogScale: (enabled) => {
       controller.setLogScale(enabled);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     fitContent: () => {
       controller.fitContent();
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     scrollToRealtime: () => {
       controller.scrollToRealtime();
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     resize: (s) => {
       controller.resize(s);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     setFullscreen: (e) => {
       controller.setFullscreen(e);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     exportImage: (o) => controller.exportImage(o),
     on: (e, h) => {
       controller.on(e, h);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
     off: (e, h) => {
       controller.off(e, h);
-      return wrap(controller);
+      return wrap(controller, beforeDestroy);
     },
-    destroy: () => controller.destroy(),
+    searchSymbols: (q) => controller.searchSymbols(q),
+    setDrawingTool: (tool) => {
+      controller.setDrawingTool(tool);
+      return wrap(controller, beforeDestroy);
+    },
+    destroy: () => {
+      beforeDestroy?.();
+      controller.destroy();
+    },
   };
 }
 
@@ -76,5 +92,16 @@ export function createChart(
       ? (document.querySelector(target) as HTMLElement | null)
       : target;
   if (!el) throw new Error('Chart container not found');
-  return wrap(new ChartController(el, options));
+  const controller = new ChartController(el, options);
+  let bridgeTeardown: (() => void) | undefined;
+  const chart = wrap(controller, () => bridgeTeardown?.());
+  if (options.bridge) {
+    bridgeTeardown = wireChartBridge({
+      controller,
+      chart,
+      bridge: options.bridge,
+      chartId: options.chartId,
+    });
+  }
+  return chart;
 }

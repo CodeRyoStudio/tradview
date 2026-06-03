@@ -3,7 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "description": "UMD CDN bundle (PR-19)",
+  "type": "module",
   "scripts": {
-    "build": "echo \"CDN bundle — implement in PR-19\""
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "check:size": "node ../../scripts/check-cdn-size.mjs"
+  },
+  "dependencies": {
+    "@tradview/bridge": "workspace:*",
+    "@tradview/core": "workspace:*",
+    "@tradview/data": "workspace:*",
+    "@tradview/ui-shell": "workspace:*"
+  },
+  "devDependencies": {
+    "@tradview/tsconfig": "workspace:*",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
   }
 }

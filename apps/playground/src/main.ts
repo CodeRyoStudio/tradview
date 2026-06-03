@@ -1,4 +1,4 @@
-import { createChart } from '@tradview/core';
+import { createChart, type IChart } from '@tradview/core';
 import { createGatewayDataProvider } from '@tradview/data';
 import { sma } from '@tradview/indicators';
 import { bindChartKeyboard } from '@tradview/interaction';
@@ -14,11 +14,6 @@ const urlEl = document.getElementById('demo-url')!;
 
 urlEl.textContent = location.origin;
 
-const shellOpts: TopBarOptions & { showLeftToolbar?: boolean } = {
-  showLeftToolbar: true,
-};
-const { chartHost } = mountChartLayout(app, shellOpts);
-
 /** Vite dev/preview proxy `/api` → mock :4010 (paths are /api/v1/… on gateway). */
 const restBase = '';
 const wsBase = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`;
@@ -27,6 +22,30 @@ const provider = createGatewayDataProvider({
   restBaseUrl: restBase,
   wsUrl: wsBase,
 });
+
+const chartRef: { current: IChart | null } = { current: null };
+
+let drawingTool: 'cursor' | 'trendline' | 'hline' = 'cursor';
+
+const shellOpts: TopBarOptions & {
+  showLeftToolbar?: boolean;
+  activeDrawingTool?: 'cursor' | 'trendline' | 'hline';
+  onDrawingToolSelect?: (tool: 'cursor' | 'trendline' | 'hline') => void;
+} = {
+  showLeftToolbar: true,
+  activeDrawingTool: drawingTool,
+  onDrawingToolSelect: (tool) => {
+    drawingTool = tool;
+    shellOpts.activeDrawingTool = tool;
+    chartRef.current?.setDrawingTool(tool);
+  },
+  initialSymbol: 'BINANCE:BTCUSDT',
+  onSymbolSearch: (q) => chartRef.current?.searchSymbols(q) ?? provider.searchSymbols?.(q) ?? Promise.resolve([]),
+  onSymbolSelect: (symbol) => {
+    chartRef.current?.setSymbol(symbol);
+  },
+};
+const { chartHost } = mountChartLayout(app, shellOpts);
 
 let theme: 'dark' | 'light' = 'dark';
 let logScale = false;
@@ -40,6 +59,7 @@ const chart = createChart(chartHost, {
   theme,
   scaleMode: 'linear',
 });
+chartRef.current = chart;
 
 function setConnection(state: unknown) {
   const s = String(state ?? 'unknown');
@@ -91,6 +111,7 @@ bindChartKeyboard({
     chart.setLogScale(logScale);
   },
   toggleTheme: () => shellOpts.onThemeToggle?.(),
+  selectCursorTool: () => chart.setDrawingTool('cursor'),
 });
 
 chart.on('connectionChange', (state) => {

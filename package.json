@@ -13,7 +13,9 @@
     "dev:playground": "pnpm --filter @tradview/playground dev",
     "demo": "node scripts/demo.mjs --mode=dev",
     "demo:build": "pnpm build && pnpm --filter @tradview/playground build",
-    "demo:serve": "node scripts/demo.mjs --mode=preview"
+    "demo:serve": "node scripts/demo.mjs --mode=preview",
+    "build:cdn": "pnpm --filter @tradview/cdn-bundle build",
+    "check:cdn-size": "node scripts/check-cdn-size.mjs"
   },
   "devDependencies": {
     "@tradview/eslint-config": "workspace:*",

@@ -5,6 +5,7 @@ export interface ChartKeyboardActions {
   exportImage?: () => void;
   toggleLogScale?: () => void;
   toggleTheme?: () => void;
+  selectCursorTool?: () => void;
 }
 
 export function bindChartKeyboard(actions: ChartKeyboardActions): () => void {
@@ -30,6 +31,9 @@ export function bindChartKeyboard(actions: ChartKeyboardActions): () => void {
       e.preventDefault();
     } else if (e.key === 'End' || (key === 'arrowright' && e.altKey)) {
       actions.scrollToRealtime?.();
+      e.preventDefault();
+    } else if (key === 'escape') {
+      actions.selectCursorTool?.();
       e.preventDefault();
     }
   };

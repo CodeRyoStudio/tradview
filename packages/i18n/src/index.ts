@@ -15,6 +15,7 @@ const zhTW: I18nDictionary = {
   'toolbar.cursor': '游標',
   'theme.dark': '深色',
   'theme.light': '淺色',
+  'symbol.search': '搜尋商品',
 };
 
 let locale = 'zh-TW';

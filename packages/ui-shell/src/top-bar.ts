@@ -1,8 +1,12 @@
-import { DEFAULT_INTERVALS, type Interval } from '@tradview/data';
+import { DEFAULT_INTERVALS, type Interval, type SymbolSearchHit } from '@tradview/data';
 import { t } from '@tradview/i18n';
+import { mountSymbolSearch } from './symbol-search.js';
 
 export interface TopBarOptions {
   intervals?: Interval[];
+  initialSymbol?: string;
+  onSymbolSearch?: (query: string) => Promise<SymbolSearchHit[]>;
+  onSymbolSelect?: (symbol: string) => void;
   onIntervalChange?: (interval: Interval) => void;
   onThemeToggle?: () => void;
   onFullscreen?: () => void;
@@ -14,6 +18,14 @@ export function mountTopBar(parent: HTMLElement, opts: TopBarOptions = {}): HTML
   bar.className = 'tv-topbar';
   bar.style.cssText =
     'display:flex;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid #30363d;background:#161b22;';
+
+  if (opts.onSymbolSearch && opts.onSymbolSelect) {
+    mountSymbolSearch(bar, {
+      initialSymbol: opts.initialSymbol,
+      onSearch: opts.onSymbolSearch,
+      onSelect: opts.onSymbolSelect,
+    });
+  }
 
   const intervals = opts.intervals ?? DEFAULT_INTERVALS;
   for (const iv of intervals) {

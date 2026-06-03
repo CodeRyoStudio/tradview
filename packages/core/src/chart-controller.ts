@@ -3,6 +3,7 @@ import type { HistoryRequest } from '@tradview/virtual-window';
 import { parseInterval } from '@tradview/data';
 import { BarStore } from '@tradview/series';
 import { VirtualWindow, type FetchPolicy } from '@tradview/virtual-window';
+import { DrawingManager } from '@tradview/drawings';
 import { PaneOrchestrator } from '@tradview/renderer-lite';
 
 export interface ChartOptions {
@@ -11,6 +12,7 @@ export interface ChartOptions {
   theme?: 'dark' | 'light';
   interval?: Interval;
   symbol?: string;
+  chartId?: string;
   dataProvider: DataProvider;
   fetchPolicy?: FetchPolicy;
   scaleMode?: 'linear' | 'log';
@@ -20,7 +22,9 @@ export type ChartEvent =
   | 'connectionChange'
   | 'barUpdate'
   | 'error'
-  | 'visibleRangeChange';
+  | 'visibleRangeChange'
+  | 'symbolChange'
+  | 'intervalChange';
 
 type EventHandler = (payload?: unknown) => void;
 
@@ -33,11 +37,13 @@ export class ChartController {
   private destroyed = false;
   private readonly resizeObserver: ResizeObserver;
   private loadingMore = false;
+  private drawingManager: DrawingManager | null = null;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly options: ChartOptions,
   ) {
+    // container exposed via getContainer() for bridge/embed
     const symbol = options.symbol ?? 'BINANCE:BTCUSDT';
     const interval = parseInterval(options.interval ?? '1h');
 
@@ -61,9 +67,41 @@ export class ChartController {
 
     this.orchestrator.bus.subscribeTransform(() => {
       void this.maybeLoadMore();
+      this.drawingManager?.redraw();
     });
 
+    const overlay = this.orchestrator.getOverlayCanvas();
+    if (overlay) {
+      this.drawingManager = new DrawingManager({
+        canvas: overlay,
+        chartId: options.chartId ?? 'default',
+        symbol,
+        interval,
+        priceToY: (p) => this.orchestrator.priceToY(p),
+        timeToX: (t) => this.orchestrator.timeToX(t),
+        xToTime: (x) => this.orchestrator.xToTime(x),
+        yToPrice: (y) => this.orchestrator.yToPrice(y),
+      });
+    }
+
     void this.bootstrap();
+  }
+
+  getContainer(): HTMLElement {
+    return this.container;
+  }
+
+  getSymbol(): string {
+    return this.store.symbol;
+  }
+
+  getInterval(): Interval {
+    return this.store.interval;
+  }
+
+  async searchSymbols(query: string): Promise<import('@tradview/data').SymbolSearchHit[]> {
+    if (!this.options.dataProvider.searchSymbols) return [];
+    return this.options.dataProvider.searchSymbols(query);
   }
 
   on(event: ChartEvent, handler: EventHandler): this {
@@ -84,15 +122,22 @@ export class ChartController {
     return this;
   }
 
+  setDrawingTool(tool: import('@tradview/drawings').DrawingTool): this {
+    this.drawingManager?.setTool(tool);
+    return this;
+  }
+
   async setSymbol(symbol: string): Promise<void> {
     await this.teardownSubscription();
     await this.store.setSymbolInterval(symbol, this.store.interval);
+    this.drawingManager?.setContext(symbol, this.store.interval);
     await this.bootstrap();
   }
 
   async setInterval(interval: Interval): Promise<void> {
     await this.teardownSubscription();
     await this.store.setSymbolInterval(this.store.symbol, interval);
+    this.drawingManager?.setContext(this.store.symbol, interval);
     await this.bootstrap();
   }
 
@@ -143,6 +188,7 @@ export class ChartController {
   destroy(): void {
     this.destroyed = true;
     this.resizeObserver.disconnect();
+    this.drawingManager?.destroy();
     void this.teardownSubscription();
     this.orchestrator.destroy();
     this.emit('connectionChange', 'disconnected');
@@ -162,6 +208,8 @@ export class ChartController {
 
     await this.store.mergeBars(history.bars.map((bar) => ({ bar })));
     this.refreshRender();
+    this.emit('symbolChange', this.store.symbol);
+    this.emit('intervalChange', this.store.interval);
 
     const params: SubscribeParams = {
       symbol: this.store.symbol,
@@ -229,6 +277,7 @@ export class ChartController {
     if (bars.length === 0) return;
 
     this.orchestrator.setBars(bars);
+    this.drawingManager?.redraw();
     this.emit('visibleRangeChange', {
       from: bars[0]!.t,
       to: bars[bars.length - 1]!.t,

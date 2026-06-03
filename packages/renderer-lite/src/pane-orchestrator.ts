@@ -9,6 +9,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar } from '@tradview/data';
+import { lodDecimateBars } from '@tradview/series';
 import { attachPaneResizer } from './pane-resize.js';
 import { TimeScaleBus } from './time-scale-bus.js';
 
@@ -18,6 +19,7 @@ export interface PaneOrchestratorOptions {
   container: HTMLElement;
   theme?: 'dark' | 'light';
   scaleMode?: ScaleMode;
+  maxRenderPoints?: number;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -40,8 +42,10 @@ export class PaneOrchestrator {
   private readonly volumeSeries;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
+  private readonly maxRenderPoints: number;
 
   constructor(opts: PaneOrchestratorOptions) {
+    this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
     this.dark = opts.theme !== 'light';
     const layout = this.layoutForTheme(this.dark);
 
@@ -92,12 +96,13 @@ export class PaneOrchestrator {
   }
 
   setBars(bars: Bar[], gaps?: number[]): void {
+    const renderBars = lodDecimateBars(bars, this.maxRenderPoints);
     const candles: CandlestickData[] = [];
     const vols: HistogramData<UTCTimestamp>[] = [];
     const gapSet = new Set(gaps ?? []);
 
-    for (let i = 0; i < bars.length; i++) {
-      const b = bars[i]!;
+    for (let i = 0; i < renderBars.length; i++) {
+      const b = renderBars[i]!;
       if (i > 0 && gapSet.has(b.t)) {
         // whitespace: skip connecting — LWC uses sparse times
       }
@@ -108,8 +113,8 @@ export class PaneOrchestrator {
     this.mainSeries.setData(candles);
     this.volumeSeries.setData(vols);
 
-    if (bars.length > 0) {
-      this.bus.setBarsTimeRange(bars[0]!.t, bars[bars.length - 1]!.t);
+    if (renderBars.length > 0) {
+      this.bus.setBarsTimeRange(renderBars[0]!.t, renderBars[renderBars.length - 1]!.t);
       this.syncChartSize();
       this.mainChart.timeScale().fitContent();
       this.volumeChart.timeScale().fitContent();
@@ -148,6 +153,33 @@ export class PaneOrchestrator {
       const h = volEl.clientHeight;
       if (w > 0 && h > 0) this.volumeChart.resize(w, h);
     }
+  }
+
+  getOverlayCanvas(): HTMLCanvasElement | null {
+    return this.overlayCanvas;
+  }
+
+  timeToX(tMs: number): number | null {
+    const coord = this.mainChart.timeScale().timeToCoordinate(toUtcSeconds(tMs));
+    if (coord == null) return null;
+    return coord * devicePixelRatio;
+  }
+
+  priceToY(price: number): number | null {
+    const coord = this.mainSeries.priceToCoordinate(price);
+    if (coord == null) return null;
+    return coord * devicePixelRatio;
+  }
+
+  xToTime(x: number): number | null {
+    const t = this.mainChart.timeScale().coordinateToTime(x / devicePixelRatio);
+    if (t == null) return null;
+    return Number(t) * 1000;
+  }
+
+  yToPrice(y: number): number | null {
+    const p = this.mainSeries.coordinateToPrice(y / devicePixelRatio);
+    return p ?? null;
   }
 
   destroy(): void {
