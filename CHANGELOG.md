@@ -10,6 +10,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - [docs/API.md](./docs/API.md) — 整合方 API 參考（`@coderyo/*`、`createChart`、Bridge、DataProvider）
 
+### Fixed
+
+- **Docs (#1)**: document that chart bootstrap uses `getHistory({ mode: 'loadMore', endTime: now })`
+- **Docs (#2)**: EMBEDDING end-to-end shell ⇄ chart callback wiring + `chartRef` pattern
+
 ### Changed
 
 - **npm scope**: all publishable packages renamed from `@tradview/*` to `@coderyo/*` (org `coderyo`)

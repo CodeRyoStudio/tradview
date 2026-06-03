@@ -67,6 +67,77 @@ const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider
 
 執行期：`setLayoutFeatures(patch)`、`getLayoutFeatures()`。
 
+### 殼層與圖表接線（端到端）
+
+`mountChartLayout` **不會**自動綁定 `IChart`。只開 `showTopBar` / `showLeftToolbar` 而不接 callback 時，工具列會亮但**畫不了線**、換週期也**沒反應**。完整範例見 `apps/playground/src/main.ts`。
+
+**建立順序：** 先 `mountChartLayout` 取得 `chartHost`，再 `createChart`；callback 裡還沒有 `chart` 實例，請用 ref holder：
+
+```typescript
+import { createChart } from '@coderyo/core';
+import { createGatewayDataProvider } from '@coderyo/data';
+import { mountChartLayout } from '@coderyo/ui-shell';
+import type { DrawingToolId } from '@coderyo/ui-shell';
+
+const chartRef: { current: ReturnType<typeof createChart> | null } = { current: null };
+
+const layout = mountChartLayout(root, {
+  showTopBar: true,
+  showLeftToolbar: true,
+  showBottomToolbar: true,
+  showPropertiesPanel: true,
+  initialSymbol: 'BINANCE:BTCUSDT',
+  onSymbolSelect: (symbol) => chartRef.current?.setSymbol(symbol),
+  onIntervalChange: (interval) => chartRef.current?.setInterval(interval),
+  onDrawingToolSelect: (tool: DrawingToolId) => chartRef.current?.setDrawingTool(tool),
+  onDrawingStyleChange: (patch) => chartRef.current?.updateSelectedDrawingStyle(patch),
+  onDrawingSelectionBind: (bind) => {
+    chartRef.current?.on('drawingSelectionChange', ({ record }) => bind(record ?? null));
+  },
+});
+
+const chart = createChart(layout.chartHost, {
+  dataProvider: createGatewayDataProvider({ restBaseUrl: '/api', wsUrl: 'wss://…' }),
+  indicatorHost: layout.indicatorHost,
+  symbol: 'BINANCE:BTCUSDT',
+  interval: '1h',
+  features: { drawings: { layer: true } },
+});
+chartRef.current = chart;
+```
+
+| 殼層 UI | 建議 callback | 對應 `IChart` |
+|---------|---------------|---------------|
+| TopBar 週期 | `onIntervalChange` | `setInterval` |
+| TopBar 商品 | `onSymbolSelect` | `setSymbol` |
+| 左/底繪圖工具 | `onDrawingToolSelect` | `setDrawingTool` |
+| 屬性側欄 | `onDrawingStyleChange` | `updateSelectedDrawingStyle` |
+| 選取繪圖 | `onDrawingSelectionBind` + `drawingSelectionChange` | 更新屬性面板 |
+
+## `DataProvider`：首次歷史也用 `loadMore`
+
+自訂 `getHistory` 時，`loadMore` **不只是**「使用者往左拖才拉更舊 K 線」。圖表在 `setSymbol` / 首次載入時會呼叫：
+
+```typescript
+getHistory({
+  mode: 'loadMore',
+  symbol,
+  interval,
+  endTime: Date.now(),
+  limit: 500,
+});
+```
+
+若對所有 `loadMore` 都回 `{ bars: [], hasMore: false }`，開圖會**沒有歷史**，只剩即時 WS 一根根長出來。請讓上述 bootstrap 請求回傳**最近一窗** K 線；使用者向左平移時，VirtualWindow 會再以較早的 `endTime` 發 `loadMore`。
+
+| `HistoryMode` | 典型用途 |
+|---------------|----------|
+| `loadMore` | **首次載入**（`endTime = now`）+ 向左懶加載 |
+| `range` | 指定毫秒區間 |
+| `cursor` | 分頁 / cursor 協議 |
+
+詳見 [API.md § DataProvider](./API.md#7-dataprovider)。
+
 ## 快速開始（CDN）
 
 ```html

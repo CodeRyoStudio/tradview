@@ -23,10 +23,16 @@ export interface DataProviderCapabilities {
   encoding?: Array<'json' | 'protobuf'>;
 }
 
+/**
+ * History fetch modes. Note: chart bootstrap (`setSymbol` / initial load) also calls
+ * `getHistory({ mode: 'loadMore', endTime: Date.now(), limit })` — do not return `[]`
+ * for all `loadMore` requests unless you handle that bootstrap case explicitly.
+ */
 export type HistoryQuery =
   | { mode: 'range'; symbol: string; interval: Interval; from: number; to: number }
   | { mode: 'cursor'; symbol: string; interval: Interval; limit: number; cursor?: string }
   | {
+      /** Recent window ending at `endTime` (bootstrap) or older bars when panning left. */
       mode: 'loadMore';
       symbol: string;
       interval: Interval;

@@ -32,6 +32,7 @@ export function createGatewayDataProvider(opts: GatewayDataProviderOptions): Dat
       return rest.getCapabilities();
     },
 
+    /** Forwards all modes to REST; chart bootstrap uses `loadMore` with `endTime = now`. */
     async getHistory(query: HistoryQuery) {
       const caps = await provider.getCapabilities!();
       if (caps.wsHistory && provider.requestWsHistory) {

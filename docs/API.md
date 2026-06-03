@@ -239,21 +239,28 @@ chart.off('symbolChange', handler);
 
 ## 6. `mountChartLayout`
 
-可選殼層；**所有 UI 開關預設 `false`**。
+可選殼層；**所有 UI 開關預設 `false`**。殼層與 `IChart` **刻意解耦**——每個 UI 動作需由整合方接 callback（見 [EMBEDDING.md — 殼層與圖表接線](./EMBEDDING.md#殼層與圖表接線端到端)）。
+
+先 `mountChartLayout` 再 `createChart`；callback 使用 `chartRef`：
 
 ```typescript
-import { mountChartLayout, createDemoLayoutOptions } from '@coderyo/ui-shell';
+const chartRef: { current: IChart | null } = { current: null };
 
 const layout = mountChartLayout(root, {
   showTopBar: true,
   showLeftToolbar: true,
-  showCrosshairLegend: true,
-  showStatusBar: true,
-  initialSymbol: 'BINANCE:BTCUSDT',
-  onSymbolSelect: (s) => chart.setSymbol(s),
-  onIntervalChange: (i) => chart.setInterval(i),
-  onDrawingToolSelect: (tool) => chart.setDrawingTool(tool),
+  onSymbolSelect: (s) => chartRef.current?.setSymbol(s),
+  onIntervalChange: (i) => chartRef.current?.setInterval(i),
+  onDrawingToolSelect: (tool) => chartRef.current?.setDrawingTool(tool),
+  onDrawingStyleChange: (patch) => chartRef.current?.updateSelectedDrawingStyle(patch),
 });
+
+const chart = createChart(layout.chartHost, {
+  dataProvider: provider,
+  indicatorHost: layout.indicatorHost,
+  features: { drawings: { layer: true } },
+});
+chartRef.current = chart;
 ```
 
 ### 回傳值
@@ -329,7 +336,22 @@ interface DataProvider {
 |------|------|
 | `range` | `{ symbol, interval, from, to }` 毫秒區間 |
 | `cursor` | 分頁 `{ limit, cursor? }` |
-| `loadMore` | 向左載入 `{ endTime, limit }` |
+| `loadMore` | 見下表 |
+
+**重要：`loadMore` 也用於首次 bootstrap**
+
+`ChartController` 在 `setSymbol` 後第一次拉歷史時**不是** `range`，而是：
+
+```typescript
+{ mode: 'loadMore', symbol, interval, endTime: Date.now(), limit: 500 }
+```
+
+自訂 `DataProvider` 若對 `loadMore` 一律回空陣列，圖表會沒有歷史 K 線。之後使用者向左平移時，VirtualWindow 會以更早的 `endTime` 再發 `loadMore`（懶加載更舊資料）。
+
+| `loadMore` 情境 | `endTime` | 整合方應回傳 |
+|-----------------|-----------|--------------|
+| 首次載入 / `setSymbol` | `Date.now()`（或接近現在） | 最近 `limit` 根 K 線 |
+| 向左平移 | 目前可見區間左側時間 | 更舊的 K 線或 `[]`（無更多） |
 
 ### `SubscribeParams`
 
