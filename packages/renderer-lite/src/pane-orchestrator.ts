@@ -59,6 +59,7 @@ export class PaneOrchestrator {
   private dark = true;
   private readonly maxRenderPoints: number;
   private barByTime = new Map<number, Bar>();
+  private didInitialFit = false;
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -133,9 +134,13 @@ export class PaneOrchestrator {
     const candles: CandlestickData[] = [];
     const vols: HistogramData<UTCTimestamp>[] = [];
     const gapSet = new Set(gaps ?? []);
+    const seenTimes = new Set<number>();
 
     for (let i = 0; i < renderBars.length; i++) {
       const b = renderBars[i]!;
+      const time = toUtcSeconds(b.t);
+      if (seenTimes.has(time)) continue;
+      seenTimes.add(time);
       if (i > 0 && gapSet.has(b.t)) {
         // whitespace: skip connecting — LWC uses sparse times
       }
@@ -150,11 +155,13 @@ export class PaneOrchestrator {
     this.indicators?.setBars(renderBars);
 
     if (renderBars.length > 0) {
-      this.bus.setBarsTimeRange(renderBars[0]!.t, renderBars[renderBars.length - 1]!.t);
       this.syncChartSize();
-      this.mainChart.timeScale().fitContent();
-      this.volumeChart.timeScale().fitContent();
-      this.indicators?.fitContent();
+      if (!this.didInitialFit) {
+        this.mainChart.timeScale().fitContent();
+        this.volumeChart.timeScale().fitContent();
+        this.indicators?.fitContent();
+        this.didInitialFit = true;
+      }
     }
   }
 
@@ -196,10 +203,15 @@ export class PaneOrchestrator {
     return bestDt < 120_000 ? best : null;
   }
 
+  resetViewState(): void {
+    this.didInitialFit = false;
+  }
+
   fitContent(): void {
     this.mainChart.timeScale().fitContent();
     this.volumeChart.timeScale().fitContent();
     this.indicators?.fitContent();
+    this.didInitialFit = true;
   }
 
   scrollToRealtime(): void {

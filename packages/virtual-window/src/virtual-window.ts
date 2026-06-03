@@ -93,27 +93,29 @@ export class VirtualWindow {
     return holes;
   }
 
-  needsHistoryLeft(renderFromMs: number): boolean {
+  /** True when the visible viewport (not render buffer) extends left of loaded data. */
+  needsHistoryLeft(): boolean {
     const loaded = this.store.loadedRanges;
     if (loaded.length === 0) return true;
     const minLoaded = Math.min(...loaded.map((r) => r.fromMs));
     const threshold = intervalMs(this.store.interval) * this.fetchThresholdBars;
-    return renderFromMs < minLoaded - threshold;
+    return this.visibleFromMs < minLoaded - threshold;
   }
 
-  needsHistoryRight(renderToMs: number): boolean {
+  /** True when the visible viewport extends right of loaded data (fill-visible-holes only). */
+  needsHistoryRight(): boolean {
     const loaded = this.store.loadedRanges;
     if (loaded.length === 0) return true;
     const maxLoaded = Math.max(...loaded.map((r) => r.toMs));
     const threshold = intervalMs(this.store.interval) * this.fetchThresholdBars;
-    return renderToMs > maxLoaded + threshold;
+    return this.visibleToMs > maxLoaded + threshold;
   }
 
   planFetches(): HistoryRequest[] {
     const { renderFromMs, renderToMs } = this.getRenderRange();
     const reqs: HistoryRequest[] = [];
 
-    if (this.needsHistoryLeft(renderFromMs)) {
+    if (this.needsHistoryLeft()) {
       const loaded = this.store.loadedRanges;
       const minLoaded =
         loaded.length > 0 ? Math.min(...loaded.map((r) => r.fromMs)) : renderToMs;
@@ -137,7 +139,7 @@ export class VirtualWindow {
           limit: this.pageSize,
         });
       }
-      if (this.needsHistoryRight(renderToMs)) {
+      if (this.needsHistoryRight()) {
         const maxLoaded = Math.max(...this.store.loadedRanges.map((r) => r.toMs), 0);
         reqs.push({
           mode: 'range',

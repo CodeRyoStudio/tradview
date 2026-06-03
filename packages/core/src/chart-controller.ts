@@ -41,6 +41,7 @@ export class ChartController {
   private destroyed = false;
   private readonly resizeObserver: ResizeObserver;
   private loadingMore = false;
+  private visibleRangeInitialized = false;
   private drawingManager: DrawingManager | null = null;
   private offCrosshair: (() => void) | null = null;
 
@@ -72,6 +73,14 @@ export class ChartController {
     this.resizeObserver.observe(container);
 
     this.orchestrator.bus.subscribeTransform(() => {
+      const bus = this.orchestrator.bus;
+      if (bus.visibleToMs > bus.visibleFromMs) {
+        this.virtualWindow.setVisibleRange({
+          fromMs: bus.visibleFromMs,
+          toMs: bus.visibleToMs,
+        });
+        this.visibleRangeInitialized = true;
+      }
       void this.maybeLoadMore();
       this.drawingManager?.redraw();
     });
@@ -139,6 +148,8 @@ export class ChartController {
 
   async setSymbol(symbol: string): Promise<void> {
     await this.teardownSubscription();
+    this.visibleRangeInitialized = false;
+    this.orchestrator.resetViewState();
     await this.store.setSymbolInterval(symbol, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
     await this.bootstrap();
@@ -146,6 +157,8 @@ export class ChartController {
 
   async setInterval(interval: Interval): Promise<void> {
     await this.teardownSubscription();
+    this.visibleRangeInitialized = false;
+    this.orchestrator.resetViewState();
     await this.store.setSymbolInterval(this.store.symbol, interval);
     this.drawingManager?.setContext(this.store.symbol, interval);
     await this.bootstrap();
@@ -282,10 +295,14 @@ export class ChartController {
     const times = this.store.sortedTimes;
     if (times.length === 0) return;
 
-    this.virtualWindow.setVisibleRange({
-      fromMs: times[0]!,
-      toMs: times[times.length - 1]!,
-    });
+    // Only seed visible range once; resetting to full series each tick triggers spurious loadMore.
+    if (!this.visibleRangeInitialized) {
+      this.virtualWindow.setVisibleRange({
+        fromMs: times[0]!,
+        toMs: times[times.length - 1]!,
+      });
+      this.visibleRangeInitialized = true;
+    }
 
     const bars = this.virtualWindow.getBarsForRender();
     if (bars.length === 0) return;

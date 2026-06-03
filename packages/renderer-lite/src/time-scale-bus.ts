@@ -22,6 +22,11 @@ export class TimeScaleBus {
     this.charts.push(chart);
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (this.syncing || !range) return;
+      const tr = chart.timeScale().getVisibleRange();
+      if (tr && typeof tr.from === 'number' && typeof tr.to === 'number') {
+        this.visibleFromMs = tr.from * 1000;
+        this.visibleToMs = tr.to * 1000;
+      }
       this.syncFrom(chart, range);
     });
   }
