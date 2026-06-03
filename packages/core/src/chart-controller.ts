@@ -217,12 +217,17 @@ export class ChartController {
   }
 
   private refreshRender(): void {
+    const times = this.store.sortedTimes;
+    if (times.length === 0) return;
+
+    this.virtualWindow.setVisibleRange({
+      fromMs: times[0]!,
+      toMs: times[times.length - 1]!,
+    });
+
     const bars = this.virtualWindow.getBarsForRender();
     if (bars.length === 0) return;
-    this.virtualWindow.setVisibleRange({
-      fromMs: bars[0]!.t,
-      toMs: bars[bars.length - 1]!.t,
-    });
+
     this.orchestrator.setBars(bars);
     this.emit('visibleRangeChange', {
       from: bars[0]!.t,

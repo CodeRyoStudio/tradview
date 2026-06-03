@@ -46,15 +46,12 @@ export class PaneOrchestrator {
     const layout = this.layoutForTheme(this.dark);
 
     const mainEl = document.createElement('div');
-    mainEl.style.flex = '7';
-    mainEl.style.minHeight = '0';
+    mainEl.style.cssText = 'flex:7;min-height:120px;width:100%;position:relative;';
     const volEl = document.createElement('div');
-    volEl.style.flex = '2';
-    volEl.style.minHeight = '0';
+    volEl.style.cssText = 'flex:2;min-height:64px;width:100%;position:relative;';
 
-    opts.container.style.display = 'flex';
-    opts.container.style.flexDirection = 'column';
-    opts.container.style.height = '100%';
+    opts.container.style.cssText =
+      'display:flex;flex-direction:column;height:100%;width:100%;min-height:240px;overflow:hidden;';
     opts.container.append(mainEl, volEl);
     attachPaneResizer(mainEl, volEl, { storageKey: 'tradview:pane:main-volume' });
 
@@ -113,6 +110,7 @@ export class PaneOrchestrator {
 
     if (bars.length > 0) {
       this.bus.setBarsTimeRange(bars[0]!.t, bars[bars.length - 1]!.t);
+      this.syncChartSize();
       this.mainChart.timeScale().fitContent();
       this.volumeChart.timeScale().fitContent();
     }
@@ -133,9 +131,23 @@ export class PaneOrchestrator {
   }
 
   resize(): void {
-    this.mainChart.applyOptions({ autoSize: true });
-    this.volumeChart.applyOptions({ autoSize: true });
+    this.syncChartSize();
     this.syncOverlaySize();
+  }
+
+  private syncChartSize(): void {
+    const mainEl = this.mainChart.chartElement().parentElement;
+    const volEl = this.volumeChart.chartElement().parentElement;
+    if (mainEl) {
+      const w = mainEl.clientWidth;
+      const h = mainEl.clientHeight;
+      if (w > 0 && h > 0) this.mainChart.resize(w, h);
+    }
+    if (volEl) {
+      const w = volEl.clientWidth;
+      const h = volEl.clientHeight;
+      if (w > 0 && h > 0) this.volumeChart.resize(w, h);
+    }
   }
 
   destroy(): void {

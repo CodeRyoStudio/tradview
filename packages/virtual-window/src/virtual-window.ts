@@ -50,6 +50,14 @@ export class VirtualWindow {
   }
 
   getRenderRange(): { renderFromMs: number; renderToMs: number } {
+    const times = this.store.sortedTimes;
+    if (this.visibleToMs <= this.visibleFromMs && times.length > 0) {
+      const fromMs = times[0]!;
+      const toMs = times[times.length - 1]!;
+      const bufferMs = intervalMs(this.store.interval) * 20;
+      return { renderFromMs: fromMs - bufferMs, renderToMs: toMs + bufferMs };
+    }
+
     const span = this.visibleToMs - this.visibleFromMs;
     const bufferMs = Math.max(span * 0.1, intervalMs(this.store.interval) * 50);
     return {

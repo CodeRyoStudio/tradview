@@ -29,8 +29,7 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   chartColumn.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;';
 
   const chartHost = document.createElement('div');
-  chartHost.style.flex = '1';
-  chartHost.style.minHeight = '0';
+  chartHost.style.cssText = 'flex:1;min-height:0;width:100%;height:100%;position:relative;overflow:hidden;';
   chartColumn.appendChild(chartHost);
   mountIndicatorPaneHost(chartColumn);
   body.appendChild(chartColumn);
