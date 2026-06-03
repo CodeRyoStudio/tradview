@@ -1,8 +1,8 @@
-# TradView API Freeze — `1.0.0-rc.1`
+# TradView API Freeze — `1.0.0-rc.2`
 
 | 欄位 | 值 |
 |------|-----|
-| 套件版本 | `1.0.0-rc.1`（見 repo 根目錄 `VERSION`） |
+| 套件版本 | `1.0.0-rc.2`（見 repo 根目錄 `VERSION`） |
 | Embed API | `apiVersion: 1`（`TRADVIEW_API_VERSION`） |
 | Bridge schema | `bridgeSchemaVersion: 1` |
 | 協議 | REST/WS **JSON v1.0**（Protobuf 為 v1.1，**不在 RC 凍結範圍**） |
@@ -16,7 +16,7 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 | 產物 | 說明 |
 |------|------|
-| `@tradview/core@1.0.0-rc.1` | **MIT**，整合主入口 `createChart` |
+| `@tradview/core@1.0.0-rc.2` | **MIT**，整合主入口 `createChart` |
 | `@tradview/data` | **MIT**，協議型別 + `createGatewayDataProvider` |
 | `@tradview/bridge` | **MIT**，WebView `postMessage` |
 | `@tradview/series` / `virtual-window` / `renderer-lite` / `indicators` / `i18n` / `interaction` / `pine-lite` | **MIT**，子模組（進階整合可直連） |

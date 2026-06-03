@@ -2,7 +2,7 @@
 
 ## 目前版本
 
-- **RC**：`1.0.0-rc.1`（`VERSION` 檔為單一真相來源）
+- **RC**：`1.0.0-rc.2`（`VERSION` 檔為單一真相來源）
 - **API**：`apiVersion: 1`（見 [API-FREEZE.md](./API-FREEZE.md)）
 
 ---
