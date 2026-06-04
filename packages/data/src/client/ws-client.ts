@@ -1,7 +1,20 @@
 import { WebSocket } from 'ws';
 import { DataError } from '../errors.js';
+import {
+  decodeWsProtobufEnvelope,
+  encodeWsProtobufEnvelope,
+  WS_SUBPROTOCOL_JSON,
+  WS_SUBPROTOCOL_PROTOBUF,
+} from '../protocol/ws-protobuf-codec.js';
 import type { Envelope } from '../types.js';
-import type { AuthHooks, ConnectionState, RealtimeHandlers, SubscribeParams, Subscription } from './types.js';
+import type {
+  AuthHooks,
+  ConnectionState,
+  RealtimeHandlers,
+  SubscribeParams,
+  Subscription,
+  WsEncoding,
+} from './types.js';
 import { nextClientId } from './id.js';
 import { computeBackoffDelay, sleep } from './reconnect.js';
 import type { Bar } from '../types.js';
@@ -11,6 +24,8 @@ export interface WsClientOptions {
   wsUrl: string;
   auth?: AuthHooks;
   protocolVersion?: string;
+  /** WS wire encoding (default `json`). */
+  encoding?: WsEncoding;
   subscribeAckTimeoutMs?: number;
   subscribeMaxRetries?: number;
   reconnect?: {
@@ -34,6 +49,13 @@ interface ActiveSubscription extends Subscription {
   handlers: RealtimeHandlers;
 }
 
+function toMessageBuffer(data: WebSocket.RawData): Uint8Array {
+  if (Buffer.isBuffer(data)) return new Uint8Array(data);
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (Array.isArray(data)) return Buffer.concat(data);
+  return new Uint8Array(Buffer.from(String(data), 'utf8'));
+}
+
 export class TradViewWsClient {
   private ws: WebSocket | null = null;
   private state: ConnectionState = 'disconnected';
@@ -41,14 +63,29 @@ export class TradViewWsClient {
   private stopped = false;
   private authFailed = false;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private encoding: WsEncoding;
   private readonly pendingByClientRef = new Map<string, PendingSubscribe>();
   private readonly activeSubs = new Map<string, ActiveSubscription>();
   private readonly pendingRequests = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
-  constructor(private readonly opts: WsClientOptions) {}
+  constructor(private readonly opts: WsClientOptions) {
+    this.encoding = opts.encoding ?? 'json';
+  }
 
   get connectionState(): ConnectionState {
     return this.state;
+  }
+
+  get wsEncoding(): WsEncoding {
+    return this.encoding;
+  }
+
+  setEncoding(encoding: WsEncoding): void {
+    if (this.encoding === encoding) return;
+    this.encoding = encoding;
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      void this.disconnect().then(() => this.connect());
+    }
   }
 
   async connect(): Promise<void> {
@@ -127,6 +164,10 @@ export class TradViewWsClient {
     await this.connect();
   }
 
+  private wsSubprotocol(): string {
+    return this.encoding === 'protobuf' ? WS_SUBPROTOCOL_PROTOBUF : WS_SUBPROTOCOL_JSON;
+  }
+
   private async openSocket(): Promise<void> {
     this.setState(this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
 
@@ -140,7 +181,7 @@ export class TradViewWsClient {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(url, { headers });
+      const ws = new WebSocket(url, [this.wsSubprotocol()], { headers });
       this.ws = ws;
 
       ws.on('open', async () => {
@@ -157,7 +198,9 @@ export class TradViewWsClient {
         }
       });
 
-      ws.on('message', (data) => this.handleMessage(data.toString()));
+      ws.on('message', (data) => {
+        void this.handleMessage(data);
+      });
 
       ws.on('close', () => {
         this.clearPing();
@@ -315,13 +358,25 @@ export class TradViewWsClient {
     }
   }
 
-  private handleMessage(raw: string) {
-    let msg: Envelope;
-    try {
-      msg = JSON.parse(raw) as Envelope;
-    } catch {
-      return;
+  private async parseIncomingMessage(data: WebSocket.RawData): Promise<Envelope | null> {
+    if (this.encoding === 'protobuf') {
+      try {
+        return await decodeWsProtobufEnvelope(toMessageBuffer(data));
+      } catch {
+        return null;
+      }
     }
+    try {
+      const text = typeof data === 'string' ? data : data.toString('utf8');
+      return JSON.parse(text) as Envelope;
+    } catch {
+      return null;
+    }
+  }
+
+  private async handleMessage(data: WebSocket.RawData) {
+    const msg = await this.parseIncomingMessage(data);
+    if (!msg) return;
 
     if (msg.type === 'pong') return;
 
@@ -434,9 +489,14 @@ export class TradViewWsClient {
   }
 
   private send(msg: Envelope) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    if (this.encoding === 'protobuf') {
+      void encodeWsProtobufEnvelope(msg).then((bytes) => {
+        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(bytes);
+      });
+      return;
     }
+    this.ws.send(JSON.stringify(msg));
   }
 
   private startPing() {

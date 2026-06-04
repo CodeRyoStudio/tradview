@@ -9,6 +9,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./client": {
+      "types": "./dist/entry-client.d.ts",
+      "import": "./dist/entry-client.js"
+    },
     "./mock": {
       "types": "./dist/mock/index.d.ts",
       "import": "./dist/mock/index.js"
@@ -25,6 +29,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "protobufjs": "^7.6.2",
     "ws": "^8.18.2"
   },
   "devDependencies": {

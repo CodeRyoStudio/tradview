@@ -13,5 +13,5 @@ export const MOCK_GATEWAY_CAPABILITIES: DataProviderCapabilities = {
   realtimeModes: ['bar', 'tick', 'bar+tick'],
   wsHistory: true,
   symbolSearch: true,
-  encoding: ['json'],
+  encoding: ['json', 'protobuf'],
 };

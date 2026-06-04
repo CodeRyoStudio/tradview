@@ -140,7 +140,7 @@ describe('proto schema parity (PR-02b-1 — no runtime codec)', () => {
     expect(protoSource).toContain('bar_seq');
   });
 
-  it('documents that protobuf encode/decode is deferred to PR-02b-2', () => {
+  it('documents PR-02b-2 runtime codec in ws-protobuf-codec.ts', () => {
     expect(protoSource).toContain('PR-02b-2');
   });
 });

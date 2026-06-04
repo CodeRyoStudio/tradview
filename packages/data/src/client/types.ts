@@ -66,8 +66,12 @@ export interface WsHistoryParams {
   limit?: number;
 }
 
+export type WsEncoding = 'json' | 'protobuf';
+
 export interface DataProvider {
   getCapabilities?(): Promise<DataProviderCapabilities>;
+  /** Switch WS wire encoding before `connect()` (gateway provider). */
+  setWsEncoding?(encoding: WsEncoding): void;
   getHistory(
     query: HistoryQuery,
   ): Promise<{ bars: Bar[]; nextCursor?: string; hasMore?: boolean }>;
@@ -91,4 +95,6 @@ export interface GatewayDataProviderOptions {
     maxAttempts?: number;
   };
   protocolVersion?: string;
+  /** WS wire encoding (default `json`). Requires server `capabilities.encoding`. */
+  encoding?: WsEncoding;
 }

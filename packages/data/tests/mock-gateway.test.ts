@@ -16,6 +16,7 @@ describe('mock gateway', () => {
     const body = await res.json();
     expect(body.historyModes).toContain('loadMore');
     expect(body.wsHistory).toBe(true);
+    expect(body.encoding).toEqual(['json', 'protobuf']);
   });
 
   it('supports loadMore history', async () => {

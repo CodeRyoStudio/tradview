@@ -5,7 +5,8 @@ import {
   type IChart,
 } from '@coderyo/core';
 import { mountBridgeDebugPanel } from './bridge-debug-panel.js';
-import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@coderyo/data';
+import { createGatewayDataProvider } from '@coderyo/data/client';
+import { createPassthroughSymbolResolver } from '@coderyo/data';
 import { EXTENDED_INTERVALS, type Interval } from '@coderyo/data';
 import { bindChartKeyboard } from '@coderyo/interaction';
 import { t } from '@coderyo/i18n';
@@ -416,7 +417,7 @@ mountPineEditorPanel(document.body, {
 
 mountCodeSnippetPanel(document.body, () =>
   `import { createChart } from '@coderyo/core';
-import { createGatewayDataProvider } from '@coderyo/data';
+import { createGatewayDataProvider } from '@coderyo/data/client';
 
 const chart = createChart(document.getElementById('chart'), {
   dataProvider: createGatewayDataProvider({

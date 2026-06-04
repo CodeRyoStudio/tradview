@@ -22,12 +22,16 @@ export function createGatewayDataProvider(opts: GatewayDataProviderOptions): Dat
     wsUrl: opts.wsUrl,
     auth: opts.auth,
     protocolVersion: opts.protocolVersion,
+    encoding: opts.encoding,
     subscribeAckTimeoutMs: opts.subscribeAckTimeoutMs,
     subscribeMaxRetries: opts.subscribeMaxRetries,
     reconnect: opts.reconnect,
   });
 
   const provider: DataProvider = {
+    setWsEncoding(encoding) {
+      ws.setEncoding(encoding);
+    },
     async getCapabilities() {
       return rest.getCapabilities();
     },

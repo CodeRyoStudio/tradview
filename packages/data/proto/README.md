@@ -8,6 +8,7 @@
 |----------|------|
 | `tradview.proto` | `tradview.ws` messages: `Bar`, `Capabilities`, subscribe/history payloads, `Envelope` |
 | `src/types.ts` | JSON WS envelope + payload shapes (`Envelope<T>`, `Bar`, …) |
+| `src/entry-client.ts` | WS/REST clients + protobuf codec (`@coderyo/data/client`; omitted from main entry for browser bundles) |
 | `src/protocol/rest-envelope-v11.ts` | REST v1.1 only: `{ version, type, id, ok, data?, error? }` (DESIGN-v2 §4.4) |
 | `tests/fixtures/protocol-v11/` | Golden JSON for fixture round-trips (no runtime codec in PR-02b-1) |
 
@@ -58,6 +59,6 @@ REST v1.1 is **not** the same wire shape as WS JSON (`v` / `payload`); only sema
 | PR | Scope |
 |----|--------|
 | **PR-02b-1** (this tree) | `.proto`, TS types, JSON fixtures, parity tests; npm `files` includes `proto/**` |
-| **PR-02b-2** | `bufbuild` / runtime codec, `TradViewWsClient` protobuf mode, `ChartFeatures.protobuf` |
+| **PR-02b-2** | **`protobufjs`** runtime codec (`ws-protobuf-codec.ts`), `TradViewWsClient` protobuf mode, `ChartFeatures.protobuf` wiring |
 
-Do not add a code generator to CI until PR-02b-2 unless only used as an optional devDependency for compile checks.
+Runtime loads `tradview.proto` via `protobufjs` (no protoc/codegen in CI). Subprotocols: `tradview-json` (default), `tradview-protobuf`.

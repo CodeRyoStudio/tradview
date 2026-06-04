@@ -1,6 +1,6 @@
 /**
  * Static proto ↔ TypeScript parity metadata (PR-02b-1).
- * Runtime protobuf encode/decode is PR-02b-2.
+ * Runtime protobuf encode/decode: `ws-protobuf-codec.ts` (PR-02b-2).
  */
 
 /** JSON ↔ proto field mapping for Bar (tradview.ws.Bar). */

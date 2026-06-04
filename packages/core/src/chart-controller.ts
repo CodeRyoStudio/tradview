@@ -743,6 +743,22 @@ export class ChartController {
     return !this.destroyed && gen === this.loadGeneration;
   }
 
+  /** Opt-in WS protobuf when provider advertises `encoding` (PR-02b-2). */
+  private async applyProtobufWsEncodingIfEnabled(): Promise<void> {
+    if (!this.features.protobuf) return;
+
+    const caps = await this.options.dataProvider.getCapabilities?.();
+    if (!caps?.encoding?.includes('protobuf')) {
+      this.emit('error', {
+        code: 'PROTOBUF_UNAVAILABLE',
+        message: 'Data provider does not advertise protobuf in capabilities.encoding',
+      });
+      return;
+    }
+
+    this.options.dataProvider.setWsEncoding?.('protobuf');
+  }
+
   private async bootstrap(loadGen: number): Promise<void> {
     if (!this.isLoadGenerationCurrent(loadGen)) return;
 
@@ -751,12 +767,7 @@ export class ChartController {
 
     try {
       const endTime = Date.now();
-      if (this.features.protobuf) {
-        this.emit('error', {
-          code: 'PROTOBUF_UNAVAILABLE',
-          message: 'Protobuf encoding requires protocol v1.1 (not in 1.0.0)',
-        });
-      }
+      await this.applyProtobufWsEncodingIfEnabled();
 
       const history = await fetchChartHistory(this.options.dataProvider, {
         mode: 'loadMore',

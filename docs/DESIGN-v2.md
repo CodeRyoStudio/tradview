@@ -188,7 +188,7 @@ flowchart TB
 | 欄位 | v1.1.1 | rc.1 | rc.4 | GA |
 |------|--------|------|------|-----|
 | `renderer` | *無* | *無*（用 demo 路由） | `'lite'\|'webgl'`，預設 `lite` | 預設 **`webgl`** |
-| `protobuf` | `false`，未接 codec | `false` | opt-in | `false`（文件建議新整合方開啟） |
+| `protobuf` | `false`（預設） | `false`，**codec 已接線（opt-in）** — `features.protobuf` + `capabilities.encoding` 含 `protobuf` 時 WS `tradview-protobuf` | opt-in | `false`（文件建議新整合方開啟） |
 | `debugWebGL` | *無* | `false` | `false` | `false`；`true` 打開 shader 日誌 |
 | `telemetry` 擴充 | 通用 | +`renderer.backend` | +`webgl.initMs` | +`draw.callCount` |
 
