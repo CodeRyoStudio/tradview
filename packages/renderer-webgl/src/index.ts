@@ -18,6 +18,21 @@ export type { WebGLChartPaneOptions } from './webgl-chart-pane.js';
 export { WebGLPaneOrchestrator } from './webgl-pane-orchestrator.js';
 export type { WebGLPaneOrchestratorOptions } from './webgl-pane-orchestrator.js';
 
+export { LineSeriesRenderer } from './line-series-renderer.js';
+export type {
+  LineSeriesRenderParams,
+  LineSeriesSpec,
+  HistogramSeriesSpec,
+} from './line-series-renderer.js';
+
+export { WebGLIndicatorStack } from './webgl-indicator-stack.js';
+export type { WebGLIndicatorStackOptions } from './webgl-indicator-stack.js';
+
+export { WebGLIndicatorPane } from './webgl-indicator-pane.js';
+export type { WebGLIndicatorPaneId, WebGLIndicatorPaneOptions } from './webgl-indicator-pane.js';
+
+export { ViewportSyncBus } from './viewport-sync-bus.js';
+
 export { DEFAULT_CHART_THEME, mergeTheme } from './theme.js';
 export type { ChartThemeColors } from './theme.js';
 

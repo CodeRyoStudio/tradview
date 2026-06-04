@@ -91,9 +91,20 @@ describe('ChartViewport', () => {
     expect(vp.visibleTo).toBe(10);
   });
 
+  it('setBarCount does not reset visible range', () => {
+    const vp = new ChartViewport({ rightPaddingPx: 0 });
+    vp.setBarCount(100);
+    vp.setVisibleRange(25, 75);
+    vp.setBarCount(120);
+    expect(vp.visibleFrom).toBe(25);
+    expect(vp.visibleTo).toBe(75);
+    expect(vp.barCount).toBe(120);
+  });
+
   it('setBarCount(0) clears visible range', () => {
     const vp = new ChartViewport();
     vp.setBarCount(10);
+    vp.setVisibleRange(0, 10);
     vp.setBarCount(0);
     expect(vp.visibleSpan).toBe(0);
     expect(vp.barCount).toBe(0);

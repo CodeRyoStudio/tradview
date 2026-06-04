@@ -1,3 +1,7 @@
+import {
+  DEFAULT_INDICATOR_CONFIG,
+  type IndicatorConfig,
+} from '@coderyo/indicators';
 import { WebGLPaneOrchestrator } from '@coderyo/renderer-webgl';
 import { generateDemoBars } from './synthetic-bars.js';
 
@@ -17,12 +21,51 @@ function updateHud(orch: WebGLPaneOrchestrator, barCount: number): void {
   const barsEl = document.getElementById('hud-bars');
   const vpEl = document.getElementById('hud-viewport');
   const spEl = document.getElementById('hud-spacing');
+  const indEl = document.getElementById('hud-indicators');
   if (!vp) return;
   if (barsEl) barsEl.textContent = `bars: ${barCount}`;
   if (vpEl) {
     vpEl.textContent = `viewport: ${vp.visibleFrom.toFixed(1)} … ${vp.visibleTo.toFixed(1)}`;
   }
   if (spEl) spEl.textContent = `barSpacing: ${vp.barSpacing.toFixed(1)}px`;
+  const cfg = orch.getIndicatorConfig();
+  if (indEl) {
+    const on = [
+      cfg.showMacd && 'MACD',
+      cfg.showRsi && 'RSI',
+      cfg.showKdj && 'KDJ',
+    ].filter(Boolean);
+    indEl.textContent = `indicators: ${on.length ? on.join(', ') : 'off'}`;
+  }
+}
+
+function buildIndicatorToggles(
+  initial: IndicatorConfig,
+  onChange: (config: IndicatorConfig) => void,
+): void {
+  const host = document.getElementById('indicator-toggles');
+  if (!host) return;
+
+  let config = { ...initial };
+  const keys: Array<{ key: keyof IndicatorConfig; label: string }> = [
+    { key: 'showMacd', label: 'MACD' },
+    { key: 'showRsi', label: 'RSI' },
+    { key: 'showKdj', label: 'KDJ' },
+  ];
+
+  for (const { key, label } of keys) {
+    const labelEl = document.createElement('label');
+    labelEl.style.cssText = 'font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = Boolean(config[key]);
+    input.onchange = () => {
+      config = { ...config, [key]: input.checked };
+      onChange(config);
+    };
+    labelEl.append(input, document.createTextNode(label));
+    host.appendChild(labelEl);
+  }
 }
 
 function main(): void {
@@ -40,11 +83,23 @@ function main(): void {
     seed: SYMBOL.length * 31 + INTERVAL.length,
   });
 
+  let indicatorConfig: IndicatorConfig = {
+    ...DEFAULT_INDICATOR_CONFIG,
+    showMacd: true,
+    showRsi: true,
+    showKdj: true,
+  };
+
   let orch: WebGLPaneOrchestrator;
   try {
     orch = new WebGLPaneOrchestrator({
       volumeHeightRatio: 0.22,
       barSpacing: 7,
+      indicatorConfig,
+      onIndicatorConfigChange: (cfg) => {
+        indicatorConfig = cfg;
+        updateHud(orch, bars.length);
+      },
     });
     orch.mount(root);
     orch.setBars(bars);
@@ -53,6 +108,11 @@ function main(): void {
     showError(`WebGL init failed: ${msg}`);
     return;
   }
+
+  buildIndicatorToggles(indicatorConfig, (cfg) => {
+    indicatorConfig = cfg;
+    orch.setIndicatorConfig(cfg);
+  });
 
   updateHud(orch, bars.length);
   const hudTimer = window.setInterval(() => updateHud(orch, bars.length), 200);

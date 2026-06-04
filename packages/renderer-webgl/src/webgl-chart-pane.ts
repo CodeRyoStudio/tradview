@@ -6,6 +6,7 @@ import { WebGL2Context } from './webgl2-context.js';
 import { ChartInteraction } from './chart-interaction.js';
 import { mergeTheme, type ChartThemeColors } from './theme.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
+import type { ViewportSyncBus } from './viewport-sync-bus.js';
 
 export interface WebGLChartPaneOptions {
   /** Fraction of height for volume pane (0–0.5). */
@@ -13,6 +14,8 @@ export interface WebGLChartPaneOptions {
   theme?: Partial<ChartThemeColors>;
   debug?: boolean;
   barSpacing?: number;
+  /** When set, pan/zoom on this pane propagates to indicator followers. */
+  syncBus?: ViewportSyncBus;
 }
 
 const DEFAULT_VOLUME_RATIO = 0.22;
@@ -35,6 +38,7 @@ export class WebGLChartPane {
   private volume: VolumeRenderer;
   private gridBatch: SolidBatchRenderer;
   private interaction: ChartInteraction | null = null;
+  private syncBus: ViewportSyncBus | null = null;
   private rafId: number | null = null;
   private disposed = false;
 
@@ -62,16 +66,27 @@ export class WebGLChartPane {
       },
     });
 
+    this.syncBus = opts.syncBus ?? null;
     this.interaction = new ChartInteraction(
       this.context.canvas,
       this.viewport,
       () => this.viewport.plotWidthPx(this.width),
-      { requestRender: () => this.scheduleRender() },
+      { requestRender: () => this.afterViewportChange() },
     );
 
     container.style.position = container.style.position || 'relative';
     container.style.overflow = 'hidden';
     container.style.touchAction = 'none';
+  }
+
+  /** Attach time-scale sync after orchestrator creates the bus (single pane init). */
+  attachSyncBus(bus: ViewportSyncBus): void {
+    this.syncBus = bus;
+  }
+
+  setVolumeHeightRatio(ratio: number): void {
+    this.volumeRatio = clampRatio(ratio);
+    this.scheduleRender();
   }
 
   setData(bars: readonly Bar[]): void {
@@ -80,7 +95,7 @@ export class WebGLChartPane {
     if (this.width > 0) {
       this.viewport.fitLatest(this.viewport.plotWidthPx(this.width));
     }
-    this.scheduleRender();
+    this.afterViewportChange();
   }
 
   resize(cssWidth: number, cssHeight: number): void {
@@ -143,6 +158,11 @@ export class WebGLChartPane {
     this.volume.dispose();
     this.gridBatch.dispose();
     this.context.destroy();
+  }
+
+  private afterViewportChange(): void {
+    this.syncBus?.propagate();
+    this.scheduleRender();
   }
 
   private scheduleRender(): void {

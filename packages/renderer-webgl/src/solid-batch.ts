@@ -23,7 +23,7 @@ export class SolidBatchRenderer {
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
-    private readonly debug = false,
+    _debug = false,
   ) {}
 
   /** Drop GPU program/buffers after context restore. */

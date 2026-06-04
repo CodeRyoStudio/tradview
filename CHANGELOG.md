@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **V2-R5 (`@coderyo/renderer-webgl`, `phase_beta`)**: `LineSeriesRenderer`, `WebGLIndicatorPane` / `WebGLIndicatorStack` (MACD/RSI/KDJ via `@coderyo/indicators`), `ViewportSyncBus` + `ChartViewport.syncFrom`; `WebGLPaneOrchestrator` layout (~60% / ~15% / ~25%) + `indicatorConfig` / `setIndicatorConfig`; playground `webgl-demo` indicator toggles; `indicator-values.test.ts`, `viewport-sync-bus.test.ts`
+- **V2-R5 fix**: `setBarCount` no longer runs `fitLatest` on followers; `syncBus.propagate()` after indicator `setBars`; orchestrator `lastBars` + `setIndicatorConfig` re-applies series; `webgl-pane-orchestrator.test.ts`
+
 ## [2.0.0-rc.2] - 2026-06-04
 
 ### `@coderyo/ui-shell` — PR-L7b (grid public API removal)

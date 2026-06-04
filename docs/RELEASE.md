@@ -2,9 +2,19 @@
 
 ## 目前版本
 
-- **正式**：`1.1.1`（`VERSION` 檔為單一真相來源；`@coderyo/bridge` 獨立為 `2.0.0`）
-- **API**：`apiVersion: 1`（見 [API-FREEZE.md](./API-FREEZE.md)）
+- **RC**：**`2.0.0-rc.2`**（`VERSION` 檔為單一真相來源；`@coderyo/bridge` 獨立為 `2.0.0`）
+- **正式**：`1.1.1`（上一 GA 線）
+- **API**：`apiVersion: 1` @ 1.1.x；V2 目標 `apiVersion: 2` @ GA（見 [API-FREEZE-2.0.md](./API-FREEZE-2.0.md) draft）
 - **V2 規劃**：[DESIGN-v2.md](./DESIGN-v2.md)
+
+### RC 里程碑（`2.0.0-rc.*`）
+
+| Tag | 已交付（摘要） |
+|-----|----------------|
+| **rc.1** | WebGL `phase_alpha`（V2-R1–R4b）、`apps/playground/webgl-demo.html`、PR-02b-1（proto/REST types）、PR-L7a（grid `@deprecated`） |
+| **rc.2** | PR-L7b（grid 公開 API 移除 + `/migrate`）、PR-02b-2（WS protobuf codec）、**V2-R5** `phase_beta` 指標窗（WebGL MACD/RSI/KDJ，仍不接 `createChart`） |
+
+`VERSION` 維持 **`2.0.0-rc.2`** 直至下一 RC bump；勿為 rc.1 單獨改 VERSION。
 
 ---
 
@@ -23,8 +33,8 @@ pnpm check:rc
 |------|------|
 | `test` | 含 `@coderyo/core` 的 **`arch-boundary.test.ts`**（禁止 core → ui-shell）；**勿**在 `check:rc` 重複跑 `arch:boundary` |
 | `test:scripts` | `scripts/check-rc.test.mjs` — RC 步驟與 LWC skip 邏輯 |
-| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **40 KB**（DESIGN-v2 §8 / V2-R2）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
-| `check:lwc-size` | **僅**當 `VERSION` **不**匹配 `2.0.0` / `2.0.0-rc.N` 時執行（V2 WebGL 線跳過 LWC gate） |
+| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **80 KB**（DESIGN-v2 §8：R2 **40 KB** + phase_beta **≤40 KB** @ V2-R5–R8）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
+| `check:lwc-size` | **僅**當 `VERSION` **不**匹配 `2.0.0` / `2.0.0-rc.N` 時執行（V2 WebGL 線跳過 LWC gate）。@ **`2.0.0-rc.2`**，`pnpm check:rc` → `test:scripts` 驗證此 skip 邏輯 |
 
 手動邊界檢查（除錯用）：`pnpm arch:boundary`（與 `pnpm test` 內 core 測試相同）。
 

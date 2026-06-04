@@ -40,9 +40,13 @@ export class ChartViewport {
     return this._visibleTo - this._visibleFrom;
   }
 
+  /** Update bar count only; does not change pan/zoom (use {@link fitLatest} or {@link syncFrom}). */
   setBarCount(count: number): void {
     this._barCount = Math.max(0, count);
-    this.fitLatest(this.plotWidthPx(800));
+    if (this._barCount <= 0) {
+      this._visibleFrom = 0;
+      this._visibleTo = 0;
+    }
   }
 
   setVisibleRange(from: number, to: number): void {
@@ -149,6 +153,14 @@ export class ChartViewport {
     const from = Math.max(0, Math.floor(this._visibleFrom));
     const to = Math.min(this._barCount - 1, Math.ceil(this._visibleTo) - 1);
     return { from, to: Math.max(from, to) };
+  }
+
+  /** Copy pan/zoom state from another viewport (time-scale sync across panes). */
+  syncFrom(source: ChartViewport): void {
+    this.barSpacing = source.barSpacing;
+    this._barCount = source._barCount;
+    this._visibleFrom = source._visibleFrom;
+    this._visibleTo = source._visibleTo;
   }
 
   private clampRange(): void {

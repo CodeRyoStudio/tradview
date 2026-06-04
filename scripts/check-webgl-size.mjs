@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/** V2-R2 gate: @coderyo/renderer-webgl ESM bundle raw size budget (DESIGN-v2 §8). */
+/**
+ * V2-R2 gate: @coderyo/renderer-webgl ESM bundle raw size (DESIGN-v2 §8).
+ * Default 80 KB raw = R2 cap (40 KB) + phase_beta increment (V2-R5–R8, ≤40 KB).
+ * Override: TRADVIEW_WEBGL_MAX_KB.
+ */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const bundlePath = resolve(root, 'packages/renderer-webgl/dist/index.js');
-const maxKb = Number(process.env.TRADVIEW_WEBGL_MAX_KB ?? 40);
+const maxKb = Number(process.env.TRADVIEW_WEBGL_MAX_KB ?? 80);
 
 if (!existsSync(bundlePath)) {
   console.log('[webgl-size] building @coderyo/renderer-webgl…');
@@ -31,7 +35,7 @@ const rawKb = rawBytes / 1024;
 console.log(`[webgl-size] dist/index.js: ${rawKb.toFixed(1)} KB (limit ${maxKb} KB raw)`);
 
 if (rawKb > maxKb) {
-  console.error(`[webgl-size] FAIL: exceeds ${maxKb} KB raw budget (DESIGN-v2 §8 / V2-R2)`);
+  console.error(`[webgl-size] FAIL: exceeds ${maxKb} KB raw budget (DESIGN-v2 §8)`);
   process.exit(1);
 }
 
