@@ -6,11 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-04
+
 ### Added
 
 - **`createLayerBridgeRegistration` / `wrapLayerController`** (`@coderyo/ui-shell`) for Bridge schema 2 layer registration
 - **Prepend compensation (§10.4.1)**: `compensatePrependForBuses` wired from `ChartController.maybeLoadMore`; exports `buildSliceTimes`, `computePrependSliceDeltaForViewport`, `compensatePrependOnRegistry`
 - **docs**: [MIGRATION-bridge-2.md](./docs/MIGRATION-bridge-2.md); Android/Kotlin in [examples/bridge-layer-sync.md](./examples/bridge-layer-sync.md)
+- **Tests**: §10.4 contract tests (`time-scale-prepend-crosshair`, `time-scale-multi-pane-sync`, `prepend-compensation`)
 
 ### Changed
 
