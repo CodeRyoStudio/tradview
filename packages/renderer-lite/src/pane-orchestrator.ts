@@ -17,7 +17,11 @@ import {
 import { intervalMs, type Bar, type Interval } from '@coderyo/data';
 import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
-import { hasVisibleIndicatorPanes, type IndicatorConfig } from '@coderyo/indicators';
+import {
+  DEFAULT_INDICATOR_CONFIG,
+  hasVisibleIndicatorPanes,
+  type IndicatorConfig,
+} from '@coderyo/indicators';
 
 import {
   IndicatorPaneStack,
@@ -27,7 +31,12 @@ import {
   volMaOverlayLine,
 } from './indicator-panes.js';
 import { attachPaneResizer } from './pane-resize.js';
-import { TimeScaleBus, type ChartVisibleRange } from './time-scale-bus.js';
+import { type ChartVisibleRange } from './time-scale-bus.js';
+import {
+  type PaneSyncGroupPatch,
+  type PaneSyncKey,
+  TimeScaleBusRegistry,
+} from './time-scale-bus-registry.js';
 import { resolveBarSpacingForInterval } from './viewport-fit.js';
 
 export type { ChartVisibleRange };
@@ -47,8 +56,29 @@ export interface PinePlotLine {
   values: (number | null)[];
 }
 
+export type ChartPaneId = 'main' | 'volume' | 'indicator';
+
+export function isLayeredPaneMount(opts: Pick<PaneOrchestratorOptions, 'volumeMount'>): boolean {
+  return !!opts.volumeMount;
+}
+
+export function shouldResizeChartPane(
+  focus: Set<ChartPaneId> | null,
+  pane: ChartPaneId,
+): boolean {
+  if (!focus) return true;
+  return focus.has(pane);
+}
+
 export interface PaneOrchestratorOptions {
+  /** Main candlestick mount (required). */
   container: HTMLElement;
+  /**
+   * P2: separate volume layer host; when set, no flex column in container.
+   * Mount order: create empty `chartMain` + `chartVolume` nodes first, pass to compositor widgets,
+   * then `createChart(chartMain, { volumeMount: chartVolume })` so LWC mounts after layer frames apply.
+   */
+  volumeMount?: HTMLElement;
   indicatorRoot?: HTMLElement;
   theme?: 'dark' | 'light';
   scaleMode?: ScaleMode;
@@ -66,6 +96,11 @@ export interface PaneOrchestratorOptions {
   /** When true (default), set bar spacing on interval reload — does not change visible bar count. */
   autoBarSpacingOnInterval?: boolean;
   barSpacingByInterval?: Partial<Record<Interval, number>>;
+  /**
+   * When false, do not listen for `tradview:pane-resize` (ChartController owns that path).
+   * @default true for standalone orchestrator use; ChartController passes false.
+   */
+  listenPaneResizeEvents?: boolean;
 }
 
 function toUtcSeconds(tMs: number): UTCTimestamp {
@@ -81,7 +116,17 @@ function barToVolume(b: Bar): HistogramData<UTCTimestamp> {
 }
 
 export class PaneOrchestrator {
-  readonly bus = new TimeScaleBus();
+  readonly busRegistry = new TimeScaleBusRegistry();
+  /** Active sync group bus (last-focused pane); used by ChartController viewport APIs. */
+  get bus() {
+    return this.busRegistry.activeBus;
+  }
+  private readonly layeredPanes: boolean;
+  private readonly mainEl: HTMLElement;
+  private readonly volWrap: HTMLElement;
+  private detachMainVolResizer: () => void = () => {};
+  private resizeFocusPanes: Set<ChartPaneId> | null = null;
+  private readonly listenPaneResizeEvents: boolean;
   private readonly mainChart: IChartApi;
   private readonly volumeChart: IChartApi;
   private readonly mainSeries: ISeriesApi<'Candlestick'>;
@@ -104,6 +149,9 @@ export class PaneOrchestrator {
   private barTimesOrdered: number[] = [];
   private didInitialFit = false;
   private skipNextInitialFit = false;
+  /** setBars ran before the pane had layout size; refit on first real resize. */
+  private pendingViewportFit = false;
+  private pendingViewportBars: Bar[] | null = null;
   private indicatorConfig: IndicatorConfig | null = null;
   private onIndicatorConfigChange?: (config: IndicatorConfig) => void;
   private currentInterval: Interval = '1h';
@@ -115,22 +163,70 @@ export class PaneOrchestrator {
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
+    this.listenPaneResizeEvents = opts.listenPaneResizeEvents !== false;
     this.dark = opts.theme !== 'light';
     this.showGrid = opts.showGrid ?? false;
     const layout = this.layoutForTheme(this.dark);
     const grid = gridOptions(this.showGrid, this.dark);
 
-    const mainEl = document.createElement('div');
-    mainEl.style.cssText = 'flex:7;min-height:120px;width:100%;position:relative;';
+    this.layeredPanes = !!opts.volumeMount;
     const volEl = document.createElement('div');
-    volEl.style.cssText = 'flex:2;min-height:64px;width:100%;position:relative;';
+    volEl.style.cssText = 'width:100%;height:100%;min-height:0;position:relative;';
 
-    opts.container.style.cssText =
-      'display:flex;flex-direction:column;height:100%;width:100%;min-height:240px;overflow:hidden;';
-    opts.container.append(mainEl, volEl);
-    attachPaneResizer(mainEl, volEl, { storageKey: 'tradview:pane:main-volume' });
+    if (this.layeredPanes) {
+      this.mainEl = opts.container;
+      this.mainEl.style.cssText =
+        'width:100%;height:100%;min-height:80px;position:relative;overflow:hidden;';
+      this.volWrap = opts.volumeMount!;
+      this.volWrap.dataset.paneId = 'volume';
+      this.volWrap.className = 'tv-volume-pane tv-volume-pane--layered';
+      this.volWrap.replaceChildren();
+      this.volWrap.style.cssText =
+        'width:100%;height:100%;min-height:48px;position:relative;overflow:hidden;box-sizing:border-box;';
+      const volTag = document.createElement('span');
+      volTag.textContent = 'Volume';
+      volTag.style.cssText =
+        'position:absolute;left:6px;top:4px;z-index:2;font-size:10px;color:#8b949e;pointer-events:none;';
+      const volClose = document.createElement('button');
+      volClose.type = 'button';
+      volClose.textContent = '×';
+      volClose.title = '關閉成交量';
+      volClose.setAttribute('aria-label', 'Close volume');
+      volClose.style.cssText =
+        'position:absolute;right:6px;top:4px;z-index:3;width:22px;height:22px;padding:0;border:1px solid #30363d;border-radius:4px;background:#21262d;color:#8b949e;cursor:pointer;font-size:14px;line-height:1;';
+      volClose.onclick = () => this.closeVolumePane();
+      this.volWrap.append(volTag, volClose, volEl);
+    } else {
+      this.mainEl = document.createElement('div');
+      this.mainEl.style.cssText = 'flex:7;min-height:120px;width:100%;position:relative;';
+      volEl.style.cssText = 'flex:1;min-height:0;width:100%;height:100%;position:relative;';
 
-    this.mainChart = createChart(mainEl, { layout, grid, autoSize: true });
+      this.volWrap = document.createElement('div');
+      this.volWrap.dataset.paneId = 'volume';
+      this.volWrap.className = 'tv-volume-pane';
+      this.volWrap.style.cssText =
+        'flex:2;min-height:48px;width:100%;position:relative;display:flex;flex-direction:column;border-top:1px solid #30363d;';
+      const volTag = document.createElement('span');
+      volTag.textContent = 'Volume';
+      volTag.style.cssText =
+        'position:absolute;left:6px;top:4px;z-index:2;font-size:10px;color:#8b949e;pointer-events:none;';
+      const volClose = document.createElement('button');
+      volClose.type = 'button';
+      volClose.textContent = '×';
+      volClose.title = '關閉成交量';
+      volClose.setAttribute('aria-label', 'Close volume');
+      volClose.style.cssText =
+        'position:absolute;right:6px;top:4px;z-index:3;width:22px;height:22px;padding:0;border:1px solid #30363d;border-radius:4px;background:#21262d;color:#8b949e;cursor:pointer;font-size:14px;line-height:1;';
+      volClose.onclick = () => this.closeVolumePane();
+      this.volWrap.append(volTag, volClose, volEl);
+
+      opts.container.style.cssText =
+        'display:flex;flex-direction:column;height:100%;width:100%;min-height:200px;overflow:hidden;';
+      opts.container.append(this.mainEl, this.volWrap);
+      this.rebuildMainVolumeResizer();
+    }
+
+    this.mainChart = createChart(this.mainEl, { layout, grid, autoSize: true });
     this.volumeChart = createChart(volEl, {
       layout,
       grid,
@@ -189,8 +285,8 @@ export class PaneOrchestrator {
       title: 'VolMA5',
     });
 
-    this.bus.register(this.mainChart);
-    this.bus.register(this.volumeChart);
+    this.busRegistry.getBusForPane('main').register(this.mainChart);
+    this.busRegistry.getBusForPane('volume').register(this.volumeChart);
 
     this.indicatorRoot = opts.indicatorRoot;
     this.indicatorConfig = opts.indicatorConfig ?? null;
@@ -200,9 +296,17 @@ export class PaneOrchestrator {
     this.pinePlots = opts.pinePlots ?? null;
     this.indicators = this.createIndicatorStack();
 
-    this.initOverlay(mainEl);
+    this.initOverlay(this.mainEl);
     this.setSmoothPriceUpdate(opts.smoothPriceUpdate ?? false, opts.smoothPriceDurationMs);
+    this.applyVolumeVisibility();
+    if (opts.listenPaneResizeEvents !== false) {
+      window.addEventListener('tradview:pane-resize', this.onPaneResize);
+    }
   }
+
+  private readonly onPaneResize = () => {
+    this.resize();
+  };
 
   setSmoothPriceUpdate(enabled: boolean, durationMs = 150): void {
     this.smoothPriceDurationMs = durationMs;
@@ -239,7 +343,9 @@ export class PaneOrchestrator {
   private applyLastBarToSeries(bar: Bar): void {
     this.barByTime.set(bar.t, bar);
     this.mainSeries.update(barToCandle(bar));
-    this.volumeSeries.update(barToVolume(bar));
+    if (this.isVolumeVisible()) {
+      this.volumeSeries.update(barToVolume(bar));
+    }
     this.ensurePriceLine(bar.c);
     if (this.indicatorConfig) {
       const bars = [...this.barByTime.values()].sort((a, b) => a.t - b.t);
@@ -288,10 +394,12 @@ export class PaneOrchestrator {
       this.bollMiddle.setData([]);
       this.bollLower.setData([]);
       this.volMaSeries.setData([]);
+      this.volumeSeries.setData([]);
       this.emaSeries.applyOptions({ visible: false });
       this.bollUpper.applyOptions({ visible: false });
       this.bollMiddle.applyOptions({ visible: false });
       this.bollLower.applyOptions({ visible: false });
+      this.applyVolumeVisibility();
       return;
     }
     if (!this.indicators) this.indicators = this.createIndicatorStack();
@@ -303,6 +411,94 @@ export class PaneOrchestrator {
         this.indicators?.setBars(bars);
       }
     }
+    this.applyVolumeVisibility();
+  }
+
+  private isVolumeVisible(): boolean {
+    return this.indicatorConfig?.showVolume ?? true;
+  }
+
+  private closeVolumePane(): void {
+    if (!this.indicatorConfig) {
+      this.indicatorConfig = { ...DEFAULT_INDICATOR_CONFIG, showVolume: false };
+    } else {
+      this.indicatorConfig = { ...this.indicatorConfig, showVolume: false };
+    }
+    this.applyVolumeVisibility();
+    this.onIndicatorConfigChange?.(this.indicatorConfig);
+  }
+
+  private applyVolumeVisibility(): void {
+    const show = this.isVolumeVisible();
+    this.volWrap.style.display = show ? '' : 'none';
+    this.rebuildMainVolumeResizer();
+    if (!show) {
+      this.volumeSeries.setData([]);
+      this.volMaSeries.setData([]);
+    }
+    this.syncChartSize();
+  }
+
+  /** Assign per-pane sync group ids (`''` / omit = independent). Re-registers LWC charts on group change. */
+  setPaneSyncGroups(patch: PaneSyncGroupPatch): void {
+    const apply = (pane: PaneSyncKey, groupId: string | null | undefined) => {
+      const prevKey = this.busRegistry.setPaneSyncGroup(pane, groupId);
+      const nextKey = this.busRegistry.getBusKeyForPane(pane);
+      if (pane === 'main') {
+        this.busRegistry.moveChart(this.mainChart, prevKey, nextKey);
+      } else if (pane === 'volume') {
+        this.busRegistry.moveChart(this.volumeChart, prevKey, nextKey);
+      } else if (this.indicators) {
+        for (const chart of this.indicators.getCharts()) {
+          this.busRegistry.moveChart(chart, prevKey, nextKey);
+        }
+      }
+    };
+    if (patch.main !== undefined) apply('main', patch.main);
+    if (patch.volume !== undefined) apply('volume', patch.volume);
+    if (patch.indicator !== undefined) apply('indicator', patch.indicator);
+  }
+
+  setActiveSyncPane(pane: ChartPaneId): void {
+    const key: PaneSyncKey =
+      pane === 'volume' ? 'volume' : pane === 'indicator' ? 'indicator' : 'main';
+    this.busRegistry.setActivePane(key);
+  }
+
+  /** P2: when set, only these panes get LWC resize (panes in the same sync group still share TimeScaleBus). */
+  setResizeFocusPanes(panes: ChartPaneId[] | null): void {
+    this.resizeFocusPanes = panes?.length ? new Set(panes) : null;
+    this.resize();
+  }
+
+  /** Current resize focus (null = all panes). @internal — not part of public package API. */
+  getResizeFocusPanes(): ChartPaneId[] | null {
+    return this.resizeFocusPanes ? [...this.resizeFocusPanes] : null;
+  }
+
+  private shouldResizePane(pane: ChartPaneId): boolean {
+    return shouldResizeChartPane(this.resizeFocusPanes, pane);
+  }
+
+  private rebuildMainVolumeResizer(): void {
+    if (this.layeredPanes) return;
+    this.detachMainVolResizer();
+    const parent = this.mainEl.parentElement;
+    parent
+      ?.querySelectorAll(':scope > [data-pane-resizer]')
+      .forEach((el) => el.remove());
+
+    if (!this.isVolumeVisible()) {
+      this.mainEl.style.flex = '1';
+      return;
+    }
+    this.mainEl.style.flex = '';
+    this.volWrap.style.flex = '';
+    this.detachMainVolResizer = attachPaneResizer(this.mainEl, this.volWrap, {
+      storageKey: 'tradview:pane:main-volume',
+      minTopPx: 120,
+      minBottomPx: 48,
+    });
   }
 
   setPinePlots(plots: PinePlotLine[] | null): void {
@@ -417,7 +613,11 @@ export class PaneOrchestrator {
     }
 
     this.mainSeries.setData(candles);
-    this.volumeSeries.setData(vols);
+    if (this.isVolumeVisible()) {
+      this.volumeSeries.setData(vols);
+    } else {
+      this.volumeSeries.setData([]);
+    }
     if (this.indicatorConfig) {
       this.applyMainOverlays(renderBars);
       if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
@@ -435,12 +635,39 @@ export class PaneOrchestrator {
 
     if (renderBars.length > 0) {
       this.syncChartSize();
-      if (!this.didInitialFit && !this.skipNextInitialFit) {
-        this.applyViewAfterDataReload(renderBars);
-        this.didInitialFit = true;
-      }
+      this.tryInitialViewportFit(renderBars);
       this.skipNextInitialFit = false;
     }
+  }
+
+  private mainPaneHasSize(): boolean {
+    const el = this.mainChart.chartElement().parentElement;
+    return (el?.clientWidth ?? 0) > 0 && (el?.clientHeight ?? 0) > 0;
+  }
+
+  private tryInitialViewportFit(renderBars: Bar[]): void {
+    if (this.didInitialFit || this.skipNextInitialFit) return;
+    if (!this.mainPaneHasSize()) {
+      this.pendingViewportFit = true;
+      this.pendingViewportBars = renderBars;
+      return;
+    }
+    this.applyViewAfterDataReload(renderBars);
+    this.didInitialFit = true;
+    this.pendingViewportFit = false;
+    this.pendingViewportBars = null;
+  }
+
+  private flushPendingViewportFit(): void {
+    if (!this.pendingViewportFit || this.skipNextInitialFit || this.didInitialFit) return;
+    const bars =
+      this.pendingViewportBars ??
+      [...this.barByTime.values()].sort((a, b) => a.t - b.t);
+    if (bars.length === 0 || !this.mainPaneHasSize()) return;
+    this.applyViewAfterDataReload(bars);
+    this.didInitialFit = true;
+    this.pendingViewportFit = false;
+    this.pendingViewportBars = null;
   }
 
   subscribeCrosshair(listener: (payload: CrosshairPayload | null) => void): () => void {
@@ -483,7 +710,7 @@ export class PaneOrchestrator {
 
   private createIndicatorStack(): IndicatorPaneStack | null {
     if (!this.indicatorRoot || !this.indicatorConfig) return null;
-    return new IndicatorPaneStack(this.indicatorRoot, this.bus, {
+    return new IndicatorPaneStack(this.indicatorRoot, this.busRegistry.getBusForPane('indicator'), {
       theme: this.dark ? 'dark' : 'light',
       showGrid: this.showGrid,
       config: this.indicatorConfig,
@@ -499,7 +726,7 @@ export class PaneOrchestrator {
     if (!this.autoBarSpacingOnInterval) return;
     const iv = interval ?? this.currentInterval;
     const spacing = resolveBarSpacingForInterval(iv, this.barSpacingByInterval);
-    this.bus.setBarSpacing(spacing);
+    this.busRegistry.forEachBus((_, bus) => bus.setBarSpacing(spacing));
   }
 
   setBarSpacingPolicy(opts: {
@@ -520,7 +747,7 @@ export class PaneOrchestrator {
       this.applyIntervalBarSpacing();
     } else {
       this.mainChart.timeScale().fitContent();
-      this.volumeChart.timeScale().fitContent();
+      if (this.isVolumeVisible()) this.volumeChart.timeScale().fitContent();
       this.indicators?.fitContent();
     }
 
@@ -535,8 +762,12 @@ export class PaneOrchestrator {
   resetViewState(): void {
     this.didInitialFit = false;
     this.skipNextInitialFit = false;
-    this.bus.visibleFromMs = 0;
-    this.bus.visibleToMs = 0;
+    this.pendingViewportFit = false;
+    this.pendingViewportBars = null;
+    this.busRegistry.forEachBus((_, bus) => {
+      bus.visibleFromMs = 0;
+      bus.visibleToMs = 0;
+    });
   }
 
   /** Skip the next automatic fitContent after setBars (used by reloadHistory). */
@@ -570,10 +801,10 @@ export class PaneOrchestrator {
       if (nearest == null) return;
       const i = this.barTimesOrdered.indexOf(nearest.t);
       if (i < 0) return;
-      this.bus.scrollToLogicalPosition(i, (animationMs ?? 0) > 0);
+      this.busRegistry.getBusForPane('main').scrollToLogicalPosition(i, (animationMs ?? 0) > 0);
       return;
     }
-    this.bus.scrollToLogicalPosition(idx as number, (animationMs ?? 0) > 0);
+    this.busRegistry.getBusForPane('main').scrollToLogicalPosition(idx as number, (animationMs ?? 0) > 0);
   }
 
   /** Clear series while symbol/interval data reloads (avoids overlapping candles). */
@@ -590,14 +821,14 @@ export class PaneOrchestrator {
 
   fitContent(): void {
     this.mainChart.timeScale().fitContent();
-    this.volumeChart.timeScale().fitContent();
+    if (this.isVolumeVisible()) this.volumeChart.timeScale().fitContent();
     this.indicators?.fitContent();
     this.didInitialFit = true;
   }
 
   scrollToRealtime(): void {
     this.mainChart.timeScale().scrollToRealTime();
-    this.volumeChart.timeScale().scrollToRealTime();
+    if (this.isVolumeVisible()) this.volumeChart.timeScale().scrollToRealTime();
     this.indicators?.scrollToRealtime();
   }
 
@@ -608,7 +839,19 @@ export class PaneOrchestrator {
   resize(): void {
     this.syncChartSize();
     this.syncOverlaySize();
+    if (this.shouldResizePane('indicator')) this.indicators?.resize();
+    this.flushPendingViewportFit();
+  }
+
+  /**
+   * Resize every LWC pane once for viewport fit; does **not** change {@link resizeFocusPanes}.
+   * @internal Used by ChartController data refresh paths.
+   */
+  resizeAllPanes(): void {
+    this.syncChartSize({ allPanes: true });
+    this.syncOverlaySize();
     this.indicators?.resize();
+    this.flushPendingViewportFit();
   }
 
   getOverlayCanvas(): HTMLCanvasElement | null {
@@ -639,6 +882,10 @@ export class PaneOrchestrator {
   }
 
   destroy(): void {
+    if (this.listenPaneResizeEvents) {
+      window.removeEventListener('tradview:pane-resize', this.onPaneResize);
+    }
+    this.detachMainVolResizer();
     this.barAnimator?.cancel();
     if (this.priceLine) {
       this.mainSeries.removePriceLine(this.priceLine);
@@ -658,8 +905,10 @@ export class PaneOrchestrator {
     parent.appendChild(canvas);
     this.overlayCanvas = canvas;
     this.syncOverlaySize();
-    this.bus.subscribeTransform(() => {
-      this.syncOverlaySize();
+    this.busRegistry.forEachBus((_, bus) => {
+      bus.subscribeTransform(() => {
+        this.syncOverlaySize();
+      });
     });
   }
 
@@ -679,15 +928,16 @@ export class PaneOrchestrator {
     this.overlayCanvas.height = rect.height * devicePixelRatio;
   }
 
-  private syncChartSize(): void {
+  private syncChartSize(opts?: { allPanes?: boolean }): void {
+    const all = opts?.allPanes === true;
     const mainEl = this.mainChart.chartElement().parentElement;
     const volEl = this.volumeChart.chartElement().parentElement;
-    if (mainEl) {
+    if (mainEl && (all || this.shouldResizePane('main'))) {
       const w = mainEl.clientWidth;
       const h = mainEl.clientHeight;
       if (w > 0 && h > 0) this.mainChart.resize(w, h);
     }
-    if (volEl) {
+    if (this.isVolumeVisible() && volEl && (all || this.shouldResizePane('volume'))) {
       const w = volEl.clientWidth;
       const h = volEl.clientHeight;
       if (w > 0 && h > 0) this.volumeChart.resize(w, h);

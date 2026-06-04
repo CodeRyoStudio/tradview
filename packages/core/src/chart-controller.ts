@@ -1,5 +1,12 @@
 import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
-import { clearedIndicatorConfig, type IndicatorConfig } from '@coderyo/indicators';
+import {
+  clearedIndicatorConfig,
+  disableIndicatorLayer as applyDisableIndicatorLayer,
+  listActiveIndicatorLayers,
+  type IndicatorConfig,
+  type IndicatorLayerId,
+  type IndicatorLayerInfo,
+} from '@coderyo/indicators';
 
 import type {
   Bar,
@@ -24,7 +31,15 @@ import {
   terminatePineWorker,
   type PineIrProgram,
 } from '@coderyo/pine-lite';
-import { PaneOrchestrator, type ChartVisibleRange } from '@coderyo/renderer-lite';
+import {
+  PaneOrchestrator,
+  type ChartPaneId,
+  type ChartVisibleRange,
+} from '@coderyo/renderer-lite';
+import {
+  resolvePaneSyncGroupsFromLayers,
+  type LayerSyncInput,
+} from './resolve-pane-sync-groups.js';
 
 export type { ChartVisibleRange };
 import {
@@ -51,6 +66,8 @@ export interface ChartOptions {
   chartId?: string;
   /** Host element below main chart for MACD/RSI/KDJ panes (from ui-shell layout). */
   indicatorHost?: HTMLElement;
+  /** P2: separate volume pane mount (layer compositor). */
+  volumeMount?: HTMLElement;
   dataProvider: DataProvider;
   /** Integrator feature flags (minimal defaults). */
   features?: ChartFeatures;
@@ -86,7 +103,9 @@ type EventHandler = (payload?: unknown) => void;
 
 export class ChartController {
   private readonly store: BarStore;
-  private readonly virtualWindow: VirtualWindow;
+  private fetchPolicy: FetchPolicy;
+  /** Per sync-group viewport for loadMore / render slicing (active bus drives IChart APIs). */
+  private readonly virtualWindows = new Map<string, VirtualWindow>();
   private readonly orchestrator: PaneOrchestrator;
   private readonly handlers = new Map<ChartEvent, Set<EventHandler>>();
   private subscriptionId: string | null = null;
@@ -107,6 +126,11 @@ export class ChartController {
   /** After clearAllIndicators(); blocks Pine replot until script/features change. */
   private pinePlotsSuppressed = false;
   private readonly chartStorage: ChartStorageAdapter;
+  private readonly onPaneResize = () => {
+    if (this.destroyed) return;
+    // Layout-driven pane height changes must resize every LWC instance.
+    this.orchestrator.setResizeFocusPanes(null);
+  };
 
   constructor(
     private readonly container: HTMLElement,
@@ -126,14 +150,15 @@ export class ChartController {
 
     const symbol = options.symbol?.trim() || PENDING_SYMBOL;
     const interval = parseInterval(options.interval ?? '1h');
-    const fetchPolicy = this.features.gaps.fillVisibleHoles
+    this.fetchPolicy = this.features.gaps.fillVisibleHoles
       ? 'fill-visible-holes'
       : this.features.fetchPolicy;
 
     this.store = new BarStore(symbol || PENDING_SYMBOL, interval);
-    this.virtualWindow = new VirtualWindow(this.store, { fetchPolicy });
     this.orchestrator = new PaneOrchestrator({
       container,
+      volumeMount: options.volumeMount,
+      listenPaneResizeEvents: false,
       indicatorRoot: options.indicatorHost,
       theme: options.theme ?? 'dark',
       scaleMode: options.scaleMode ?? 'linear',
@@ -151,21 +176,28 @@ export class ChartController {
     if (options.height) container.style.height = `${options.height}px`;
 
     this.resizeObserver = new ResizeObserver(() => {
-      if (!this.destroyed) this.resize();
+      if (this.destroyed) return;
+      this.orchestrator.setResizeFocusPanes(null);
     });
-    this.resizeObserver.observe(container);
+    const resizeTargets = [container, options.volumeMount, options.indicatorHost].filter(
+      Boolean,
+    ) as HTMLElement[];
+    for (const el of resizeTargets) this.resizeObserver.observe(el);
+    window.addEventListener('tradview:pane-resize', this.onPaneResize);
 
-    this.orchestrator.bus.subscribeTransform(() => {
-      const bus = this.orchestrator.bus;
-      if (bus.visibleToMs > bus.visibleFromMs) {
-        this.virtualWindow.setVisibleRange({
-          fromMs: bus.visibleFromMs,
-          toMs: bus.visibleToMs,
-        });
-        this.visibleRangeInitialized = true;
-      }
-      void this.maybeLoadMore();
-      this.drawingManager?.redraw();
+    this.orchestrator.busRegistry.forEachBus((key, bus) => {
+      bus.subscribeTransform(() => {
+        if (key !== this.orchestrator.busRegistry.getActiveBusKey()) return;
+        if (bus.visibleToMs > bus.visibleFromMs) {
+          this.activeVirtualWindow().setVisibleRange({
+            fromMs: bus.visibleFromMs,
+            toMs: bus.visibleToMs,
+          });
+          this.visibleRangeInitialized = true;
+        }
+        void this.maybeLoadMore();
+        this.drawingManager?.redraw();
+      });
     });
 
     const overlay = this.orchestrator.getOverlayCanvas();
@@ -224,11 +256,24 @@ export class ChartController {
     return s.length > 0 && s !== PENDING_SYMBOL;
   }
 
+  private activeVirtualWindow(): VirtualWindow {
+    const key = this.orchestrator.busRegistry.getActiveBusKey();
+    let vw = this.virtualWindows.get(key);
+    if (!vw) {
+      vw = new VirtualWindow(this.store, { fetchPolicy: this.fetchPolicy });
+      const range = this.orchestrator.busRegistry.getOrCreateBus(key).getVisibleRange();
+      if (range) vw.setVisibleRange(range);
+      this.virtualWindows.set(key, vw);
+    }
+    return vw;
+  }
+
   private applyFeatures(): void {
     const fetchPolicy = this.features.gaps.fillVisibleHoles
       ? 'fill-visible-holes'
       : this.features.fetchPolicy;
-    this.virtualWindow.setFetchPolicy(fetchPolicy);
+    this.fetchPolicy = fetchPolicy;
+    for (const vw of this.virtualWindows.values()) vw.setFetchPolicy(fetchPolicy);
 
     this.orchestrator.setIndicatorConfig(this.features.indicators);
     this.orchestrator.setBarSpacingPolicy({
@@ -259,7 +304,7 @@ export class ChartController {
     }
     this.pineIr = compiled.ir;
     if (this.hasActiveSymbol()) {
-      const bars = this.virtualWindow.getBarsForRender();
+      const bars = this.activeVirtualWindow().getBarsForRender();
       if (bars.length > 0) this.applyPinePlots(bars);
     }
   }
@@ -345,7 +390,7 @@ export class ChartController {
     await this.store.mergeRealtime({ bar, partial });
     if (!this.isLoadGenerationCurrent(loadGen)) return;
 
-    const bars = this.virtualWindow.getBarsForRender();
+    const bars = this.activeVirtualWindow().getBarsForRender();
     const last = bars[bars.length - 1];
     if (last && this.features.smoothPriceUpdate) {
       this.orchestrator.updateLastBar(last, {
@@ -423,6 +468,23 @@ export class ChartController {
     return this;
   }
 
+  /** P2: limit LWC resize to focused panes; also selects that pane's time-scale sync group for IChart APIs. */
+  setChartPaneResizeFocus(pane: ChartPaneId | 'all'): this {
+    if (pane !== 'all') {
+      this.orchestrator.setActiveSyncPane(pane);
+      this.orchestrator.setResizeFocusPanes([pane]);
+    } else {
+      this.orchestrator.setResizeFocusPanes(null);
+    }
+    return this;
+  }
+
+  /** Apply `syncTimeScaleGroupId` from layout layers to pane buses (empty = independent). */
+  applyTimeScaleSyncFromLayers(layers: LayerSyncInput[], pageId?: string): this {
+    this.orchestrator.setPaneSyncGroups(resolvePaneSyncGroupsFromLayers(layers, pageId));
+    return this;
+  }
+
   setDrawingTool(tool: import('@coderyo/drawings').DrawingTool): this {
     this.drawingManager?.setTool(tool);
     this.syncOverlayPointerEvents();
@@ -481,6 +543,22 @@ export class ChartController {
     this.features = mergeChartFeatures(this.features, { indicators: loaded });
     this.orchestrator.setIndicatorConfig(loaded);
     this.emit('featuresChange', this.getFeatures());
+  }
+
+  /** @public List built-in indicator layers currently enabled on the chart. */
+  listIndicatorLayers(): IndicatorLayerInfo[] {
+    if (this.features.indicators === null) return [];
+    return listActiveIndicatorLayers(this.features.indicators);
+  }
+
+  /** @public Disable a single built-in indicator layer by id. */
+  disableIndicatorLayer(id: IndicatorLayerId): IndicatorConfig {
+    if (this.features.indicators === null) {
+      return clearedIndicatorConfig();
+    }
+    const next = applyDisableIndicatorLayer(this.features.indicators, id);
+    this.setIndicatorConfig(next);
+    return next;
   }
 
   clearAllIndicators(): IndicatorConfig {
@@ -562,7 +640,7 @@ export class ChartController {
     this.orchestrator.setVisibleRange(range);
     const { fromMs, toMs } = range;
     if (toMs > fromMs) {
-      this.virtualWindow.setVisibleRange({ fromMs, toMs });
+      this.activeVirtualWindow().setVisibleRange({ fromMs, toMs });
       this.visibleRangeInitialized = true;
     }
     return this;
@@ -643,6 +721,7 @@ export class ChartController {
     this.offCrosshair?.();
     this.offCrosshair = null;
     this.resizeObserver.disconnect();
+    window.removeEventListener('tradview:pane-resize', this.onPaneResize);
     this.drawingManager?.destroy();
     void this.teardownSubscription();
     this.orchestrator.destroy();
@@ -654,7 +733,7 @@ export class ChartController {
   private beginDataContextChange(): number {
     this.loadGeneration += 1;
     this.visibleRangeInitialized = false;
-    this.virtualWindow.setVisibleRange({ fromMs: 0, toMs: 0 });
+    this.virtualWindows.clear();
     this.orchestrator.resetViewState();
     this.orchestrator.clearBars();
     return this.loadGeneration;
@@ -669,89 +748,103 @@ export class ChartController {
 
     const symbol = this.store.symbol;
     const interval = this.store.interval;
-    const endTime = Date.now();
-    if (this.features.protobuf) {
-      this.emit('error', {
-        code: 'PROTOBUF_UNAVAILABLE',
-        message: 'Protobuf encoding requires protocol v1.1 (not in 1.0.0)',
+
+    try {
+      const endTime = Date.now();
+      if (this.features.protobuf) {
+        this.emit('error', {
+          code: 'PROTOBUF_UNAVAILABLE',
+          message: 'Protobuf encoding requires protocol v1.1 (not in 1.0.0)',
+        });
+      }
+
+      const history = await fetchChartHistory(this.options.dataProvider, {
+        mode: 'loadMore',
+        symbol,
+        interval,
+        endTime,
+        limit: 500,
       });
-    }
 
-    const history = await fetchChartHistory(this.options.dataProvider, {
-      mode: 'loadMore',
-      symbol,
-      interval,
-      endTime,
-      limit: 500,
-    });
-
-    if (!this.isLoadGenerationCurrent(loadGen)) return;
-    if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-
-    await this.store.mergeBars(history.bars.map((bar) => ({ bar })));
-    if (!this.isLoadGenerationCurrent(loadGen)) return;
-    this.refreshRender(loadGen);
-    void this.resolveSymbol(symbol).then((info) => {
       if (!this.isLoadGenerationCurrent(loadGen)) return;
-      this.emit('symbolChange', info ?? { symbol });
-    });
-    this.emit('intervalChange', interval);
+      if (this.store.symbol !== symbol || this.store.interval !== interval) return;
 
-    const streamMode: RealtimeStreamMode = this.features.tickStream
-      ? 'bar+tick'
-      : this.features.streamMode;
-    const tickOnly = streamMode === 'tick';
+      if (history.bars.length === 0) {
+        this.emit('error', {
+          kind: 'history',
+          message: `No bars returned for ${symbol} (${interval})`,
+        });
+        return;
+      }
 
-    const params: SubscribeParams = {
-      symbol,
-      interval,
-      channels: tickOnly ? ['tick'] : this.features.tickStream ? ['bar', 'tick'] : ['bar'],
-      streamMode,
-    };
+      await this.store.mergeBars(history.bars.map((bar) => ({ bar })));
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+      this.refreshRender(loadGen);
+      void this.resolveSymbol(symbol).then((info) => {
+        if (!this.isLoadGenerationCurrent(loadGen)) return;
+        this.emit('symbolChange', info ?? { symbol });
+      });
+      this.emit('intervalChange', interval);
 
-    this.tickAggregator = tickOnly
-      ? new TickAggregator(interval, (bar, partial) => {
-          if (!this.isLoadGenerationCurrent(loadGen)) return;
-          if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-          void this.applyRealtimeBar(bar, partial, loadGen);
-        })
-      : null;
+      const streamMode: RealtimeStreamMode = this.features.tickStream
+        ? 'bar+tick'
+        : this.features.streamMode;
+      const tickOnly = streamMode === 'tick';
 
-    await this.options.dataProvider.connect?.();
-    if (!this.isLoadGenerationCurrent(loadGen)) return;
+      const params: SubscribeParams = {
+        symbol,
+        interval,
+        channels: tickOnly ? ['tick'] : this.features.tickStream ? ['bar', 'tick'] : ['bar'],
+        streamMode,
+      };
 
-    const sub = await this.options.dataProvider.subscribe(params, {
-      onBar: tickOnly
-        ? undefined
-        : (bar, meta) => {
+      this.tickAggregator = tickOnly
+        ? new TickAggregator(interval, (bar, partial) => {
             if (!this.isLoadGenerationCurrent(loadGen)) return;
             if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-            void this.applyRealtimeBar(bar, meta.partial, loadGen);
-          },
-      onTick: (tick) => {
-        if (!this.isLoadGenerationCurrent(loadGen)) return;
-        if (this.store.symbol !== symbol || this.store.interval !== interval) return;
-        if (this.tickAggregator) {
-          this.tickAggregator.ingest(tick);
-          return;
-        }
-        const bar = this.buildBarFromPrice(tick.price, tick.t);
-        void this.applyRealtimeBar(bar, true, loadGen);
-      },
-      onConnectionChange: (state) => {
-        this.emit('connectionChange', state);
-        // Only backfill on reconnect; initial connect loads history in bootstrap.
-        if (state === 'connected' && this.subscriptionId != null) {
-          void this.catchUpMissedBars();
-        }
-      },
-      onError: (err) => this.emit('error', err),
-    });
-    if (!this.isLoadGenerationCurrent(loadGen)) {
-      await this.options.dataProvider.unsubscribe(sub.id);
-      return;
+            void this.applyRealtimeBar(bar, partial, loadGen);
+          })
+        : null;
+
+      await this.options.dataProvider.connect?.();
+      if (!this.isLoadGenerationCurrent(loadGen)) return;
+
+      const sub = await this.options.dataProvider.subscribe(params, {
+        onBar: tickOnly
+          ? undefined
+          : (bar, meta) => {
+              if (!this.isLoadGenerationCurrent(loadGen)) return;
+              if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+              void this.applyRealtimeBar(bar, meta.partial, loadGen);
+            },
+        onTick: (tick) => {
+          if (!this.isLoadGenerationCurrent(loadGen)) return;
+          if (this.store.symbol !== symbol || this.store.interval !== interval) return;
+          if (this.tickAggregator) {
+            this.tickAggregator.ingest(tick);
+            return;
+          }
+          const bar = this.buildBarFromPrice(tick.price, tick.t);
+          void this.applyRealtimeBar(bar, true, loadGen);
+        },
+        onConnectionChange: (state) => {
+          this.emit('connectionChange', state);
+          // Only backfill on reconnect; initial connect loads history in bootstrap.
+          if (state === 'connected' && this.subscriptionId != null) {
+            void this.catchUpMissedBars();
+          }
+        },
+        onError: (err) => this.emit('error', err),
+      });
+      if (!this.isLoadGenerationCurrent(loadGen)) {
+        await this.options.dataProvider.unsubscribe(sub.id);
+        return;
+      }
+      this.subscriptionId = sub.id;
+    } catch (err) {
+      this.emit('error', err);
+      this.emit('connectionChange', 'disconnected');
     }
-    this.subscriptionId = sub.id;
   }
 
   private async teardownSubscription(): Promise<void> {
@@ -839,7 +932,7 @@ export class ChartController {
   private async maybeLoadMore(): Promise<void> {
     if (this.destroyed || this.loadingMore) return;
     const loadGen = this.loadGeneration;
-    const reqs = this.virtualWindow.planFetches();
+    const reqs = this.activeVirtualWindow().planFetches();
     if (reqs.length === 0) return;
 
     this.loadingMore = true;
@@ -874,14 +967,14 @@ export class ChartController {
 
     // Only seed visible range once; resetting to full series each tick triggers spurious loadMore.
     if (!this.visibleRangeInitialized) {
-      this.virtualWindow.setVisibleRange({
+      this.activeVirtualWindow().setVisibleRange({
         fromMs: times[0]!,
         toMs: times[times.length - 1]!,
       });
       this.visibleRangeInitialized = true;
     }
 
-    const bars = this.virtualWindow.getBarsForRender();
+    const bars = this.activeVirtualWindow().getBarsForRender();
     if (bars.length === 0) return;
 
     const gaps = this.features.gaps.whitespace
@@ -891,6 +984,8 @@ export class ChartController {
         )
       : undefined;
     this.orchestrator.setBars(bars, gaps);
+    // Viewport fit: resize all panes once without clearing integrator pane focus.
+    this.orchestrator.resizeAllPanes();
     this.applyPinePlots(bars);
     this.drawingManager?.redraw();
     this.emit('visibleRangeChange', {

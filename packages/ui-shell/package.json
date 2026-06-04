@@ -9,9 +9,10 @@
       "import": "./dist/index.js"
     }
   },
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },

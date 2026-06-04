@@ -8,21 +8,28 @@ export function attachPaneResizer(
   const parent = topPane.parentElement;
   if (!parent) return () => {};
 
+  let dragging = false;
+
   const handle = document.createElement('div');
+  handle.dataset.paneResizer = '1';
   handle.style.cssText =
-    'height:4px;cursor:row-resize;background:#30363d;flex-shrink:0;touch-action:none;';
+    'height:6px;cursor:row-resize;background:#30363d;flex-shrink:0;touch-action:none;z-index:5;';
+  handle.onmouseenter = () => {
+    handle.style.background = '#388bfd';
+  };
+  handle.onmouseleave = () => {
+    if (!dragging) handle.style.background = '#30363d';
+  };
   bottomPane.insertAdjacentElement('beforebegin', handle);
 
   const saved = opts.storageKey ? localStorage.getItem(opts.storageKey) : null;
   if (saved) {
     const ratio = Number(saved);
-    if (Number.isFinite(ratio) && ratio > 0 && ratio < 1) {
+    if (Number.isFinite(ratio) && ratio >= 0.15 && ratio <= 0.85) {
       topPane.style.flex = `${ratio * 10}`;
       bottomPane.style.flex = `${(1 - ratio) * 10}`;
     }
   }
-
-  let dragging = false;
 
   const onMove = (clientY: number) => {
     const rect = parent.getBoundingClientRect();
@@ -37,8 +44,11 @@ export function attachPaneResizer(
   };
 
   const stop = () => {
+    const wasDragging = dragging;
     dragging = false;
     document.body.style.cursor = '';
+    handle.style.background = '#30363d';
+    if (wasDragging) window.dispatchEvent(new CustomEvent('tradview:pane-resize'));
   };
 
   handle.addEventListener('pointerdown', (e) => {
@@ -47,7 +57,10 @@ export function attachPaneResizer(
     document.body.style.cursor = 'row-resize';
   });
   handle.addEventListener('pointermove', (e) => {
-    if (dragging) onMove(e.clientY);
+    if (dragging) {
+      onMove(e.clientY);
+      window.dispatchEvent(new CustomEvent('tradview:pane-resize'));
+    }
   });
   handle.addEventListener('pointerup', stop);
   handle.addEventListener('pointercancel', stop);

@@ -1275,10 +1275,10 @@ flowchart TB
 
 **PR-06 驗收（Spike AC）**
 
-- [ ] 主圖 + 成交量 + **至少 1 個指標窗**（MACD 線圖）時間軸對齊誤差 < 1px
-- [ ] 同步 pan/zoom 100 次無漂移
-- [ ] `subscribeTransform` 廣播給 overlay stub
-- [ ] **Bundle size gate**：僅 LWC + core 路徑 **< 180 KB gzip**（不含 ui-shell）
+- [ ] 主圖 + 成交量 + **至少 1 個指標窗**（MACD 線圖）時間軸對齊誤差 < 1px — **手動/視覺 QA**；自動化僅涵蓋同組 bus（`time-scale-group-sync.test.ts`）、分頁同步解析（`resolve-pane-sync-groups` + `bind-layer-time-scale-sync.test.ts`）
+- [x] 同步 pan/zoom 100 次無漂移 — 契約：`TimeScaleBus` 邏輯範圍 100 次同步後 ms 視窗不變（`packages/renderer-lite/tests/time-scale-bus.test.ts`）
+- [x] `subscribeTransform` 廣播給 overlay stub — 契約：`TimeScaleBus.subscribeTransform`（`time-scale-bus.test.ts`）+ `ChartController` 訂閱（`time-scale-sync-layers.test.ts` runtime `setPaneSyncGroups`）
+- [x] **Bundle size gate**：僅 LWC + core 路徑 **< 180 KB gzip**（不含 ui-shell）— `pnpm check:lwc-size`；CI 缺 artifact 時 `lwc-size-gate.test.ts` 明確失敗
 
 **PR-11 範圍**：在 Orchestrator 上掛載 MACD/RSI/KDJ 獨立 LWC 實例；**禁止** 每指標各自維護獨立 interaction 棧。
 
@@ -1298,8 +1298,8 @@ flowchart TB
 
 **PR-06 Spike AC（追加）**
 
-- [ ] 在 **marked gap** 兩側已載入段之間 pan，三 pane 時間軸誤差 < 1px
-- [ ] prepend 1000 根後十字線 `t` 不跳變
+- [ ] 在 **marked gap** 兩側已載入段之間 pan，三 pane 時間軸誤差 < 1px — **手動 QA required**；ms→slice 契約見 §10.4.1 + `time-scale-bus.test.ts`（無三 pane 像素 gate）
+- [ ] prepend 1000 根後十字線 `t` 不跳變 — 圖表層待補契約測試；資料層見 `packages/series` `mergeBars(prepend)`
 
 ### 10.5 LWC 時間軸、缺口與 `setBars`
 

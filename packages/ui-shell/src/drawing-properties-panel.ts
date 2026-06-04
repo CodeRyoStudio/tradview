@@ -12,7 +12,7 @@ export function mountDrawingPropertiesPanel(
   const panel = document.createElement('aside');
   panel.className = 'tv-drawing-props';
   panel.style.cssText =
-    'display:none;width:220px;flex-shrink:0;border-left:1px solid #30363d;background:#161b22;padding:10px 12px;font-size:12px;color:#e6edf3;overflow:auto;';
+    'display:none;width:100%;max-width:200px;flex-shrink:0;border-left:1px solid #30363d;background:#161b22;padding:10px 12px;font-size:12px;color:#e6edf3;overflow:auto;box-sizing:border-box;';
 
   const title = document.createElement('div');
   title.textContent = t('drawing.props.title', '繪圖屬性');

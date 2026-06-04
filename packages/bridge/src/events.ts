@@ -30,6 +30,7 @@ export type BridgeInboundType =
   | 'host.clearAllIndicators'
   | 'host.clearAllDrawings'
   | 'host.setDrawingTool'
+  | 'host.setChartPaneResizeFocus'
   | 'host.resize'
   | 'host.destroy';
 

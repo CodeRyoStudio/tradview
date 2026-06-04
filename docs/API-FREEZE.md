@@ -10,7 +10,7 @@
 
 RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的欄位新增；**breaking** 變更累積到 `2.0.0` 或事前 ADR。
 
-整合方 API 參考：[API.md](./API.md)。
+整合方 API 參考：[API.md](./API.md) · 圖層章節：[API-LAYER.md](./API-LAYER.md) · 計畫：[API-FRAMEWORK-PLAN.md](./API-FRAMEWORK-PLAN.md)。
 
 ---
 
@@ -44,6 +44,9 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 | `subscribeBars(handler)` | 訂閱 `barUpdate`，回傳 unsubscribe |
 | `clearAllIndicators()` | 關閉所有指標，回傳 `IndicatorConfig` |
 | `clearAllDrawings()` | 刪除當前 context 全部繪圖，回傳數量 |
+| `setChartPaneResizeFocus(pane)` | P2：限制 LWC `resize` 目標 pane，並將 IChart 視窗 API 綁定該 pane 的時間軸同步組 |
+| `listIndicatorLayers()` | 啟用中的內建指標圖層列表 |
+| `disableIndicatorLayer(id)` | 關閉單一內建指標圖層 |
 
 ### `ChartEvent`（1.0.0 新增）
 
@@ -65,7 +68,26 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 ### `@coderyo/core` 再匯出（1.0.x 擴充）
 
-`clearedIndicatorConfig`, `hasVisibleIndicatorPanes`, `hasMainChartOverlays`, `hasAnyActiveIndicators`, `DEFAULT_INDICATOR_CONFIG`, `loadIndicatorConfig`, `saveIndicatorConfig`, `createLocalChartStorage`, `ChartStorageAdapter`
+`clearedIndicatorConfig`, `hasVisibleIndicatorPanes`, `hasMainChartOverlays`, `hasAnyActiveIndicators`, `DEFAULT_INDICATOR_CONFIG`, `loadIndicatorConfig`, `saveIndicatorConfig`, `createLocalChartStorage`, `ChartStorageAdapter`, `listActiveIndicatorLayers`, `disableIndicatorLayer`, `IndicatorLayerId`, `IndicatorLayerInfo`
+
+### 凍結：Demo 輔助（僅 Playground / 全功能範例）
+
+| 符號 | 套件 | 說明 |
+|------|------|------|
+| `createDemoChartOptions` | `@coderyo/core` | 開啟 demo 級 `ChartFeatures` |
+| `createDemoChartFeatures` | `@coderyo/core` | Demo feature 預設 |
+| `createDemoLayoutOptions` | `@coderyo/ui-shell` | 開啟預設 TV 殼層開關 |
+| `mountLayerPanel` | `@coderyo/ui-shell` | 圖層列表面板（Playground） |
+
+### 凍結：`@coderyo/ui-shell` 圖層公開面（Tier 3）
+
+`mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `LayerCompositorHandle`, `LayoutPreset`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `loadPreset`, `savePreset`, `listPresets`, `presetStorageKey`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `layoutSchemaToPreset`, `handleDrawingSelection`（layout 回傳）, `syncCompositorShellVisibility`, `layerCompositorManaged`（layout 選項）
+
+| `syncTimeScaleGroupId`（`LayerNode`） | 圖層 preset：同組同步時間軸；空/省略 = 該 pane 獨立 |
+| `bindLayerTimeScaleSync(chart, controller, opts?)` | 一次綁定 chart ↔ controller；preset / 分頁 / sync 組變更時自動 `applyTimeScaleSyncFromLayers` |
+| `IChart.applyTimeScaleSyncFromLayers(layers, pageId?)` | 將 preset 同步組套用到 `PaneOrchestrator` 多 bus；`pageId` 限定作用中分頁 |
+| `LayerController.setLayerSyncGroup(layerId, groupId)` | 執行期修改圖層同步組（`''` = 獨立） |
+| `DEFAULT_SYNC_TIME_SCALE_GROUP` | 可選預設字串；**normalize 不會**自動填入 |
 
 ---
 
@@ -73,7 +95,9 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 ### 新增 inbound `host.*`
 
-`host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`, `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`
+`host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`, `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`, `host.setChartPaneResizeFocus`
+
+**P2 createChart**（文件化，非 Bridge 動態掛載）：`volumeMount`, `indicatorHost`
 
 ### 新增 outbound
 

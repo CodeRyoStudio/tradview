@@ -26,6 +26,7 @@ export class TimeScaleBus {
     if (this.charts.includes(chart)) return;
     this.charts.push(chart);
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (!this.charts.includes(chart)) return;
       if (this.syncing || !range) return;
       const tr = chart.timeScale().getVisibleRange();
       if (tr && typeof tr.from === 'number' && typeof tr.to === 'number') {
@@ -34,6 +35,11 @@ export class TimeScaleBus {
       }
       this.syncFrom(chart, range);
     });
+  }
+
+  unregister(chart: IChartApi): void {
+    const i = this.charts.indexOf(chart);
+    if (i >= 0) this.charts.splice(i, 1);
   }
 
   subscribeTransform(listener: TransformListener): () => void {

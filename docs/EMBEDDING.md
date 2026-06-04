@@ -2,7 +2,7 @@
 
 > **RC `1.0.0-rc.4`** — 完整 API 見 [API.md](./API.md)；凍結範圍見 [API-FREEZE.md](./API-FREEZE.md)（`apiVersion: 1`）。
 
-整合方預設為 **最小圖表**：不帶商品、不帶指標、不帶繪圖互動層、不帶 TV 殼層；需用 `features` / `mountChartLayout` **明確開啟**。Playground 使用 `createDemoChartOptions` / `createDemoLayoutOptions` 展示全功能。
+整合方預設為 **最小圖表**：不帶商品、不帶指標、不帶繪圖互動層、不帶 TV 殼層；需用 `features` / `mountChartLayout` **明確開啟**。Playground 使用 `createDemoChartOptions` / `createDemoLayoutOptions` 展示全功能（**凍結** demo 輔助，見 [API-FREEZE.md](./API-FREEZE.md)）。
 
 ## 三層 API（建議用法）
 
@@ -10,28 +10,48 @@
 |------|-----|------|
 | 圖表核心 | `createChart(host, { dataProvider, features? })` | 必填 `dataProvider`；可省略 `symbol` → 空白圖直到 `setSymbol` |
 | 殼層（可選） | `mountChartLayout(root, opts?)` | TopBar、工具列、圖例、StatusBar 等 **預設全關** |
-| Bridge（可選） | `wireChartBridge({ controller, chart, bridge, outboundEvents? })` 或 `createChart` 內建 `bridge` + `bridgeOutboundEvents` | 整合方 **白名單** 要轉發的 outbound 事件 |
+| 圖層 Compositor（建議） | `mountLayerCompositor` + `LayerController` | v2 `LayoutPreset`；見 [API-LAYER.md](./API-LAYER.md) |
+| Bridge（可選） | `wireChartBridge` 或 `createChart` 內建 `bridge` | 出站白名單；入站含 `host.setChartPaneResizeFocus` |
 
 ```typescript
-import {
-  createChart,
-  DEFAULT_CHART_FEATURES,
-  wireChartBridge,
-  createDemoChartOptions,
-} from '@coderyo/core';
+import { createChart, createDemoChartOptions } from '@coderyo/core';
 import { createGatewayDataProvider } from '@coderyo/data';
-import { mountChartLayout, createDemoLayoutOptions } from '@coderyo/ui-shell';
+import {
+  mountChartLayout,
+  createDemoLayoutOptions,
+  mountLayerCompositor,
+  VENDOR_DEFAULT_PRESET,
+  cloneLayoutPreset,
+} from '@coderyo/ui-shell';
 
 // 最小嵌入：僅 K 線 + 你自己的 UI
 const chart = createChart(document.getElementById('chart')!, {
   dataProvider: createGatewayDataProvider({ restBaseUrl: '/api', wsUrl: 'wss://…' }),
-  // 不傳 symbol → 空白圖
 });
 chart.setSymbol('BINANCE:BTCUSDT').setInterval('1h');
 
-// 全功能 Demo（Playground 同款）
-const layout = mountChartLayout(app, createDemoLayoutOptions({ /* callbacks */ }));
-const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider, symbol: '…', interval: '1h', indicatorHost: layout.indicatorHost }));
+// v2 全功能 Demo（Playground 同款 — compositor）
+const layout = mountChartLayout(app, createDemoLayoutOptions({
+  layerCompositorManaged: true,
+  /* callbacks */
+}));
+const compositor = mountLayerCompositor(layout.layoutRoot, {
+  preset: cloneLayoutPreset(VENDOR_DEFAULT_PRESET),
+  widgets: {
+    chartMain: layout.chartMain,
+    chartVolume: layout.chartVolume,
+    chartIndicator: layout.indicatorHost,
+  },
+  hideLegacyGrid: layout.layoutGrid,
+});
+const demo = createChart(layout.chartMain, createDemoChartOptions({
+  dataProvider,
+  volumeMount: layout.chartVolume,
+  indicatorHost: layout.indicatorHost,
+  symbol: 'BINANCE:BTCUSDT',
+  interval: '1h',
+}));
+// Legacy v1：createChart(layout.chartHost, …) — 已棄用
 ```
 
 ## Feature 矩陣（`ChartFeatures`）
@@ -51,6 +71,26 @@ const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider
 | `pineEnabled` / `protobuf` / `telemetry` / `tickStream` | `false` | Playground demo 會開 `tickStream` + 平滑 |
 
 執行期：`chart.setFeatures({ … })`、`chart.getFeatures()`；事件 `featuresChange`。
+
+## 版面：v2 Compositor 為主（建議）
+
+新整合請用 **`mountLayerCompositor` + `LayoutPreset` v2**（[API-LAYER.md](./API-LAYER.md)）。Playground 與 `layerCompositorManaged: true` 使用 **`createCompositorShell`**（無 12×12 grid 定位）。v1 `layout` / `layoutEditor` **已棄用**，僅 `layoutSchemaToPreset` 遷移用。
+
+### v2 掛載順序
+
+1. `mountChartLayout(root, { layerCompositorManaged: true, … })` → `chartMain`, `chartVolume`, `indicatorHost`, `layoutRoot`
+2. `mountLayerCompositor(layoutRoot, { preset, widgets: { chartMain, chartVolume, chartIndicator: indicatorHost, … } })`
+3. `createChart(chartMain, { volumeMount: chartVolume, indicatorHost, dataProvider, … })`
+4. `layout.bindLayerCompositorController?.(compositor.controller)`（`setLayoutFeatures` 會自動同步 shell/legend）；`bindLayerTimeScaleSync(chart, compositor.controller)` 一次綁定時間軸同步組；頁面切換時可再呼叫 `syncCompositorShellVisibility`；可選 `mountLayerPanel`
+5. 繪圖選取：`layout.handleDrawingSelection(record)`；pane 焦點：`onChartPaneFocus` → `setChartPaneResizeFocus`
+
+`volumeMount` 須為**空容器**；勿對 legacy `chartHost` 掛 `createChart`（用 `chartMain`）。
+
+### v1 Grid（已棄用）
+
+`layout` / `layoutEditor` / `layoutPersist` 僅限未啟用 compositor 的舊專案；新專案請 `layerCompositorManaged: true` + preset store。範例見 [API.md §6](./API.md#6-mountchartlayout)。
+
+也可只用 `createChart` + 自建 DOM，**完全不使用** `mountChartLayout`。
 
 ## Layout 矩陣（`mountChartLayout`）
 
@@ -73,7 +113,7 @@ const demo = createChart(layout.chartHost, createDemoChartOptions({ dataProvider
 
 `mountChartLayout` **不會**自動綁定 `IChart`。只開 `showTopBar` / `showLeftToolbar` 而不接 callback 時，工具列會亮但**畫不了線**、換週期也**沒反應**。完整範例見 `apps/playground/src/main.ts`。
 
-**建立順序：** 先 `mountChartLayout` 取得 `chartHost`，再 `createChart`；callback 裡還沒有 `chart` 實例，請用 ref holder：
+**建立順序：** 先 `mountChartLayout` 取得 `chartMain`（legacy 別名 `chartHost`），再 `createChart`；callback 裡還沒有 `chart` 實例，請用 ref holder。Playground 使用 **Layer Compositor v2**（`layerCompositorManaged: true`）；v1 grid 僅供遷移，見 [API-LAYER.md](./API-LAYER.md)。
 
 ```typescript
 import { createChart } from '@coderyo/core';
@@ -98,7 +138,7 @@ const layout = mountChartLayout(root, {
   },
 });
 
-const chart = createChart(layout.chartHost, {
+const chart = createChart(layout.chartMain, {
   dataProvider: createGatewayDataProvider({ restBaseUrl: '/api', wsUrl: 'wss://…' }),
   indicatorHost: layout.indicatorHost,
   symbol: 'BINANCE:BTCUSDT',
@@ -199,7 +239,7 @@ createChart('#chart', {
 
 **Web → Native**：`chart.ready`、`chart.resize`、`chart.connectionChange`、`chart.crosshair`、`chart.visibleRange`、`chart.symbol`、`chart.interval`、`chart.error`、`chart.destroyed`。
 
-**Native → Web**：`host.setSymbol`、`host.setInterval`、`host.setTheme`、`host.setShowGrid`、`host.fitContent`、`host.scrollToRealtime`、`host.resize`、`host.destroy`。
+**Native → Web**（完整表見 [API.md §8](./API.md#8-webview-bridge)）：含 `host.setChartPaneResizeFocus`、`host.setIndicatorConfig`、`host.clearAllIndicators` 等。`volumeMount` / `indicatorHost` 僅在 `createChart` 建立時設定。
 
 ## 本地 Demo
 

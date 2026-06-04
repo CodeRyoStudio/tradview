@@ -6,7 +6,7 @@ export interface CrosshairLegendOptions {
 }
 
 export function mountCrosshairLegend(
-  chartHost: HTMLElement,
+  chartHost?: HTMLElement,
   opts: CrosshairLegendOptions = {},
 ): {
   el: HTMLElement;
@@ -23,7 +23,7 @@ export function mountCrosshairLegend(
   title.style.cssText = 'color:#8b949e;margin-bottom:2px;';
   const body = document.createElement('div');
   box.append(title, body);
-  chartHost.appendChild(box);
+  if (chartHost) chartHost.appendChild(box);
 
   const fmt = (n: number | undefined) =>
     n == null ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 });

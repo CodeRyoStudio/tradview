@@ -24,6 +24,7 @@ export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   bridgeCrosshairThrottleMs?: number;
 }
 
+/** @public Chart instance API for integrators (apiVersion 1). */
 export interface IChart {
   setSymbol(symbol: string): IChart;
   setInterval(interval: import('@coderyo/data').Interval): IChart;
@@ -44,6 +45,12 @@ export interface IChart {
   /** Re-fetch recent history without clearing scroll/zoom. */
   reloadHistory(): Promise<IChart>;
   resize(size?: { width?: number; height?: number }): IChart;
+  setChartPaneResizeFocus(pane: import('@coderyo/renderer-lite').ChartPaneId | 'all'): IChart;
+  /** Apply layout layer `syncTimeScaleGroupId` values to renderer pane buses. */
+  applyTimeScaleSyncFromLayers(
+    layers: Array<{ type: string; pageId?: string; syncTimeScaleGroupId?: string }>,
+    pageId?: string,
+  ): IChart;
   setFullscreen(enabled: boolean): IChart;
   exportImage(opts?: { pixelRatio?: number }): Promise<Blob>;
   on(event: import('./chart-controller.js').ChartEvent, handler: (p?: unknown) => void): IChart;
@@ -56,6 +63,10 @@ export interface IChart {
   updateSelectedDrawingStyle(patch: DrawingStyleMeta): void;
   deselectDrawing(): void;
   setIndicatorConfig(config: IndicatorConfig | null): void;
+  /** @public List enabled built-in indicator layers (MA, MACD, volume pane, etc.). */
+  listIndicatorLayers(): import('@coderyo/indicators').IndicatorLayerInfo[];
+  /** @public Disable one built-in indicator layer; returns applied config. */
+  disableIndicatorLayer(id: import('@coderyo/indicators').IndicatorLayerId): IndicatorConfig;
   /** Hide all indicator panes and overlays; returns the applied config. */
   clearAllIndicators(): IndicatorConfig;
   /** Remove all drawings for the current symbol/interval; returns count removed. */
@@ -124,6 +135,14 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       controller.resize(s);
       return wrap(controller, beforeDestroy);
     },
+    setChartPaneResizeFocus: (pane) => {
+      controller.setChartPaneResizeFocus(pane);
+      return wrap(controller, beforeDestroy);
+    },
+    applyTimeScaleSyncFromLayers: (layers, pageId) => {
+      controller.applyTimeScaleSyncFromLayers(layers, pageId);
+      return wrap(controller, beforeDestroy);
+    },
     setFullscreen: (e) => {
       controller.setFullscreen(e);
       return wrap(controller, beforeDestroy);
@@ -157,6 +176,8 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
       controller.setIndicatorConfig(c);
       return wrap(controller, beforeDestroy);
     },
+    listIndicatorLayers: () => controller.listIndicatorLayers(),
+    disableIndicatorLayer: (id) => controller.disableIndicatorLayer(id),
     clearAllIndicators: () => controller.clearAllIndicators(),
     clearAllDrawings: () => controller.clearAllDrawings(),
     setReturnToCursorAfterDraw: (v) => {
@@ -185,6 +206,7 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
   };
 }
 
+/** @public Create a chart in the given container. */
 export function createChart(
   target: HTMLElement | string,
   options: CreateChartOptions,

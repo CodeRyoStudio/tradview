@@ -17,6 +17,16 @@ import {
   loadPineScriptPreference,
   openDrawingContextMenu,
   type DrawingToolId,
+  listPresets,
+  loadPreset,
+  savePreset,
+  forkPreset,
+  resolvePreset,
+  getBuiltinPreset,
+  bindLayerTimeScaleSync,
+  mountLayerCompositor,
+  mountLayerPanel,
+  mountPageNavigator,
 } from '@coderyo/ui-shell';
 import type { IndicatorConfig } from '@coderyo/indicators';
 import { PINE_EDITOR_DEFAULT } from '@coderyo/core';
@@ -50,6 +60,7 @@ const symbolResolver = createPassthroughSymbolResolver((q) =>
 );
 
 const shellOpts = createDemoLayoutOptions({
+  layerCompositorManaged: true,
   themeProvider,
   i18n,
   intervals: EXTENDED_INTERVALS,
@@ -117,28 +128,37 @@ const shellOpts = createDemoLayoutOptions({
   symbolInput: 'search',
 });
 
-let bindDrawingProps: ((d: import('@coderyo/drawings').DrawingRecord | null) => void) | null =
-  null;
-
-shellOpts.onDrawingSelectionBind = (bind) => {
-  bindDrawingProps = bind;
-};
+const LAYER_PRESET_ACTIVE_KEY = 'tradview:preset:v2:active';
 
 const {
-  chartHost,
+  layoutRoot,
+  layoutGrid,
+  chartMain,
+  chartVolume,
   indicatorHost,
+  topBar,
   statusBar,
   crosshairLegend,
   setActiveDrawingTool,
   propertiesPanel,
+  handleDrawingSelection,
+  syncCompositorShellVisibility,
+  bindLayerCompositorController,
+  drawingOverlay,
   setActiveInterval,
 } = mountChartLayout(app, shellOpts);
 
+function layoutWidgetEl(widgetId: string): HTMLElement | undefined {
+  const cell = app.querySelector(`[data-widget-id="${widgetId}"]`);
+  return (cell?.firstElementChild ?? undefined) as HTMLElement | undefined;
+}
+
 const chart = createChart(
-  chartHost,
+  chartMain,
   createDemoChartOptions({
     dataProvider: provider,
     symbolResolver,
+    volumeMount: chartVolume,
     indicatorHost,
     symbol: lastSymbol,
     interval: lastInterval,
@@ -149,6 +169,190 @@ const chart = createChart(
   }),
 );
 chartRef.current = chart;
+const syncChartLayout = () => {
+  chart.setChartPaneResizeFocus('all');
+  chart.resize();
+};
+
+const syncChartAfterLayout = (fitIfEmpty = false) => {
+  syncChartLayout();
+  if (fitIfEmpty && !chart.getVisibleRange()) chart.fitContent();
+};
+requestAnimationFrame(() => requestAnimationFrame(() => syncChartAfterLayout(true)));
+
+let activePresetId = localStorage.getItem(LAYER_PRESET_ACTIVE_KEY) ?? 'vendor-default';
+
+let presetSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearPresetSaveTimer(): void {
+  if (presetSaveTimer) {
+    clearTimeout(presetSaveTimer);
+    presetSaveTimer = null;
+  }
+}
+
+function schedulePresetSave(presetId: string): void {
+  if (getBuiltinPreset(presetId)) return;
+  clearPresetSaveTimer();
+  presetSaveTimer = setTimeout(() => {
+    presetSaveTimer = null;
+    if (getBuiltinPreset(activePresetId) || presetId !== activePresetId) return;
+    savePreset({
+      ...layerCompositor.controller.getPreset(),
+      id: activePresetId,
+      author: 'user',
+    });
+  }, 500);
+}
+
+const panelRef: { current: ReturnType<typeof mountLayerPanel> | null } = { current: null };
+
+let layerCompositor!: ReturnType<typeof mountLayerCompositor>;
+
+layerCompositor = mountLayerCompositor(layoutRoot, {
+  preset: resolvePreset(activePresetId),
+  hideLegacyGrid: layoutGrid,
+  widgets: {
+    topBar,
+    leftToolbar: layoutWidgetEl('leftToolbar'),
+    bottomToolbar: layoutWidgetEl('bottomToolbar'),
+    chartMain,
+    chartVolume,
+    chartIndicator: layoutWidgetEl('indicatorHost') ?? indicatorHost,
+    statusBar: statusBar.el,
+    propertiesPanel: layoutWidgetEl('propertiesPanel'),
+    crosshairLegend: crosshairLegend.el,
+    drawingOverlay,
+  },
+  onPresetChange: () => {
+    schedulePresetSave(activePresetId);
+  },
+  onMarqueeSelect: (ids) => panelRef.current?.selectLayers(ids),
+  onChartPaneFocus: (pane) => {
+    if (pane) chart.setChartPaneResizeFocus(pane);
+  },
+});
+
+bindLayerTimeScaleSync(chart, layerCompositor.controller, {
+  onSync: () => requestAnimationFrame(syncChartAfterLayout),
+});
+
+const layerPanel = mountLayerPanel(document.body, layerCompositor.controller, {
+  onSaveAsPreset: (preset) => {
+    const name = window.prompt(t('layer.fork.name', '新範本名稱'), `${preset.name} (我的)`);
+    if (!name?.trim()) return;
+    clearPresetSaveTimer();
+    const id = `user-${Date.now()}`;
+    const forked = forkPreset(activePresetId, id, name.trim());
+    if (!forked) return;
+    activePresetId = id;
+    localStorage.setItem(LAYER_PRESET_ACTIVE_KEY, id);
+    if (!layerCompositor.controller.setPreset(forked)) return;
+    refreshPresetSelect();
+    requestAnimationFrame(syncChartAfterLayout);
+  },
+});
+panelRef.current = layerPanel;
+
+bindLayerCompositorController?.(layerCompositor.controller);
+
+const syncShellCompositorVisibility = () => {
+  syncCompositorShellVisibility?.(layerCompositor.controller);
+};
+
+const footerEl = document.getElementById('demo-footer')!;
+const presetLabel = document.createElement('label');
+presetLabel.style.cssText = 'display:flex;align-items:center;gap:6px;';
+const presetSelect = document.createElement('select');
+presetSelect.style.cssText =
+  'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;font-size:11px;padding:2px 6px;';
+presetLabel.append(document.createTextNode(t('layer.preset.label', '版面範本')), presetSelect);
+
+const layerBtn = document.createElement('button');
+layerBtn.type = 'button';
+layerBtn.textContent = t('layer.panel.open', '圖層');
+layerBtn.style.cssText =
+  'background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;font-size:11px;padding:2px 8px;cursor:pointer;';
+
+const editLayoutBtn = document.createElement('button');
+editLayoutBtn.type = 'button';
+editLayoutBtn.textContent = t('layer.editLayout', '編輯版面');
+const editBtnBaseStyle =
+  'color:#e6edf3;border:1px solid #30363d;border-radius:4px;font-size:11px;padding:2px 8px;cursor:pointer;';
+editLayoutBtn.style.cssText = `background:#21262d;${editBtnBaseStyle}`;
+
+const LAYER_EDIT_KEY = 'tradview:layer-edit';
+const urlEdit =
+  new URLSearchParams(location.search).get('edit') === '1' ||
+  new URLSearchParams(location.search).get('layerEdit') === '1';
+let layoutEditMode =
+  urlEdit || localStorage.getItem(LAYER_EDIT_KEY) === '1';
+const syncEditLayoutBtn = () => {
+  editLayoutBtn.style.background = layoutEditMode ? '#238636' : '#21262d';
+  editLayoutBtn.setAttribute('aria-pressed', String(layoutEditMode));
+};
+const applyLayoutEditMode = () => {
+  layerCompositor.enableLayerEditor(layoutEditMode);
+  localStorage.setItem(LAYER_EDIT_KEY, layoutEditMode ? '1' : '0');
+  syncEditLayoutBtn();
+};
+editLayoutBtn.onclick = () => {
+  layoutEditMode = !layoutEditMode;
+  applyLayoutEditMode();
+};
+applyLayoutEditMode();
+
+layerBtn.onclick = () => layerPanel.toggle();
+
+footerEl.append(presetLabel, layerBtn, editLayoutBtn);
+
+const syncDrawingOverlayFromLayer = () => {
+  const drawing = layerCompositor.controller
+    .getLayersForActivePage()
+    .find((l) => l.type === 'overlay.drawing');
+  if (drawing) {
+    chart.setFeatures({ drawings: { layer: drawing.visible } });
+  }
+};
+
+mountPageNavigator(footerEl, layerCompositor.controller, {
+  onPageChange: () => {
+    syncShellCompositorVisibility();
+    syncDrawingOverlayFromLayer();
+  },
+});
+
+layerCompositor.controller.subscribe(syncDrawingOverlayFromLayer);
+syncDrawingOverlayFromLayer();
+
+function refreshPresetSelect(): void {
+  const entries = listPresets();
+  presetSelect.replaceChildren();
+  for (const e of entries) {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.builtin ? `${e.name} ★` : e.name;
+    if (e.id === activePresetId) opt.selected = true;
+    presetSelect.appendChild(opt);
+  }
+}
+
+refreshPresetSelect();
+presetSelect.onchange = () => {
+  clearPresetSaveTimer();
+  activePresetId = presetSelect.value;
+  localStorage.setItem(LAYER_PRESET_ACTIVE_KEY, activePresetId);
+  const preset = loadPreset(activePresetId);
+  if (!preset) return;
+  if (!layerCompositor.controller.setPreset(preset)) {
+    console.warn('[tradview] setPreset rejected (interaction in progress); retrying next frame');
+    requestAnimationFrame(() => {
+      if (layerCompositor.controller.setPreset(preset)) syncChartAfterLayout();
+    });
+    return;
+  }
+  requestAnimationFrame(syncChartAfterLayout);
+};
 
 const initialPineScript = loadPineScriptPreference() ?? PINE_EDITOR_DEFAULT;
 chart.setFeatures({ pineEnabled: true, pineScript: initialPineScript });
@@ -211,7 +415,15 @@ const chart = createChart(document.getElementById('chart'), {
 
 function showError(err: unknown) {
   errorEl.style.display = 'block';
-  errorEl.textContent = err instanceof Error ? err.message : String(err);
+  if (err instanceof Error) {
+    errorEl.textContent = err.message;
+    return;
+  }
+  if (err && typeof err === 'object' && 'message' in err) {
+    errorEl.textContent = String((err as { message: unknown }).message);
+    return;
+  }
+  errorEl.textContent = String(err);
 }
 
 bindChartKeyboard({
@@ -241,8 +453,7 @@ chart.on('requestCursorTool', () => {
 
 chart.on('drawingSelectionChange', (payload) => {
   const p = payload as { record?: import('@coderyo/drawings').DrawingRecord | null };
-  bindDrawingProps?.(p?.record ?? null);
-  propertiesPanel.bind(p?.record ?? null);
+  handleDrawingSelection(p?.record ?? null);
 });
 
 chart.on('drawingContextMenu', (payload) => {
@@ -306,7 +517,10 @@ chart.on('featuresChange', () => {
   if (shellOpts.settings) shellOpts.settings.indicatorConfig = indicatorConfig;
 });
 
-chart.on('error', (err) => showError(err));
+chart.on('error', (err) => {
+  showError(err);
+  console.error('[demo] chart error', err);
+});
 
 void provider
   .getHistory({

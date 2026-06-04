@@ -17,6 +17,12 @@ describe('RC API freeze (apiVersion 1)', () => {
     expect(typeof createChart).toBe('function');
   });
 
+  it('exports indicator layer helpers', async () => {
+    const core = await import('../src/index.js');
+    expect(typeof core.listActiveIndicatorLayers).toBe('function');
+    expect(typeof core.disableIndicatorLayer).toBe('function');
+  });
+
   it('minimal chart feature defaults', () => {
     expect(resolveChartFeatures()).toEqual(DEFAULT_CHART_FEATURES);
     expect(DEFAULT_CHART_FEATURES.indicators).toBeNull();

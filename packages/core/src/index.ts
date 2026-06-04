@@ -18,6 +18,11 @@ export {
   type ChartEvent,
   type ChartVisibleRange,
 } from './chart-controller.js';
+export {
+  resolvePaneSyncGroupsFromLayers,
+  type LayerSyncInput,
+  type PaneSyncGroupPatch,
+} from './resolve-pane-sync-groups.js';
 export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';
 export {
   type ChartStorageAdapter,
@@ -33,8 +38,12 @@ export {
   hasMainChartOverlays,
   hasAnyActiveIndicators,
   indicatorConfigStorageKey,
+  listActiveIndicatorLayers,
+  disableIndicatorLayer,
   type IndicatorConfig,
   type IndicatorSource,
+  type IndicatorLayerId,
+  type IndicatorLayerInfo,
 } from '@coderyo/indicators';
 export {
   compilePineLite,

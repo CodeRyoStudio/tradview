@@ -46,6 +46,7 @@ export interface WireChartBridgeOptions {
   crosshairThrottleMs?: number;
 }
 
+/** @public Wire host bridge messages to chart + controller events. */
 export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   const chartId = opts.chartId ?? `chart-${Date.now()}`;
   const { bridge, chart, controller } = opts;
@@ -226,6 +227,22 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
       case 'host.setDrawingTool':
         if (typeof p.tool === 'string' && DRAWING_TOOLS.has(p.tool as DrawingTool)) {
           chart.setDrawingTool(p.tool as DrawingTool);
+        }
+        break;
+      case 'host.setChartPaneResizeFocus':
+        if (
+          p.pane === 'main' ||
+          p.pane === 'volume' ||
+          p.pane === 'indicator' ||
+          p.pane === 'all'
+        ) {
+          chart.setChartPaneResizeFocus(p.pane);
+        } else {
+          post('chart.error', {
+            chartId,
+            code: 'INVALID_PANE',
+            message: `Invalid pane: ${String(p.pane ?? '')}`,
+          });
         }
         break;
       case 'host.destroy':

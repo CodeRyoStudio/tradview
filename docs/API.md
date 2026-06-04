@@ -5,6 +5,10 @@
 
 本文描述整合方使用的公開 API。架構與協議細節見 [DESIGN.md](./DESIGN.md)；凍結承諾見 [API-FREEZE.md](./API-FREEZE.md)；嵌入範例見 [EMBEDDING.md](./EMBEDDING.md)。
 
+**三層 API**：圖表核心（本文 §3）→ 殼層 §6 → 圖層／Compositor [API-LAYER.md](./API-LAYER.md)。正式化計畫見 [API-FRAMEWORK-PLAN.md](./API-FRAMEWORK-PLAN.md)。
+
+> **版面 v2 為主**：新整合請用 `mountLayerCompositor` + `LayoutPreset` v2。v1 12×12 `layout` / `layoutEditor` 仍可用但**已棄用**（見 §6）。
+
 ---
 
 ## 目錄
@@ -31,7 +35,7 @@
 | `@coderyo/core` | MIT | **主入口**：`createChart`、`wireChartBridge` |
 | `@coderyo/data` | MIT | `DataProvider`、`createGatewayDataProvider` |
 | `@coderyo/bridge` | MIT | WebView `postMessage` 適配器 |
-| `@coderyo/ui-shell` | 商業 | 可選 TV 殼層 `mountChartLayout` |
+| `@coderyo/ui-shell` | 商業 | 殼層 `mountChartLayout` + 圖層 Compositor（[API-LAYER.md](./API-LAYER.md)） |
 | `@coderyo/drawings` | 商業 | 繪圖型別與工具（通常經 core 間接使用） |
 | `@coderyo/indicators` | MIT | 指標設定型別 |
 | `tradview.min.js`（CDN） | 含 ui-shell | 全域 `TradView` |
@@ -68,23 +72,41 @@ chart.setSymbol('BINANCE:BTCUSDT');
 
 容器需有明確高度（`height: 480px` 或 flex 子項 `flex:1; min-height:0`）。
 
-**全功能 Demo（Playground 同款）**：
+**v2 全功能（Playground / Compositor，建議）**：
 
 ```typescript
 import { createChart, createDemoChartOptions } from '@coderyo/core';
-import { mountChartLayout, createDemoLayoutOptions } from '@coderyo/ui-shell';
+import {
+  mountChartLayout,
+  createDemoLayoutOptions,
+  mountLayerCompositor,
+  VENDOR_DEFAULT_PRESET,
+  cloneLayoutPreset,
+} from '@coderyo/ui-shell';
 
-const layout = mountChartLayout(root, createDemoLayoutOptions({ /* callbacks */ }));
-const chart = createChart(
-  layout.chartHost,
-  createDemoChartOptions({
-    dataProvider: provider,
-    indicatorHost: layout.indicatorHost,
-    symbol: 'BINANCE:BTCUSDT',
-    interval: '1h',
-  }),
-);
+const layout = mountChartLayout(root, createDemoLayoutOptions({
+  layerCompositorManaged: true,
+  /* callbacks: onIntervalChange, onDrawingToolSelect, … */
+}));
+const compositor = mountLayerCompositor(layout.layoutRoot, {
+  preset: cloneLayoutPreset(VENDOR_DEFAULT_PRESET),
+  widgets: {
+    chartMain: layout.chartMain,
+    chartVolume: layout.chartVolume,
+    chartIndicator: layout.indicatorHost,
+  },
+  hideLegacyGrid: layout.layoutGrid,
+});
+const chart = createChart(layout.chartMain, createDemoChartOptions({
+  dataProvider: provider,
+  volumeMount: layout.chartVolume,
+  indicatorHost: layout.indicatorHost,
+  symbol: 'BINANCE:BTCUSDT',
+  interval: '1h',
+}));
 ```
+
+**Legacy v1 grid（已棄用）**：`createChart(layout.chartHost, …)` 僅用於未遷移的 grid 整合。
 
 ---
 
@@ -110,6 +132,7 @@ const chart = createChart(
 | `features` | `ChartFeatures` | 最小預設 | 見 [§4](#4-chartfeatures) |
 | `chartId` | `string` | `'default'` | 繪圖 storage key、Bridge 識別 |
 | `indicatorHost` | `HTMLElement` | — | MACD/RSI/KDJ 子窗格宿主（來自 layout） |
+| `volumeMount` | `HTMLElement` | — | P2：成交量 pane 獨立容器（Layer Compositor）；須為空節點 |
 | `symbolResolver` | `SymbolResolver` | — | 商品解析／搜尋 |
 | `scaleMode` | `'linear' \| 'log'` | `'linear'` | 價格軸 |
 | `showGrid` | `boolean` | `false` | 網格線 |
@@ -141,7 +164,8 @@ const chart = createChart(
 | `reloadHistory()` | `Promise<IChart>` | 重新拉取近期歷史，**不**重置捲動/縮放 |
 | `setLocale(locale)` | `IChart` | 切換 `@coderyo/i18n` 語系 |
 | `subscribeBars(handler)` | `() => void` | 訂閱 `barUpdate`，回傳 unsubscribe |
-| `resize(size?)` | `IChart` | `{ width?, height? }` |
+| `resize(size?)` | `IChart` | `{ width?, height? }`；**不**清除 `setChartPaneResizeFocus` |
+| `setChartPaneResizeFocus(pane)` | `IChart` | `'main' \| 'volume' \| 'indicator' \| 'all'`；限制 LWC `resize` 目標（TimeScaleBus 仍同步全部） |
 | `setFullscreen(enabled)` | `IChart` | 全螢幕容器 |
 | `exportImage(opts?)` | `Promise<Blob>` | PNG；`pixelRatio` 預設 `2` |
 | `on(event, handler)` | `IChart` | 訂閱事件 |
@@ -154,6 +178,8 @@ const chart = createChart(
 | `updateSelectedDrawingStyle(patch)` | `void` | 樣式 |
 | `deselectDrawing()` | `void` | 取消選取 |
 | `setIndicatorConfig(config)` | `void` | `null` 關閉所有指標窗格 |
+| `listIndicatorLayers()` | `IndicatorLayerInfo[]` | 目前啟用的內建指標圖層（見 §10） |
+| `disableIndicatorLayer(id)` | `IndicatorConfig` | 關閉單一圖層（`ma` / `macd` / `volume` 等） |
 | `clearAllIndicators()` | `IndicatorConfig` | 關閉所有指標窗格與主圖疊加，回傳套用後的 config |
 | `clearAllDrawings()` | `number` | 刪除目前 symbol/interval 下全部繪圖，回傳刪除數量 |
 | `setReturnToCursorAfterDraw(v)` | `IChart` | 繪圖行為 |
@@ -255,7 +281,21 @@ chart.off('symbolChange', handler);
 
 ## 6. `mountChartLayout`
 
-可選殼層；**所有 UI 開關預設 `false`**。殼層與 `IChart` **刻意解耦**——每個 UI 動作需由整合方接 callback（見 [EMBEDDING.md — 殼層與圖表接線](./EMBEDDING.md#殼層與圖表接線端到端)）。
+可選殼層（**Tier 2**）；**所有 UI 開關預設 `false`**。殼層與 `IChart` **刻意解耦**——每個 UI 動作需由整合方接 callback（見 [EMBEDDING.md — 殼層與圖表接線](./EMBEDDING.md#殼層與圖表接線端到端)）。
+
+### v2 圖層版面（建議）
+
+Playground 使用 **Layer Compositor**（`LayoutPreset` v2）而非 v1 grid。完整 API 見 **[API-LAYER.md](./API-LAYER.md)**。要點：
+
+- `layerCompositorManaged: true` — 十字線圖例等由 compositor 控制 `visible`
+- `handleDrawingSelection` / `bindLayerCompositorController` / `syncCompositorShellVisibility` — 繪圖屬性與 shell / legend 圖層同步
+- `chartMain` + `chartVolume` + `indicatorHost` → `createChart({ volumeMount, indicatorHost })`（勿用 legacy `chartHost` 別名掛載 LWC）
+
+### v1 12×12 Grid（deprecated，仍匯出）
+
+`layout` / `layoutEditor` / `LayoutSchema` v1 仍可用於**非 compositor**整合方與 `layoutSchemaToPreset()` 遷移。Playground 與 `layerCompositorManaged: true` 使用 compositor shell（P5 不刪除 v1 公開 API，見 [LAYER-COMPOSITOR-PLAN.md](./LAYER-COMPOSITOR-PLAN.md)）。
+
+### 基本接線
 
 先 `mountChartLayout` 再 `createChart`；callback 使用 `chartRef`：
 
@@ -271,7 +311,7 @@ const layout = mountChartLayout(root, {
   onDrawingStyleChange: (patch) => chartRef.current?.updateSelectedDrawingStyle(patch),
 });
 
-const chart = createChart(layout.chartHost, {
+const chart = createChart(layout.chartMain, {
   dataProvider: provider,
   indicatorHost: layout.indicatorHost,
   features: { drawings: { layer: true } },
@@ -291,6 +331,9 @@ chartRef.current = chart;
 | `setLayoutFeatures(patch)` | 執行期開關殼層 |
 | `getLayoutFeatures()` | 目前 layout 設定 |
 | `detachContextMenu()` | 卸載右鍵選單 |
+| `handleDrawingSelection` | 繪圖選取 + 屬性面板（compositor-safe） |
+| `bindLayerCompositorController` | compositor 掛載後綁定；`setLayoutFeatures` 自動同步 shell/legend |
+| `syncCompositorShellVisibility` | `layerCompositorManaged` 時同步 shell 圖層可見性（頁面切換等） |
 
 ### `ChartLayoutOptions`（主要欄位）
 
@@ -310,6 +353,9 @@ chartRef.current = chart;
 | `activeDrawingTool` | `'cursor'` | 初始工具 |
 | `contextMenuActions` | — | 自訂右鍵項目 |
 | `settings` | — | 網格、指標、畫完回游標 |
+| `layerCompositorManaged` | `false` | `true` 時十字線圖例由 compositor 驅動（見 [API-LAYER.md](./API-LAYER.md)） |
+| `layout` | 預設 schema | **已棄用** — 請用 `mountLayerCompositor` |
+| `layoutEditor` | `false` | **已棄用** — 請用 compositor `enableLayerEditor` |
 
 `Interval` 清單：`1s` `5s` `15s` `30s`（`SUB_SECOND_INTERVALS`）+ `1m` … `1W`（`DEFAULT_INTERVALS`）；Playground 用 `EXTENDED_INTERVALS`。
 
@@ -454,7 +500,10 @@ bridge.onMessage((msg) => { /* host.* */ });
 | `host.clearAllIndicators` | — |
 | `host.clearAllDrawings` | — |
 | `host.setDrawingTool` | `{ tool: DrawingTool }` |
+| `host.setChartPaneResizeFocus` | `{ pane: 'main' \| 'volume' \| 'indicator' \| 'all' }` — 無效 `pane` 觸發 outbound `chart.error`（`INVALID_PANE`） |
 | `host.destroy` | — |
+
+**P2 掛載**：`volumeMount` / `indicatorHost` 僅能透過 `createChart` 選項在建立時指定（Bridge 不動態掛載 pane）。
 
 入站訊息需通過 `isBridgeInbound(msg)` 校驗（`@coderyo/bridge`）。
 
@@ -503,6 +552,14 @@ interface IndicatorConfig {
   showMacd: boolean;
   showRsi: boolean;
   showKdj: boolean;
+  showMa: boolean;
+  showVolMa: boolean;
+  showVolume: boolean;
+  showEma: boolean;
+  emaPeriod: number;
+  showBoll: boolean;
+  bollPeriod: number;
+  bollMult: number;
 }
 ```
 
@@ -519,6 +576,19 @@ interface IndicatorConfig {
 | `loadIndicatorConfig(storage, symbol, interval)` | 從 storage 讀取（`indicatorPersist` 內建使用） |
 | `saveIndicatorConfig(storage, symbol, interval, config)` | 寫入 storage |
 | `createLocalChartStorage()` | 預設 `localStorage` 適配器 |
+| `listActiveIndicatorLayers(config)` | 列出啟用中的內建圖層（`@coderyo/indicators`） |
+| `disableIndicatorLayer(config, id)` | 關閉單一圖層，回傳新 config |
+
+### `IChart` 指標圖層（1.0.x）
+
+```typescript
+const layers = chart.listIndicatorLayers();
+// [{ id: 'ma', label: 'MA (20)', target: 'main' }, …]
+
+chart.disableIndicatorLayer('rsi');
+```
+
+等同於讀取目前 config → `disableIndicatorLayer` → `setIndicatorConfig`。當 `features.indicators === null`（預設）時，`listIndicatorLayers()` 回傳 `[]`，`disableIndicatorLayer` 為 no-op 並回傳 `clearedIndicatorConfig()`。`IndicatorLayerId`：`ma` | `ema` | `boll` | `volMa` | `volume` | `macd` | `rsi` | `kdj`。
 
 `features.indicatorPersist: true` 時，圖表在 `setSymbol` / `setInterval` 會自動載入，在 `setIndicatorConfig` 會自動儲存。
 
@@ -554,7 +624,9 @@ interface IndicatorConfig {
 
 ### `@coderyo/core`
 
-`createChart`, `wireChartBridge`, `IChart`, `CreateChartOptions`, `ChartController`, `ChartEvent`, `ChartFeatures`, `ResolvedChartFeatures`, `DEFAULT_CHART_FEATURES`, `resolveChartFeatures`, `PENDING_SYMBOL`, `createDemoChartFeatures`, `createDemoChartOptions`, `TRADVIEW_API_VERSION`, `TRADVIEW_VERSION`
+`createChart`, `wireChartBridge`, `IChart`, `CreateChartOptions`, `ChartController`, `ChartEvent`, `ChartFeatures`, `ResolvedChartFeatures`, `DEFAULT_CHART_FEATURES`, `resolveChartFeatures`, `PENDING_SYMBOL`, `createDemoChartFeatures`, `createDemoChartOptions`, `TRADVIEW_API_VERSION`, `TRADVIEW_VERSION`, `listActiveIndicatorLayers`, `disableIndicatorLayer`, `IndicatorLayerId`, `IndicatorLayerInfo`
+
+僅允許從套件根匯入：`import { … } from '@coderyo/core'`（見 `public-exports.test.ts`）。
 
 ### `@coderyo/data`
 
@@ -566,7 +638,11 @@ interface IndicatorConfig {
 
 ### `@coderyo/ui-shell`
 
-`mountChartLayout`, `createDemoLayoutOptions`, `LayoutFeatures`, `ChartLayoutOptions`, …
+`mountChartLayout`, `createDemoLayoutOptions`, `mountLayerCompositor`, `LayerController`, `mountLayerPanel`, … — 圖層章節見 [API-LAYER.md](./API-LAYER.md)。
+
+### `@coderyo/indicators`
+
+`IndicatorConfig`, `DEFAULT_INDICATOR_CONFIG`, `listActiveIndicatorLayers`, `disableIndicatorLayer`, `IndicatorLayerId`, `IndicatorLayerInfo`, …
 
 ---
 
@@ -574,6 +650,8 @@ interface IndicatorConfig {
 
 | 文件 | 內容 |
 |------|------|
+| [API-LAYER.md](./API-LAYER.md) | Layer compositor、preset、controller |
+| [API-FRAMEWORK-PLAN.md](./API-FRAMEWORK-PLAN.md) | 三層 API 正式化計畫 |
 | [EMBEDDING.md](./EMBEDDING.md) | 嵌入步驟與 feature 矩陣 |
 | [API-FREEZE.md](./API-FREEZE.md) | RC 凍結範圍 |
 | [DESIGN.md](./DESIGN.md) | 架構、REST/WS 協議 |

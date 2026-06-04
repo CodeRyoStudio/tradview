@@ -23,7 +23,7 @@ describe('TopBar interval layout (issue #4)', () => {
 
     expect(header).not.toBeNull();
     expect(bar?.parentElement).toBe(header);
-    expect(root.firstElementChild).toBe(header);
+    expect(root.querySelector('.tv-layout-grid')).not.toBeNull();
     expect(firstBtn?.textContent).toBe('1s');
 
     const headerZ = header instanceof HTMLElement ? header.style.zIndex : '';

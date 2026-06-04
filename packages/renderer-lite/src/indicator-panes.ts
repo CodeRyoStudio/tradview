@@ -132,20 +132,6 @@ export class IndicatorPaneStack {
     this.macdWrap = macdPane.wrap;
     this.rsiWrap = rsiPane.wrap;
     this.kdjWrap = kdjPane.wrap;
-    this.root.append(macdPane.wrap, rsiPane.wrap, kdjPane.wrap);
-    this.detachResizers.push(
-      attachPaneResizer(macdPane.wrap, rsiPane.wrap, {
-        storageKey: 'tradview:pane:macd-rsi',
-        minTopPx: 72,
-        minBottomPx: 72,
-      }),
-      attachPaneResizer(rsiPane.wrap, kdjPane.wrap, {
-        storageKey: 'tradview:pane:rsi-kdj',
-        minTopPx: 72,
-        minBottomPx: 72,
-      }),
-    );
-    this.applyPaneVisibility();
 
     const layout = this.layoutForTheme(this.dark);
     const grid = gridOptions(this.showGrid, this.dark);
@@ -164,6 +150,8 @@ export class IndicatorPaneStack {
     this.kdjK = this.kdjChart.addSeries(LineSeries, { color: '#42a5f5', lineWidth: 1 });
     this.kdjD = this.kdjChart.addSeries(LineSeries, { color: '#ffa726', lineWidth: 1 });
     this.kdjJ = this.kdjChart.addSeries(LineSeries, { color: '#ef5350', lineWidth: 1 });
+
+    this.applyPaneVisibility();
   }
 
   setConfig(config: IndicatorConfig): void {
@@ -184,11 +172,36 @@ export class IndicatorPaneStack {
   }
 
   private applyPaneVisibility(): void {
-    this.macdWrap.style.display = this.config.showMacd ? '' : 'none';
-    this.rsiWrap.style.display = this.config.showRsi ? '' : 'none';
-    this.kdjWrap.style.display = this.config.showKdj ? '' : 'none';
     const anyVisible = this.config.showMacd || this.config.showRsi || this.config.showKdj;
     this.root.style.display = anyVisible ? 'flex' : 'none';
+    this.rebuildPaneLayout();
+  }
+
+  /** Rebuild flex children and drag handles only between visible panes. */
+  private rebuildPaneLayout(): void {
+    for (const detach of this.detachResizers) detach();
+    this.detachResizers.length = 0;
+    this.root.querySelectorAll('[data-pane-resizer]').forEach((el) => el.remove());
+
+    const panes: Array<{ id: IndicatorPaneId; el: HTMLElement }> = [];
+    if (this.config.showMacd) panes.push({ id: 'macd', el: this.macdWrap });
+    if (this.config.showRsi) panes.push({ id: 'rsi', el: this.rsiWrap });
+    if (this.config.showKdj) panes.push({ id: 'kdj', el: this.kdjWrap });
+
+    this.root.replaceChildren(...panes.map((p) => p.el));
+
+    for (let i = 0; i < panes.length - 1; i++) {
+      const top = panes[i]!;
+      const bottom = panes[i + 1]!;
+      this.detachResizers.push(
+        attachPaneResizer(top.el, bottom.el, {
+          storageKey: `tradview:pane:${top.id}-${bottom.id}`,
+          minTopPx: 72,
+          minBottomPx: 72,
+        }),
+      );
+    }
+    this.resize();
   }
 
   clearBars(): void {
@@ -339,11 +352,14 @@ export class IndicatorPaneStack {
   }
 
   resize(): void {
-    for (const { chart, el } of [
-      { chart: this.macdChart, el: this.macdChart.chartElement().parentElement },
-      { chart: this.rsiChart, el: this.rsiChart.chartElement().parentElement },
-      { chart: this.kdjChart, el: this.kdjChart.chartElement().parentElement },
-    ]) {
+    const panes: Array<{ show: boolean; chart: IChartApi }> = [
+      { show: this.config.showMacd, chart: this.macdChart },
+      { show: this.config.showRsi, chart: this.rsiChart },
+      { show: this.config.showKdj, chart: this.kdjChart },
+    ];
+    for (const { show, chart } of panes) {
+      if (!show || !chart) continue;
+      const el = chart.chartElement()?.parentElement;
       if (!el) continue;
       const w = el.clientWidth;
       const h = el.clientHeight;
@@ -366,6 +382,7 @@ export class IndicatorPaneStack {
   ): { wrap: HTMLElement; el: HTMLElement } {
     const wrap = document.createElement('div');
     wrap.className = `tv-indicator-pane tv-indicator-pane--${paneId}`;
+    wrap.dataset.paneId = paneId;
     wrap.style.cssText =
       'flex:1;min-height:72px;width:100%;position:relative;border-top:1px solid #30363d;';
     const tag = document.createElement('span');
@@ -399,6 +416,11 @@ export class IndicatorPaneStack {
       background: { type: ColorType.Solid, color: dark ? '#0d1117' : '#ffffff' },
       textColor: dark ? '#e6edf3' : '#24292f',
     };
+  }
+
+  /** LWC instances for sync-group reassignment. */
+  getCharts(): IChartApi[] {
+    return [this.macdChart, this.rsiChart, this.kdjChart];
   }
 }
 
