@@ -14,7 +14,7 @@ import type { ViewportSyncBus } from './viewport-sync-bus.js';
 import { LineSeriesRenderer } from './line-series-renderer.js';
 import { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
 import type { MainPaneLayout } from './chart-coordinates.js';
-import { priceRangeForBars } from './price-scale.js';
+import { priceRangeForBars, type PriceScaleMode } from './price-scale.js';
 
 export interface WebGLChartPaneOptions {
   /** Fraction of height for volume pane (0–0.5). */
@@ -51,6 +51,7 @@ export class WebGLChartPane {
   private syncBus: ViewportSyncBus | null = null;
   private rafId: number | null = null;
   private disposed = false;
+  private priceScaleMode: PriceScaleMode = 'linear';
 
   constructor(
     container: HTMLElement,
@@ -119,6 +120,15 @@ export class WebGLChartPane {
     return this.indicatorConfig;
   }
 
+  setLogScale(enabled: boolean): void {
+    this.priceScaleMode = enabled ? 'log' : 'linear';
+    this.scheduleRender();
+  }
+
+  getPriceScaleMode(): PriceScaleMode {
+    return this.priceScaleMode;
+  }
+
   /** WebGL chart surface (pan/zoom + drawing hit-test host). */
   getChartCanvas(): HTMLCanvasElement {
     return this.context.canvas;
@@ -176,11 +186,12 @@ export class WebGLChartPane {
       pane: mainPane,
       resolution,
       theme: this.theme,
+      priceScaleMode: this.priceScaleMode,
     });
 
     const overlayLines = buildMainOverlayLineSpecs(this.bars, this.indicatorConfig);
     if (overlayLines.length > 0 && to >= from) {
-      const priceRange = priceRangeForBars(this.bars, from, to);
+      const priceRange = priceRangeForBars(this.bars, from, to, this.priceScaleMode);
       this.overlays.render({
         viewport: this.viewport,
         plotWidthPx: plotW,

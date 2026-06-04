@@ -1,18 +1,19 @@
-# Android sample (V2-PROD stub)
+# Android sample (V2-PROD @ GA)
 
-GA requires **≥1** native sample with Bridge schema 3 smoke. This directory is a **compile stub** until the full WebView integration lands.
+Minimal **Bridge 3** WebView shell loading playground `workspace.html`.
 
-## Intended layout
+## Build
 
+```bash
+cd apps/sample-android
+./gradlew :app:assembleDebug
+./gradlew :app:connectedDebugAndroidTest   # optional (emulator)
 ```
-apps/sample-android/
-  app/src/main/...   # WebView + TradView bridge@3
-  build.gradle.kts
-```
 
-## CI gate (planned)
+Point `MainActivity.PLAYGROUND_URL` at your dev server (`pnpm dev:playground` → `http://10.0.2.2:5173/workspace.html` on emulator).
 
-- `./gradlew :app:assembleDebug`
-- Post `host.workspace.createChart` with `containerId` matching WebView DOM slots
+## CI
+
+Root workflow job `android-sample` runs `:app:assembleDebug` + `:app:assembleDebugAndroidTest` (compile).
 
 See [MIGRATION-bridge-3.md](../../docs/MIGRATION-bridge-3.md) and [EMBEDDING.md](../../docs/EMBEDDING.md).

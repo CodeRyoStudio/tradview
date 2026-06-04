@@ -31,7 +31,7 @@ export type LinkEvent =
   | { type: 'symbol'; symbol: string }
   | { type: 'interval'; interval: Interval }
   | { type: 'visibleRange'; range: ChartVisibleRange }
-  /** Aligns linked charts to the same bar time (`scrollToTimestamp`); `price` is advisory for hosts. */
+  /** Aligns linked charts via `setCrosshair` (cursor sync; does not scroll viewport). */
   | { type: 'crosshair'; timeMs: number | null; price: number | null };
 
 interface ChartEntry {
@@ -240,7 +240,7 @@ export class ChartWorkspace {
             if (event.timeMs == null) {
               target.clearCrosshair();
             } else {
-              target.scrollToTimestamp(event.timeMs);
+              target.setCrosshair({ timeMs: event.timeMs, price: event.price });
             }
             break;
         }

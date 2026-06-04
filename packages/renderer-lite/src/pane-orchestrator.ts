@@ -142,6 +142,8 @@ export class PaneOrchestrator {
   private indicators: IndicatorPaneStack | null;
   private pinePlotSeries: ISeriesApi<'Line'>[] = [];
   private pinePlots: PinePlotLine[] | null = null;
+  private readonly crosshairListeners = new Set<(payload: CrosshairPayload | null) => void>();
+  private crosshairMoveHandler: ((param: MouseEventParams<Time>) => void) | null = null;
   private overlayCanvas: HTMLCanvasElement | null = null;
   private dark = true;
   private showGrid = false;
@@ -703,28 +705,66 @@ export class PaneOrchestrator {
   }
 
   subscribeCrosshair(listener: (payload: CrosshairPayload | null) => void): () => void {
-    const handler = (param: MouseEventParams<Time>) => {
-      if (param.time == null || !param.point) {
-        listener(null);
-        return;
+    this.crosshairListeners.add(listener);
+    if (!this.crosshairMoveHandler) {
+      this.crosshairMoveHandler = (param) => this.dispatchCrosshairFromLwc(param);
+      this.mainChart.subscribeCrosshairMove(this.crosshairMoveHandler);
+    }
+    return () => {
+      this.crosshairListeners.delete(listener);
+      if (this.crosshairListeners.size === 0 && this.crosshairMoveHandler) {
+        this.mainChart.unsubscribeCrosshairMove(this.crosshairMoveHandler);
+        this.crosshairMoveHandler = null;
       }
-      const tMs = typeof param.time === 'number' ? param.time * 1000 : null;
-      if (tMs == null) {
-        listener(null);
-        return;
-      }
-      const price = this.mainSeries.coordinateToPrice(param.point.y) ?? null;
-      const bar = this.barByTime.get(tMs) ?? this.findNearestBar(tMs);
-      listener({
-        time: tMs,
-        price,
-        ohlcv: bar
-          ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
-          : null,
-      });
     };
-    this.mainChart.subscribeCrosshairMove(handler);
-    return () => this.mainChart.unsubscribeCrosshairMove(handler);
+  }
+
+  /** Programmatic crosshair (workspace link sync; DESIGN §4.6). */
+  setCrosshair(opts: { timeMs: number; price?: number | null }): void {
+    const bar = this.barByTime.get(opts.timeMs) ?? this.findNearestBar(opts.timeMs);
+    const price = opts.price ?? (bar ? bar.c : null);
+    if (price != null && Number.isFinite(price)) {
+      this.mainChart.setCrosshairPosition(price, toUtcSeconds(opts.timeMs), this.mainSeries);
+    }
+    this.notifyCrosshairListeners({
+      time: opts.timeMs,
+      price,
+      ohlcv: bar
+        ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
+        : null,
+    });
+  }
+
+  clearCrosshair(): void {
+    this.mainChart.clearCrosshairPosition();
+    this.notifyCrosshairListeners(null);
+  }
+
+  private dispatchCrosshairFromLwc(param: MouseEventParams<Time>): void {
+    if (param.time == null || !param.point) {
+      this.notifyCrosshairListeners(null);
+      return;
+    }
+    const tMs = typeof param.time === 'number' ? param.time * 1000 : null;
+    if (tMs == null) {
+      this.notifyCrosshairListeners(null);
+      return;
+    }
+    const price = this.mainSeries.coordinateToPrice(param.point.y) ?? null;
+    const bar = this.barByTime.get(tMs) ?? this.findNearestBar(tMs);
+    this.notifyCrosshairListeners({
+      time: tMs,
+      price,
+      ohlcv: bar
+        ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
+        : null,
+    });
+  }
+
+  private notifyCrosshairListeners(payload: CrosshairPayload | null): void {
+    for (const listener of this.crosshairListeners) {
+      listener(payload);
+    }
   }
 
   private findNearestBar(tMs: number): Bar | null {

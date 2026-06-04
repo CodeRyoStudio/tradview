@@ -17,7 +17,7 @@ export interface ChartDrawingsFeatures {
 export type ChartRendererBackend = 'lite' | 'webgl';
 
 export interface ChartFeatures {
-  /** Chart render backend (default `lite` @ rc; `webgl` @ GA via V2-R12). */
+  /** Chart render backend (default `webgl` @ GA; `lite` explicit opt-in). */
   renderer?: ChartRendererBackend;
   fetchPolicy?: FetchPolicy;
   streamMode?: RealtimeStreamMode;
@@ -69,7 +69,7 @@ export interface ResolvedChartFeatures {
 }
 
 export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
-  renderer: 'lite',
+  renderer: 'webgl',
   fetchPolicy: 'lazy-left-only',
   streamMode: 'bar',
   gaps: { whitespace: false, fillVisibleHoles: false },

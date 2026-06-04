@@ -1,7 +1,12 @@
 import type { Bar } from '@coderyo/data';
 import type { ChartViewport } from './chart-viewport.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
-import { priceRangeForBars, priceToY, type PriceRange } from './price-scale.js';
+import {
+  priceRangeForBars,
+  priceToY,
+  type PriceRange,
+  type PriceScaleMode,
+} from './price-scale.js';
 import type { ChartThemeColors } from './theme.js';
 
 export interface PaneRect {
@@ -19,6 +24,7 @@ export interface CandlestickRenderParams {
   /** Full canvas resolution in device pixels (shader clip-space). */
   resolution: [number, number];
   theme: ChartThemeColors;
+  priceScaleMode?: PriceScaleMode;
 }
 
 /**
@@ -48,7 +54,8 @@ export class CandlestickRenderer {
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from || bars.length === 0) return;
 
-    const range = priceRangeForBars(bars, from, to);
+    const mode = params.priceScaleMode ?? 'linear';
+    const range = priceRangeForBars(bars, from, to, mode);
     const spacing = viewport.barSpacing;
     const bodyWidth = Math.max(1, spacing * 0.72);
     const wickWidth = Math.max(1, Math.min(2, spacing * 0.12));
@@ -62,10 +69,10 @@ export class CandlestickRenderer {
       const bullish = bar.c >= bar.o;
       const color = bullish ? theme.bullish : theme.bearish;
 
-      const yOpen = yForPrice(bar.o, range, pane);
-      const yClose = yForPrice(bar.c, range, pane);
-      const yHigh = yForPrice(bar.h, range, pane);
-      const yLow = yForPrice(bar.l, range, pane);
+      const yOpen = yForPrice(bar.o, range, pane, mode);
+      const yClose = yForPrice(bar.c, range, pane, mode);
+      const yHigh = yForPrice(bar.h, range, pane, mode);
+      const yLow = yForPrice(bar.l, range, pane, mode);
 
       const bodyTop = Math.min(yOpen, yClose);
       const bodyBottom = Math.max(yOpen, yClose);
@@ -97,6 +104,11 @@ export class CandlestickRenderer {
   }
 }
 
-function yForPrice(price: number, range: PriceRange, pane: PaneRect): number {
-  return priceToY(price, range, pane.top, pane.top + pane.height);
+function yForPrice(
+  price: number,
+  range: PriceRange,
+  pane: PaneRect,
+  mode: PriceScaleMode,
+): number {
+  return priceToY(price, range, pane.top, pane.top + pane.height, mode);
 }

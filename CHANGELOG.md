@@ -6,7 +6,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-04
+
 ### Added
+
+- **GA (`@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0`)**: `DEFAULT_CHART_FEATURES.renderer` → **`webgl`**; `TRADVIEW_API_VERSION = 2`; schema 2 inbound rejected (`UNSUPPORTED_BRIDGE_SCHEMA`)
+- **`IChart.setCrosshair`**: programmatic crosshair sync (workspace `sync.crosshair` uses `setCrosshair`, not `scrollToTimestamp`)
+- **WebGL Appendix A parity (V2-R13)**: `compensatePrependForBuses`, log-scale rendering (`setLogScale`), port-parity tests (LOD, crosshair null, prepend delta, MACD/RSI/KDJ panes, independent `MsTimeScaleBusRegistry`)
+- **V2-R14**: CDN gate `tradview.min.js` ≤ **400 KB** gzip (`pnpm check:cdn-size` @ **210 KB**)
+- **V2-MC3**: `apps/playground/workspace.html` — `ChartWorkspace` + Bridge 3 + `createWorkspaceChartSlots`
+- **V2-PROD**: `apps/sample-android` Gradle project (WebView + instrumented smoke); CI `android-sample` job
+
+### Changed
+
+- **Bridge**: `@coderyo/bridge@3.0.0` (GA hard cut; no `bridge@2` + `core@2`)
+- **`smoothPriceUpdate` / Pine script plots on WebGL**: feature flags honored; animation/Pine VM plots remain **lite-only** (see `ADR-v2-renderer-webgl.md`)
+
+### Added (pre-GA rc.2)
 
 - **V2-L1 (`@coderyo/ui-shell`)**: `createWorkspaceChartSlots` for multi-chart DOM `containerId` mounts (depends V2-MC1 only)
 - **V2-MC2–MC4 (`@coderyo/core`)**: link `crosshair` fan-out (`scrollToTimestamp`); `workspace-smoke.test.ts`

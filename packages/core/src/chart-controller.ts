@@ -666,9 +666,31 @@ export class ChartController {
     return this;
   }
 
+  /** Programmatic crosshair (workspace link sync; does not scroll viewport). */
+  setCrosshair(opts: { timeMs: number; price?: number | null }): this {
+    const orch = this.orchestrator as {
+      setCrosshair?: (o: { timeMs: number; price?: number | null }) => void;
+    };
+    if (typeof orch.setCrosshair === 'function') {
+      orch.setCrosshair(opts);
+    } else {
+      this.emit('crosshairChange', {
+        time: opts.timeMs,
+        price: opts.price ?? null,
+        ohlcv: null,
+      });
+    }
+    return this;
+  }
+
   /** Emit `crosshairChange` null (workspace link clear + integrator hooks). */
   clearCrosshair(): this {
-    this.emit('crosshairChange', null);
+    const orch = this.orchestrator as { clearCrosshair?: () => void };
+    if (typeof orch.clearCrosshair === 'function') {
+      orch.clearCrosshair();
+    } else {
+      this.emit('crosshairChange', null);
+    }
     return this;
   }
 

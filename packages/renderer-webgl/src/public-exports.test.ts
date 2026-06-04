@@ -24,6 +24,7 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'priceRangeForBars',
   'maxVolumeForBars',
   'priceToY',
+  'yToPrice',
   'buildMainOverlayLineSpecs',
   'WebGLDrawingLayer',
   'barIndexForTimeMs',

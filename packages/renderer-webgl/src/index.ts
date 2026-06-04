@@ -54,5 +54,6 @@ export {
   priceRangeForBars,
   maxVolumeForBars,
   priceToY,
+  yToPrice,
 } from './price-scale.js';
-export type { PriceRange } from './price-scale.js';
+export type { PriceRange, PriceScaleMode } from './price-scale.js';

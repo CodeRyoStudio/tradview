@@ -25,7 +25,7 @@ describe('RC API freeze (apiVersion 2 @ 2.0.0-rc)', () => {
 
   it('minimal chart feature defaults', () => {
     expect(resolveChartFeatures()).toEqual(DEFAULT_CHART_FEATURES);
-    expect(DEFAULT_CHART_FEATURES.renderer).toBe('lite');
+    expect(DEFAULT_CHART_FEATURES.renderer).toBe('webgl');
     expect(DEFAULT_CHART_FEATURES.indicators).toBeNull();
     expect(DEFAULT_CHART_FEATURES.drawings.layer).toBe(false);
     expect(DEFAULT_CHART_FEATURES.gaps.whitespace).toBe(false);

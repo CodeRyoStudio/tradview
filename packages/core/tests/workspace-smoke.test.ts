@@ -10,6 +10,7 @@ vi.mock('../src/create-chart.js', () => {
     setInterval: vi.fn().mockResolvedValue(undefined),
     setVisibleRange: vi.fn().mockReturnThis(),
     scrollToTimestamp: vi.fn().mockReturnThis(),
+    setCrosshair: vi.fn().mockReturnThis(),
     clearCrosshair: vi.fn().mockReturnThis(),
   });
   return { createChart: vi.fn(() => makeChart()) };
@@ -29,6 +30,7 @@ type MockChart = {
   setInterval: ReturnType<typeof vi.fn>;
   setVisibleRange: ReturnType<typeof vi.fn>;
   scrollToTimestamp: ReturnType<typeof vi.fn>;
+  setCrosshair: ReturnType<typeof vi.fn>;
   clearCrosshair: ReturnType<typeof vi.fn>;
 };
 
@@ -69,14 +71,14 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
     expect(c2.setVisibleRange).toHaveBeenCalledWith(range);
 
     ws.applyLinkEvent('c1', { type: 'crosshair', timeMs: 9_000, price: 100 });
-    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(9_000);
+    expect(c2.setCrosshair).toHaveBeenCalledWith({ timeMs: 9_000, price: 100 });
 
     ws.destroy();
     a.remove();
     b.remove();
   });
 
-  it('crosshairChange wiring invokes scrollToTimestamp on peer', () => {
+  it('crosshairChange wiring invokes setCrosshair on peer', () => {
     const ws = new ChartWorkspace({ dataProvider: stubProvider });
     const a = document.createElement('div');
     const b = document.createElement('div');
@@ -93,7 +95,7 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
 
     const handler = getCrosshairHandler(c1);
     handler?.({ time: 42_000, price: 50 });
-    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(42_000);
+    expect(c2.setCrosshair).toHaveBeenCalledWith({ timeMs: 42_000, price: 50 });
 
     ws.destroy();
     a.remove();
@@ -133,8 +135,8 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
     const handler = getCrosshairHandler(c1);
     handler?.({ time: 42_000, price: 1 });
     handler?.({ time: 42_000, price: 2 });
-    expect(c2.scrollToTimestamp).toHaveBeenCalledTimes(1);
-    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(42_000);
+    expect(c2.setCrosshair).toHaveBeenCalledTimes(1);
+    expect(c2.setCrosshair).toHaveBeenCalledWith({ timeMs: 42_000, price: 1 });
 
     ws.destroy();
     a.remove();
@@ -154,12 +156,12 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
 
     ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: false } });
     handler?.({ time: 42_000, price: 1 });
-    expect(c2.scrollToTimestamp).not.toHaveBeenCalled();
+    expect(c2.setCrosshair).not.toHaveBeenCalled();
 
     ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: true } });
     handler?.({ time: 42_000, price: 1 });
-    expect(c2.scrollToTimestamp).toHaveBeenCalledTimes(1);
-    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(42_000);
+    expect(c2.setCrosshair).toHaveBeenCalledTimes(1);
+    expect(c2.setCrosshair).toHaveBeenCalledWith({ timeMs: 42_000, price: 1 });
 
     ws.destroy();
     a.remove();
@@ -178,7 +180,7 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
     ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: false } });
 
     getCrosshairHandler(c1)?.({ time: 1, price: 1 });
-    expect(c2.scrollToTimestamp).not.toHaveBeenCalled();
+    expect(c2.setCrosshair).not.toHaveBeenCalled();
 
     ws.destroy();
     a.remove();

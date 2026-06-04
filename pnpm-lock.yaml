@@ -400,6 +400,9 @@ importers:
       '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
+      '@coderyo/renderer-lite':
+        specifier: workspace:*
+        version: link:../renderer-lite
       '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig

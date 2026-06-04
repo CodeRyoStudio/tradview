@@ -242,6 +242,10 @@ export class WebGLPaneOrchestrator {
     return this.indicatorConfig;
   }
 
+  setLogScale(enabled: boolean): void {
+    this.pane?.setLogScale(enabled);
+  }
+
   /** Indicator pane viewports (tests). */
   getIndicatorViewports(): import('./chart-viewport.js').ChartViewport[] {
     return this.indicators?.getPaneViewports() ?? [];

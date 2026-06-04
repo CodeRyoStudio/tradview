@@ -1,6 +1,17 @@
 import type { Bar } from '@coderyo/data';
-import type { Interval } from '@coderyo/data';
+import { intervalMs, type Interval } from '@coderyo/data';
 import { DEFAULT_INDICATOR_CONFIG, type IndicatorConfig } from '@coderyo/indicators';
+import {
+  computePrependSliceDeltaForViewport,
+  type CrosshairPayload,
+} from '@coderyo/renderer-lite';
+import {
+  priceRangeForBars,
+  priceToY as mapPriceToY,
+  yToPrice as mapYToPrice,
+  type PriceRange,
+  type PriceScaleMode,
+} from '@coderyo/renderer-webgl';
 import {
   WebGLPaneOrchestrator,
   barIndexForTimeMs,
@@ -30,6 +41,9 @@ export class WebGLChartRenderBackend {
   private offBusTransform: (() => void) | null = null;
   /** One-shot clear from {@link subscribeCrosshair} (symbol reload / clearBars). */
   private crosshairEmitClear: (() => void) | null = null;
+  private readonly crosshairListeners = new Set<(payload: CrosshairPayload | null) => void>();
+  private programmaticCrosshair: CrosshairPayload | null = null;
+  private logScaleEnabled = false;
   private syncingBusFromViewport = false;
   constructor(
     private readonly container: HTMLElement,
@@ -122,11 +136,11 @@ export class WebGLChartRenderBackend {
   }
 
   setSmoothPriceUpdate(_enabled: boolean, _durationMs: number): void {
-    /* smooth animator is LWC-only */
+    /* BarSmoothAnimator is LWC-only; flag stored on ChartFeatures for lite path */
   }
 
   setPinePlots(_plots: unknown): void {
-    /* Pine overlay not on WebGL @ R12 */
+    /* Pine script plots render on lite; WebGL uses main-chart MA/BOLL overlays @ GA */
   }
 
   setResizeFocusPanes(_panes: ChartPaneId[] | null): void {
@@ -146,11 +160,26 @@ export class WebGLChartRenderBackend {
   }
 
   compensatePrependForBuses(
-    _sortedTimesBefore: readonly number[],
-    _sortedTimesAfter: readonly number[],
-    _interval: Interval,
+    sortedTimesBefore: readonly number[],
+    sortedTimesAfter: readonly number[],
+    interval: Interval,
   ): void {
-    /* prepend compensation is LWC path */
+    const range = this.busRegistry.getOrCreateBus('main').getVisibleRange();
+    const vp = this.orchestrator.getViewport();
+    if (!range || !vp || this.bars.length === 0) return;
+
+    const delta = computePrependSliceDeltaForViewport({
+      sortedTimesBefore,
+      sortedTimesAfter,
+      visibleFromMs: range.fromMs,
+      visibleToMs: range.toMs,
+      intervalMs: intervalMs(interval),
+    });
+    if (delta <= 0) return;
+
+    vp.setVisibleRange(vp.visibleFrom + delta, vp.visibleTo + delta);
+    this.syncBusFromViewport();
+    this.orchestrator.render();
   }
 
   updateLastBar(bar: Bar, _opts?: { animate?: boolean }): boolean {
@@ -214,8 +243,9 @@ export class WebGLChartRenderBackend {
     this.orchestrator.render();
   }
 
-  setLogScale(_enabled: boolean): void {
-    /* log scale not on WebGL @ R12 */
+  setLogScale(enabled: boolean): void {
+    this.logScaleEnabled = enabled;
+    this.orchestrator.setLogScale(enabled);
   }
 
   getOverlayCanvas(): HTMLCanvasElement | null {
@@ -232,21 +262,9 @@ export class WebGLChartRenderBackend {
   priceToY(price: number): number | null {
     const metrics = this.orchestrator.getMainPaneLayoutMetrics();
     if (!metrics) return null;
-    const vp = this.orchestrator.getViewport();
-    if (!vp || this.bars.length === 0) return null;
-    const { from, to } = vp.visibleBarIndexRange();
-    let min = Infinity;
-    let max = -Infinity;
-    for (let i = from; i <= to; i++) {
-      const b = this.bars[i];
-      if (!b) continue;
-      min = Math.min(min, b.l);
-      max = Math.max(max, b.h);
-    }
-    if (!Number.isFinite(min)) return null;
-    const span = max - min || 1;
-    const t = (price - min) / span;
-    return metrics.mainPaneHeight * (1 - t);
+    const range = this.visiblePriceRange();
+    if (!range) return null;
+    return mapPriceToY(price, range, 0, metrics.mainPaneHeight, this.priceScaleMode());
   }
 
   timeToX(tMs: number): number | null {
@@ -270,34 +288,68 @@ export class WebGLChartRenderBackend {
 
   yToPrice(y: number): number | null {
     const metrics = this.orchestrator.getMainPaneLayoutMetrics();
-    const vp = this.orchestrator.getViewport();
-    if (!metrics || !vp || this.bars.length === 0) return null;
-    const { from, to } = vp.visibleBarIndexRange();
-    let min = Infinity;
-    let max = -Infinity;
-    for (let i = from; i <= to; i++) {
-      const b = this.bars[i];
-      if (!b) continue;
-      min = Math.min(min, b.l);
-      max = Math.max(max, b.h);
-    }
-    if (!Number.isFinite(min)) return null;
-    const span = max - min || 1;
-    const t = (metrics.mainPaneHeight - y) / metrics.mainPaneHeight;
-    return min + t * span;
+    if (!metrics) return null;
+    const range = this.visiblePriceRange();
+    if (!range) return null;
+    return mapYToPrice(y, range, 0, metrics.mainPaneHeight, this.priceScaleMode());
+  }
+
+  /** Programmatic crosshair (workspace link sync; DESIGN §4.6). */
+  setCrosshair(opts: { timeMs: number; price?: number | null }): void {
+    const bar = this.bars.find((b) => b.t === opts.timeMs) ?? this.nearestBar(opts.timeMs);
+    const price =
+      opts.price ??
+      (bar ? bar.c : null) ??
+      this.yToPrice(this.orchestrator.getMainPaneLayoutMetrics()?.mainPaneHeight ?? 0);
+    this.programmaticCrosshair = {
+      time: opts.timeMs,
+      price,
+      ohlcv: bar
+        ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
+        : null,
+    };
+    this.notifyCrosshairListeners(this.programmaticCrosshair);
+  }
+
+  clearCrosshair(): void {
+    this.programmaticCrosshair = null;
+    this.crosshairEmitClear?.();
   }
 
   subscribeCrosshair(handler: (payload: unknown) => void): () => void {
-    const dpr = globalThis.devicePixelRatio ?? 1;
-    let crosshairActive = false;
-
-    const emitClear = (): void => {
-      if (!crosshairActive) return;
-      crosshairActive = false;
-      handler(null);
+    const listener = handler as (payload: CrosshairPayload | null) => void;
+    this.crosshairListeners.add(listener);
+    if (this.crosshairListeners.size === 1) {
+      this.attachPointerCrosshair();
+    }
+    return () => {
+      this.crosshairListeners.delete(listener);
+      if (this.crosshairListeners.size === 0) {
+        this.detachPointerCrosshair();
+      }
     };
+  }
 
-    const onMove = (e: PointerEvent) => {
+  /** Emit crosshair clear when bar series transitions to empty (reload), not on every move. */
+  private onBarsBecameEmpty(): void {
+    this.programmaticCrosshair = null;
+    this.notifyCrosshairListeners(null);
+  }
+
+  private pointerMove: ((e: PointerEvent) => void) | null = null;
+  private pointerLeave: (() => void) | null = null;
+  private crosshairActive = false;
+
+  private attachPointerCrosshair(): void {
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    const emitClear = (): void => {
+      if (!this.crosshairActive) return;
+      this.crosshairActive = false;
+      this.programmaticCrosshair = null;
+      this.notifyCrosshairListeners(null);
+    };
+    this.crosshairEmitClear = emitClear;
+    this.pointerMove = (e: PointerEvent) => {
       if (this.bars.length === 0) return;
       const rect = this.container.getBoundingClientRect();
       const x = (e.clientX - rect.left) * dpr;
@@ -309,29 +361,45 @@ export class WebGLChartRenderBackend {
       }
       const price = this.yToPrice(y);
       const bar = this.bars.find((b) => b.t === time) ?? this.nearestBar(time);
-      crosshairActive = true;
-      handler({
+      this.crosshairActive = true;
+      this.programmaticCrosshair = {
         time,
         price,
         ohlcv: bar
           ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
           : null,
-      });
+      };
+      this.notifyCrosshairListeners(this.programmaticCrosshair);
     };
-    const onLeave = () => emitClear();
-    this.crosshairEmitClear = emitClear;
-    this.container.addEventListener('pointermove', onMove);
-    this.container.addEventListener('pointerleave', onLeave);
-    return () => {
-      this.crosshairEmitClear = null;
-      this.container.removeEventListener('pointermove', onMove);
-      this.container.removeEventListener('pointerleave', onLeave);
-    };
+    this.pointerLeave = () => emitClear();
+    this.container.addEventListener('pointermove', this.pointerMove);
+    this.container.addEventListener('pointerleave', this.pointerLeave);
   }
 
-  /** Emit crosshair clear when bar series transitions to empty (reload), not on every move. */
-  private onBarsBecameEmpty(): void {
-    this.crosshairEmitClear?.();
+  private detachPointerCrosshair(): void {
+    this.crosshairEmitClear = null;
+    if (this.pointerMove) this.container.removeEventListener('pointermove', this.pointerMove);
+    if (this.pointerLeave) this.container.removeEventListener('pointerleave', this.pointerLeave);
+    this.pointerMove = null;
+    this.pointerLeave = null;
+    this.crosshairActive = false;
+  }
+
+  private notifyCrosshairListeners(payload: CrosshairPayload | null): void {
+    for (const listener of this.crosshairListeners) {
+      listener(payload);
+    }
+  }
+
+  private visiblePriceRange(): PriceRange | null {
+    const vp = this.orchestrator.getViewport();
+    if (!vp || this.bars.length === 0) return null;
+    const { from, to } = vp.visibleBarIndexRange();
+    return priceRangeForBars(this.bars, from, to, this.priceScaleMode());
+  }
+
+  private priceScaleMode(): PriceScaleMode {
+    return this.logScaleEnabled ? 'log' : 'linear';
   }
 
   private nearestBar(tMs: number): Bar | undefined {

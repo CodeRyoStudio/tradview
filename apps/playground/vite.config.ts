@@ -8,6 +8,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         webglDemo: resolve(__dirname, 'webgl-demo.html'),
         multiChart: resolve(__dirname, 'multi-chart.html'),
+        workspace: resolve(__dirname, 'workspace.html'),
       },
     },
   },
