@@ -1,0 +1,15 @@
+{
+  "version": "1.1",
+  "type": "history.response",
+  "id": "req-550e8400-e29b-41d4-a716-446655440000",
+  "ok": true,
+  "data": {
+    "symbol": "BINANCE:BTCUSDT",
+    "interval": "1h",
+    "bars": [
+      { "t": 1718000000000, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100 }
+    ],
+    "hasMore": true,
+    "nextCursor": "opaque-cursor-string"
+  }
+}

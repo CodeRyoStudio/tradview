@@ -1,0 +1,176 @@
+// TradView data protocol — single source of truth for v1.1 WS Protobuf (PR-02b).
+// JSON field names in @coderyo/data types.ts are canonical for REST/WS JSON;
+// proto uses snake_case wire names with documented field numbers.
+//
+// Full encode/decode runtime: PR-02b-2. REST v1.1 uses RestEnvelopeV11 (TypeScript only).
+
+syntax = "proto3";
+
+package tradview.ws;
+
+// ---------------------------------------------------------------------------
+// Bar (aligns with packages/data/src/types.ts Bar)
+// ---------------------------------------------------------------------------
+// | # | proto field | JSON   | TS      | Notes              |
+// |---|-------------|--------|---------|--------------------|
+// | 1 | t           | t      | t       | open time ms UTC   |
+// | 2 | o           | o      | o       | open               |
+// | 3 | h           | h      | h       | high               |
+// | 4 | l           | l      | l       | low                |
+// | 5 | c           | c      | c       | close              |
+// | 6 | v           | v      | v?      | volume (optional)  |
+message Bar {
+  int64 t = 1;
+  double o = 2;
+  double h = 3;
+  double l = 4;
+  double c = 5;
+  optional double v = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Capabilities (aligns with DataProviderCapabilities)
+// ---------------------------------------------------------------------------
+// | # | proto field      | JSON            | TS               |
+// |---|------------------|-----------------|------------------|
+// | 1 | history_modes    | historyModes    | historyModes     |
+// | 2 | realtime_modes   | realtimeModes   | realtimeModes    |
+// | 3 | ws_history       | wsHistory       | wsHistory?       |
+// | 4 | symbol_search    | symbolSearch    | symbolSearch?    |
+// | 5 | encoding         | encoding        | encoding?        |
+message Capabilities {
+  repeated string history_modes = 1;
+  repeated string realtime_modes = 2;
+  optional bool ws_history = 3;
+  optional bool symbol_search = 4;
+  repeated string encoding = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Subscribe (aligns with SubscribePayload / SubscribeOkPayload)
+// ---------------------------------------------------------------------------
+message SubscribePayload {
+  string symbol = 1;
+  string interval = 2;
+  repeated string channels = 3;
+  optional string stream_mode = 4;
+}
+
+message SubscribeOkPayload {
+  string subscription_id = 1;
+  string symbol = 2;
+  string interval = 3;
+}
+
+message UnsubscribePayload {
+  string subscription_id = 1;
+}
+
+message UnsubscribeOkPayload {
+  string subscription_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// History (aligns with HistoryRequestPayload / HistoryResponsePayload)
+// ---------------------------------------------------------------------------
+message HistoryRequestPayload {
+  string symbol = 1;
+  string interval = 2;
+  int64 from = 3;
+  int64 to = 4;
+  optional int32 limit = 5;
+}
+
+message HistoryResponsePayload {
+  repeated Bar bars = 1;
+  bool has_more = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Realtime push (aligns with BarPushPayload / TickPushPayload)
+// ---------------------------------------------------------------------------
+message Tick {
+  int64 t = 1;
+  double price = 2;
+  double size = 3;
+}
+
+message BarPushPayload {
+  string subscription_id = 1;
+  Bar bar = 2;
+  optional bool partial = 3;
+  optional string bar_seq = 4;
+}
+
+message TickPushPayload {
+  string subscription_id = 1;
+  Tick tick = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Auth (DESIGN §8.3)
+// ---------------------------------------------------------------------------
+message AuthPayload {
+  string token = 1;
+  optional string client_id = 2;
+}
+
+message AuthOkPayload {
+  string session_id = 1;
+}
+
+// Same wire shape as AuthPayload (DESIGN §8.3.1 auth.refresh).
+message AuthRefreshPayload {
+  string token = 1;
+  optional string client_id = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Protocol error (WS type "error", REST RestEnvelopeErrorV11 subset)
+// ---------------------------------------------------------------------------
+message ProtocolErrorPayload {
+  string code = 1;
+  string message = 2;
+  optional int32 retry_after_ms = 3;
+}
+
+// Empty body for ping/pong and similar acks.
+message EmptyPayload {}
+
+// ---------------------------------------------------------------------------
+// Envelope — mirrors JSON WS envelope (DESIGN §8.1)
+// ---------------------------------------------------------------------------
+// | # | proto field | JSON    | TS (Envelope) |
+// |---|-------------|---------|---------------|
+// | 1 | v           | v       | v             |
+// | 2 | id          | id?     | id?           |
+// | 3 | type        | type    | type          |
+// | 4 | ts          | ts?     | ts?           |
+// | * | body oneof  | payload | payload       |
+//
+// When encoding to JSON, the active oneof arm is serialized as `payload`.
+// When encoding to Protobuf (PR-02b-2), `type` must match the populated oneof arm.
+message Envelope {
+  string v = 1;
+  optional string id = 2;
+  string type = 3;
+  optional int64 ts = 4;
+
+  oneof body {
+    SubscribePayload subscribe = 10;
+    SubscribeOkPayload subscribe_ok = 11;
+    UnsubscribePayload unsubscribe = 12;
+    UnsubscribeOkPayload unsubscribe_ok = 13;
+    HistoryRequestPayload history_request = 14;
+    HistoryResponsePayload history_response = 15;
+    BarPushPayload bar = 16;
+    TickPushPayload tick = 17;
+    Capabilities capabilities = 18;
+    ProtocolErrorPayload error = 19;
+    AuthPayload auth = 20;
+    AuthOkPayload auth_ok = 21;
+    EmptyPayload pong = 22;
+    EmptyPayload ping = 23;
+    AuthRefreshPayload auth_refresh = 24;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "version": "1.1",
+  "type": "history.response",
+  "id": "req-550e8400-e29b-41d4-a716-446655440001",
+  "ok": false,
+  "error": {
+    "code": "SYMBOL_NOT_FOUND",
+    "message": "Unknown symbol: FAKE:PAIR"
+  }
+}

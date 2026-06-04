@@ -1,0 +1,12 @@
+{
+  "v": "1.0",
+  "id": "c-10",
+  "type": "subscribe",
+  "ts": 1710000000000,
+  "payload": {
+    "symbol": "BINANCE:BTCUSDT",
+    "interval": "1m",
+    "channels": ["bar"],
+    "streamMode": "bar"
+  }
+}

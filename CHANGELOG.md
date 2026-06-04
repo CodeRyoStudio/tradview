@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **PR-02b-1 (`@coderyo/data`)**: `packages/data/proto/tradview.proto` (`tradview.ws.Envelope`, `Bar`, subscribe/history/capabilities/auth payloads incl. `auth_refresh`); REST v1.1 `RestEnvelopeV11` types + parsers/builders (`validateRestEnvelopeV11`, `history.request` fixture); JSON fixtures under `tests/fixtures/protocol-v11/`; parity tests; `proto/**` shipped in npm `files`; `DESIGN.md` §8.2 errata → DESIGN-v2 §4.4 REST wire shape. **No** WS protobuf codec or `ChartFeatures.protobuf` wiring (PR-02b-2).
 - **V2 foundation (V2-00 / V2-00b)**: `scripts/rc-version-gates.mjs` + `check-rc` skips `check:lwc-size` when `VERSION` is `2.0.0` or `2.0.0-rc.N`; `scripts/check-rc.test.mjs`; `pnpm arch:boundary` (`packages/core/tests/arch-boundary.test.ts`)
 
 ## [1.1.2] - 2026-06-04

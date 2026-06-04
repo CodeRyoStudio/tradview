@@ -732,7 +732,9 @@ sequenceDiagram
 - 請求：`X-TradView-Protocol-Version: 1.0`
 - 回應可選：`X-TradView-Protocol-Version: 1.0`
 - **v1.0 REST**：body **扁平 JSON**（非 Envelope）。
-- **v1.1 REST**：**強制 Envelope**（與 §8.1 同型）；請求/回應皆含 `v,type,payload`；`X-TradView-Protocol-Version: 1.1`。
+- **v1.1 REST**：**強制 Envelope**；`X-TradView-Protocol-Version: 1.1`。
+  - **Errata（V2 / `@coderyo/data@2`）**：REST v1.1 **線格式**為 `{ version, type, id, ok, data?, error? }`，**不是** WS JSON 的 `v,type,payload`。語義與 §8.1 對齊，線型見 **[DESIGN-v2.md §4.4](./DESIGN-v2.md#44-協議pr-02b-w1w4-合併對齊-rc2)** 與 `packages/data/proto/README.md`。
+  - **v1.x 草案（已 superseded for V2 REST）**：舊稿曾寫與 §8.1 同型 `v,type,payload` — 僅供歷史對照；實作以 DESIGN-v2 §4.4 為準。
 
 **`GET /api/v1/bars`**
 

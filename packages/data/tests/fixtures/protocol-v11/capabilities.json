@@ -1,0 +1,13 @@
+{
+  "version": "1.1",
+  "type": "capabilities",
+  "id": "req-cap-001",
+  "ok": true,
+  "data": {
+    "historyModes": ["loadMore", "range", "cursor"],
+    "realtimeModes": ["bar", "tick", "bar+tick"],
+    "wsHistory": true,
+    "symbolSearch": true,
+    "encoding": ["json", "protobuf"]
+  }
+}
