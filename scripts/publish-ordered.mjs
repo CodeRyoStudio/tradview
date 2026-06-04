@@ -51,6 +51,14 @@ function pkgDir(name) {
   return resolve(root, map[name]);
 }
 
+function isVersionOnRegistry(name, version) {
+  const r = spawnSync('npm', ['view', `${name}@${version}`, 'version'], {
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
+  return r.status === 0 && r.stdout?.trim() === version;
+}
+
 for (const name of ORDER) {
   const dir = pkgDir(name);
   if (!existsSync(resolve(dir, 'package.json'))) {
@@ -58,6 +66,10 @@ for (const name of ORDER) {
     continue;
   }
   const pkg = JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8'));
+  if (isVersionOnRegistry(name, pkg.version)) {
+    console.log(`\n[publish] skip ${name}@${pkg.version} (already on npm)`);
+    continue;
+  }
   console.log(`\n[publish] ${name}@${pkg.version} …`);
   const r = spawnSync(
     'npm',
