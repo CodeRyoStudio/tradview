@@ -119,6 +119,53 @@ describe('ChartWorkspace smoke (V2-MC4)', () => {
     b.remove();
   });
 
+  it('throttles duplicate crosshair timeMs when sync.crosshair (lastLinkedCrosshairMs)', () => {
+    const ws = new ChartWorkspace({ dataProvider: stubProvider });
+    const a = document.createElement('div');
+    const b = document.createElement('div');
+    document.body.append(a, b);
+
+    const c1 = ws.createChart('c1', a, { chartId: 'c1' });
+    ws.createChart('c2', b, { chartId: 'c2' });
+    const c2 = chartAt(1);
+    ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: true } });
+
+    const handler = getCrosshairHandler(c1);
+    handler?.({ time: 42_000, price: 1 });
+    handler?.({ time: 42_000, price: 2 });
+    expect(c2.scrollToTimestamp).toHaveBeenCalledTimes(1);
+    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(42_000);
+
+    ws.destroy();
+    a.remove();
+    b.remove();
+  });
+
+  it('re-fans crosshair when sync.crosshair re-enabled at same bar time', () => {
+    const ws = new ChartWorkspace({ dataProvider: stubProvider });
+    const a = document.createElement('div');
+    const b = document.createElement('div');
+    document.body.append(a, b);
+
+    const c1 = ws.createChart('c1', a, { chartId: 'c1' });
+    ws.createChart('c2', b, { chartId: 'c2' });
+    const c2 = chartAt(1);
+    const handler = getCrosshairHandler(c1);
+
+    ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: false } });
+    handler?.({ time: 42_000, price: 1 });
+    expect(c2.scrollToTimestamp).not.toHaveBeenCalled();
+
+    ws.setLinkGroup({ id: 'g', chartIds: ['c1', 'c2'], sync: { crosshair: true } });
+    handler?.({ time: 42_000, price: 1 });
+    expect(c2.scrollToTimestamp).toHaveBeenCalledTimes(1);
+    expect(c2.scrollToTimestamp).toHaveBeenCalledWith(42_000);
+
+    ws.destroy();
+    a.remove();
+    b.remove();
+  });
+
   it('does not fan-out crosshair when sync.crosshair is false', () => {
     const ws = new ChartWorkspace({ dataProvider: stubProvider });
     const a = document.createElement('div');

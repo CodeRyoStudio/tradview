@@ -132,6 +132,16 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   let crosshairPending: CrosshairPayload | null = null;
   const throttleMs = opts.crosshairThrottleMs ?? 0;
 
+  const postCrosshairClear = () => {
+    post('chart.crosshair', {
+      chartId,
+      time: null,
+      price: null,
+      symbol: controller.getSymbol(),
+      interval: controller.getInterval(),
+    });
+  };
+
   const flushCrosshair = () => {
     crosshairTimer = null;
     const p = crosshairPending;
@@ -172,7 +182,15 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   });
   handlers.set('crosshairChange', (payload) => {
     const p = payload as CrosshairPayload | null;
-    if (!p) return;
+    if (!p) {
+      crosshairPending = null;
+      if (crosshairTimer) {
+        clearTimeout(crosshairTimer);
+        crosshairTimer = null;
+      }
+      postCrosshairClear();
+      return;
+    }
     if (throttleMs <= 0) {
       post('chart.crosshair', {
         chartId,

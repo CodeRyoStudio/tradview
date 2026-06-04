@@ -145,24 +145,7 @@ export class ChartWorkspace {
       }
     });
     chart.on('crosshairChange', (payload) => {
-      const p = payload as { time?: number; price?: number | null } | null;
-      if (p?.time != null) {
-        const last = this.lastLinkedCrosshairMs.get(chartId);
-        if (last === p.time) return;
-        this.lastLinkedCrosshairMs.set(chartId, p.time);
-        this.applyLinkEvent(chartId, {
-          type: 'crosshair',
-          timeMs: p.time,
-          price: p.price ?? null,
-        });
-        return;
-      }
-      this.lastLinkedCrosshairMs.delete(chartId);
-      this.applyLinkEvent(chartId, {
-        type: 'crosshair',
-        timeMs: null,
-        price: null,
-      });
+      this.onChartCrosshairChange(chartId, payload);
     });
     chart.on('destroyed', () => {
       this.charts.delete(chartId);
@@ -214,6 +197,9 @@ export class ChartWorkspace {
 
   setLinkGroup(group: LinkGroup): void {
     this.linkGroup = { ...group, generation: group.generation ?? this.linkGeneration };
+    if (group.sync.crosshair) {
+      this.lastLinkedCrosshairMs.clear();
+    }
     this.options.bridge?.post({
       type: 'chart.linkStateChanged',
       payload: {
@@ -279,6 +265,36 @@ export class ChartWorkspace {
   /** @internal Used by workspace bridge (V2-B4). */
   resolveContainer(containerId: string): HTMLElement | null {
     return document.getElementById(containerId);
+  }
+
+  /** @internal Crosshair link fan-out (throttle only when sync.crosshair is active). */
+  onChartCrosshairChange(chartId: string, payload: unknown): void {
+    const p = payload as { time?: number; price?: number | null } | null;
+    const syncCrosshair =
+      this.linkGroup?.sync.crosshair === true &&
+      this.linkGroup.chartIds.includes(chartId);
+
+    if (p?.time != null) {
+      if (syncCrosshair) {
+        const last = this.lastLinkedCrosshairMs.get(chartId);
+        if (last === p.time) return;
+        this.lastLinkedCrosshairMs.set(chartId, p.time);
+      }
+      this.applyLinkEvent(chartId, {
+        type: 'crosshair',
+        timeMs: p.time,
+        price: p.price ?? null,
+      });
+      return;
+    }
+    if (syncCrosshair) {
+      this.lastLinkedCrosshairMs.delete(chartId);
+    }
+    this.applyLinkEvent(chartId, {
+      type: 'crosshair',
+      timeMs: null,
+      price: null,
+    });
   }
 
   /** Called from chart event wiring after symbol/interval applied on source. */

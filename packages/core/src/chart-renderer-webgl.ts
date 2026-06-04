@@ -278,21 +278,27 @@ export class WebGLChartRenderBackend {
 
   subscribeCrosshair(handler: (payload: unknown) => void): () => void {
     const dpr = globalThis.devicePixelRatio ?? 1;
+    let crosshairActive = false;
+
+    const emitClear = (): void => {
+      if (!crosshairActive) return;
+      crosshairActive = false;
+      handler(null);
+    };
+
     const onMove = (e: PointerEvent) => {
-      if (this.bars.length === 0) {
-        handler(null);
-        return;
-      }
+      if (this.bars.length === 0) return;
       const rect = this.container.getBoundingClientRect();
       const x = (e.clientX - rect.left) * dpr;
       const y = (e.clientY - rect.top) * dpr;
       const time = this.xToTime(x);
       if (time == null) {
-        handler(null);
+        emitClear();
         return;
       }
       const price = this.yToPrice(y);
       const bar = this.bars.find((b) => b.t === time) ?? this.nearestBar(time);
+      crosshairActive = true;
       handler({
         time,
         price,
@@ -301,7 +307,7 @@ export class WebGLChartRenderBackend {
           : null,
       });
     };
-    const onLeave = () => handler(null);
+    const onLeave = () => emitClear();
     this.container.addEventListener('pointermove', onMove);
     this.container.addEventListener('pointerleave', onLeave);
     return () => {
