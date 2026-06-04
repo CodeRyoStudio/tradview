@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHECK_RC_STEP_LWC,
+  CHECK_RC_STEP_WEBGL,
   CHECK_RC_STEPS_BASE,
   getCheckRcSteps,
   shouldSkipLwcSizeGate,
@@ -31,6 +32,12 @@ describe('shouldSkipLwcSizeGate (V2-00)', () => {
 });
 
 describe('getCheckRcSteps', () => {
+  it('always includes check:webgl-size (V2-R2)', () => {
+    expect(CHECK_RC_STEPS_BASE).toContain(CHECK_RC_STEP_WEBGL);
+    expect(getCheckRcSteps('1.1.1')).toContain(CHECK_RC_STEP_WEBGL);
+    expect(getCheckRcSteps('2.0.0-rc.1')).toContain(CHECK_RC_STEP_WEBGL);
+  });
+
   it('omits check:lwc-size for 2.0.0-rc.1', () => {
     const steps = getCheckRcSteps('2.0.0-rc.1');
     expect(steps).toEqual(CHECK_RC_STEPS_BASE);

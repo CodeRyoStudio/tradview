@@ -17,12 +17,13 @@ pnpm check:rc
 
 `check:rc` 依根目錄 `VERSION` 執行（見 `scripts/rc-version-gates.mjs`）：
 
-`version:sync` → `build` → `test` → `test:scripts` → `typecheck` → `lint` → `build:cdn` → `check:cdn-size` →（可選）`check:lwc-size`
+`version:sync` → `build` → `test` → `test:scripts` → `typecheck` → `lint` → `check:webgl-size` → `build:cdn` → `check:cdn-size` →（可選）`check:lwc-size`
 
 | 步驟 | 說明 |
 |------|------|
 | `test` | 含 `@coderyo/core` 的 **`arch-boundary.test.ts`**（禁止 core → ui-shell）；**勿**在 `check:rc` 重複跑 `arch:boundary` |
 | `test:scripts` | `scripts/check-rc.test.mjs` — RC 步驟與 LWC skip 邏輯 |
+| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **40 KB**（DESIGN-v2 §8 / V2-R2）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
 | `check:lwc-size` | **僅**當 `VERSION` **不**匹配 `2.0.0` / `2.0.0-rc.N` 時執行（V2 WebGL 線跳過 LWC gate） |
 
 手動邊界檢查（除錯用）：`pnpm arch:boundary`（與 `pnpm test` 內 core 測試相同）。

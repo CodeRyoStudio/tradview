@@ -1,21 +1,29 @@
 export const PACKAGE_NAME = '@coderyo/renderer-webgl' as const;
 
-export interface WebGlRendererOptions {
-  enabled?: boolean;
-}
+export { ChartViewport, DEFAULT_BAR_SPACING, clampBarSpacing } from './chart-viewport.js';
+export type { ChartViewportOptions } from './chart-viewport.js';
 
-/** v2 WebGL renderer stub — enable via feature flag only (PR-22). */
-export function createWebGlRenderer(opts: WebGlRendererOptions = {}): {
-  enabled: boolean;
-  render: () => void;
-  destroy: () => void;
-} {
-  const enabled = opts.enabled ?? false;
-  return {
-    enabled,
-    render: () => {
-      if (!enabled) return;
-    },
-    destroy: () => {},
-  };
-}
+export { WebGL2Context, hasWebGL2 } from './webgl2-context.js';
+export type { WebGL2ContextOptions, CanvasSize } from './webgl2-context.js';
+
+export { CandlestickRenderer } from './candlestick-renderer.js';
+export type { CandlestickRenderParams, PaneRect } from './candlestick-renderer.js';
+
+export { VolumeRenderer } from './volume-renderer.js';
+export type { VolumeRenderParams } from './volume-renderer.js';
+
+export { WebGLChartPane } from './webgl-chart-pane.js';
+export type { WebGLChartPaneOptions } from './webgl-chart-pane.js';
+
+export { WebGLPaneOrchestrator } from './webgl-pane-orchestrator.js';
+export type { WebGLPaneOrchestratorOptions } from './webgl-pane-orchestrator.js';
+
+export { DEFAULT_CHART_THEME, mergeTheme } from './theme.js';
+export type { ChartThemeColors } from './theme.js';
+
+export {
+  priceRangeForBars,
+  maxVolumeForBars,
+  priceToY,
+} from './price-scale.js';
+export type { PriceRange } from './price-scale.js';

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Proposed** |
+| Status | **Proposed** (`phase_alpha` landed — V2-R1–R4b) |
 | Date | 2026-06-04 |
 | Decision | `@coderyo/renderer-webgl` becomes the **primary** chart backend @ TradView **2.0.0 GA** |
 | Related | [DESIGN-v2.md](./DESIGN-v2.md) §4.2, [MIGRATION-2.0.md](./MIGRATION-2.0.md) §4 |
@@ -50,3 +50,8 @@ v1.1.x renders via `@coderyo/renderer-lite` (N× Lightweight Charts + `PaneOrche
 ## 5. Status
 
 **Proposed** — accept @ rc.4 when Playground defaults to webgl and API-FREEZE-2.0 is candidate.
+
+### 5.1 `phase_alpha` (2026-06-04)
+
+- `@coderyo/renderer-webgl`: `WebGL2Context`, `CandlestickRenderer`, `VolumeRenderer`, `ChartViewport`, `WebGLChartPane`, `WebGLPaneOrchestrator`
+- Standalone demo: `apps/playground/webgl-demo.html` (V2-R4b) — **no** `createChart` wiring

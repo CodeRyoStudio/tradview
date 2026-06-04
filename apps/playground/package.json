@@ -19,6 +19,7 @@
     "@coderyo/interaction": "workspace:*",
     "@coderyo/i18n": "workspace:*",
     "@coderyo/ui-shell": "workspace:*",
+    "@coderyo/renderer-webgl": "workspace:*",
     "lightweight-charts": "^5.0.7"
   },
   "devDependencies": {

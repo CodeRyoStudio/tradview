@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **V2-R1–R4b follow-up**: wheel zoom respects `rightPaddingPx`; `check:webgl-size` (40 KB raw gate in `check:rc`); shader compile errors logged once; playground demo uses inline `synthetic-bars` (no `@coderyo/data/mock` barrel); viewport/interaction/export tests; DESIGN-v2 §2.1 baseline updated.
+- **V2-R1–R4b (`@coderyo/renderer-webgl`, `phase_alpha`)**: WebGL2 chart stack — `WebGL2Context` (resize/DPR/context loss), `ChartViewport` (bar spacing, visible logical range, pan/zoom), `CandlestickRenderer`, `VolumeRenderer`, `WebGLChartPane`, `WebGLPaneOrchestrator`; viewport/price-scale tests; optional WebGL integration tests (`describe.skipIf(!hasWebGL2)`). Standalone demo **`apps/playground/webgl-demo.html`** (600 synthetic OHLCV bars via `@coderyo/data/mock`); does **not** wire `createChart`. ADR: [ADR-v2-renderer-webgl.md](./docs/ADR-v2-renderer-webgl.md) §5.1.
 - **PR-02b-1 (`@coderyo/data`)**: `packages/data/proto/tradview.proto` (`tradview.ws.Envelope`, `Bar`, subscribe/history/capabilities/auth payloads incl. `auth_refresh`); REST v1.1 `RestEnvelopeV11` types + parsers/builders (`validateRestEnvelopeV11`, `history.request` fixture); JSON fixtures under `tests/fixtures/protocol-v11/`; parity tests; `proto/**` shipped in npm `files`; `DESIGN.md` §8.2 errata → DESIGN-v2 §4.4 REST wire shape. **No** WS protobuf codec or `ChartFeatures.protobuf` wiring (PR-02b-2).
 - **V2 foundation (V2-00 / V2-00b)**: `scripts/rc-version-gates.mjs` + `check-rc` skips `check:lwc-size` when `VERSION` is `2.0.0` or `2.0.0-rc.N`; `scripts/check-rc.test.mjs`; `pnpm arch:boundary` (`packages/core/tests/arch-boundary.test.ts`)
 

@@ -11,13 +11,18 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "check:webgl-size": "node ../../scripts/check-webgl-size.mjs",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@coderyo/data": "workspace:*"
   },
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",
     "@coderyo/tsconfig": "workspace:*",
+    "happy-dom": "^20.9.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

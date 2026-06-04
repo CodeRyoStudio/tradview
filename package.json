@@ -17,6 +17,7 @@
     "build:cdn": "pnpm --filter @coderyo/cdn-bundle build",
     "check:cdn-size": "node scripts/check-cdn-size.mjs",
     "check:lwc-size": "node scripts/check-lwc-size.mjs",
+    "check:webgl-size": "node scripts/check-webgl-size.mjs",
     "version:sync": "node scripts/sync-versions.mjs",
     "arch:boundary": "pnpm --filter @coderyo/core exec vitest run tests/arch-boundary.test.ts",
     "test:scripts": "vitest run scripts/check-rc.test.mjs",

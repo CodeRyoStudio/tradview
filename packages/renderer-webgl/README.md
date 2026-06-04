@@ -1,0 +1,31 @@
+# @coderyo/renderer-webgl
+
+WebGL2 chart renderer for TradView V2.
+
+## Phase alpha (V2-R1–R4b)
+
+- `WebGLPaneOrchestrator` — main OHLC pane + volume histogram (standalone; not wired to `@coderyo/core`)
+- `WebGLChartPane` — single canvas with pan/zoom
+- Demo: `apps/playground/webgl-demo.html`
+
+## Usage
+
+```ts
+import { WebGLPaneOrchestrator } from '@coderyo/renderer-webgl';
+
+const chart = new WebGLPaneOrchestrator({ debug: false });
+chart.mount(document.getElementById('chart')!);
+chart.setBars(bars);
+// ResizeObserver keeps layout in sync; call chart.destroy() on teardown.
+```
+
+## Tests
+
+```bash
+pnpm --filter @coderyo/renderer-webgl test
+pnpm check:webgl-size   # V2-R2: dist/index.js ≤ 40 KB raw (after build)
+```
+
+**CI policy (`phase_alpha`)**: Viewport, price-scale, interaction, and export allowlist run under happy-dom on every `pnpm test`. WebGL GPU paths (`webgl-integration.test.ts`) require a browser with WebGL2 — they are skipped in default CI; validate locally or in a future browser job before rc cuts.
+
+Package version stays **`1.1.x`** until `VERSION=2.0.0-rc.N` (monorepo `sync-versions`); API is alpha until then.

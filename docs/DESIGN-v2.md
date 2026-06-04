@@ -111,8 +111,8 @@ PR-19 CDN 授權；§10.4 pixel-perfect E2E；**第二原生平台**（若 tripw
 | 主圖 + 量 + 指標 | `renderer-lite` → `PaneOrchestrator` | N×LWC + `TimeScaleBusRegistry`（~970 LOC） |
 | 圖層 Compositor | `ui-shell/layer/*` | Playground **`layerCompositorManaged: true`**（`apps/playground/src/main.ts`） |
 | v1 grid | `layout-schema.ts`、`chart-layout.ts` | **仍公開**；`mountChartLayout` 在 `layerCompositorManaged !== true` 時仍走 `createLayoutGrid` |
-| WebGL | `renderer-webgl/src/index.ts` | stub only |
-| 協議 | `@coderyo/data` | JSON only；無 `proto/` |
+| WebGL | `renderer-webgl` | **`phase_alpha` landed**（V2-R1–R4b）：主圖+量；`webgl-demo.html`；core 未接線 |
+| 協議 | `@coderyo/data` | JSON + **`proto/tradview.proto`**（PR-02b-1）；WS codec 未接 |
 | Bridge | `bridge@2.0.0` | `BRIDGE_SCHEMA_VERSION = 2` |
 | Pine-lite | `pine-lite/builtins.ts` | **7 指標 builtins** + **7 series 識別子**（見 §7） |
 | CDN / LWC gate | `check-cdn-size.mjs` / `check-lwc-size.mjs` | 400 KB / 180 KB |
