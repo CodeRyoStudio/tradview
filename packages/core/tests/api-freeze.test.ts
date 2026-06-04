@@ -7,9 +7,9 @@ import {
   createChart,
 } from '../src/index.js';
 
-describe('RC API freeze (apiVersion 1)', () => {
+describe('RC API freeze (apiVersion 2 @ 2.0.0-rc)', () => {
   it('exports stable version constants', () => {
-    expect(TRADVIEW_API_VERSION).toBe(1);
+    expect(TRADVIEW_API_VERSION).toBe(2);
     expect(TRADVIEW_VERSION).toMatch(/^\d+\.\d+\.\d+(-rc\.\d+)?$/);
   });
 

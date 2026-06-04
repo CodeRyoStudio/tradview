@@ -22,8 +22,8 @@ const EXPECTED_INBOUND_SCHEMA2: Record<BridgeLayerInboundType, true> = {
 const EXPECTED_LAYER_INBOUND = Object.keys(EXPECTED_INBOUND_SCHEMA2) as BridgeLayerInboundType[];
 
 describe('bridge schema 2 layer events', () => {
-  it('BRIDGE_SCHEMA_VERSION is 2', () => {
-    expect(BRIDGE_SCHEMA_VERSION).toBe(2);
+  it('BRIDGE_SCHEMA_VERSION is 3 (layer event shapes unchanged)', () => {
+    expect(BRIDGE_SCHEMA_VERSION).toBe(3);
   });
 
   it('LAYER_HOST_EVENTS matches EXPECTED_INBOUND_SCHEMA2 exhaustively', () => {

@@ -11,7 +11,7 @@
 
 > Narrative: [DESIGN-v2.md](./DESIGN-v2.md) §4.5 · Migration: [MIGRATION-bridge-3.md](./MIGRATION-bridge-3.md) · ADR: [ADR-v2-bridge-schema-3.md](./ADR-v2-bridge-schema-3.md)
 
-**Production note**: `packages/bridge/src/events.ts` still exports `BRIDGE_SCHEMA_VERSION = 2` until V2-B3 switches runtime negotiation.
+**Production note**: `packages/bridge/src/events.ts` exports `BRIDGE_SCHEMA_VERSION = 3` (@ V2-B3). `@coderyo/bridge` npm **`3.0.0-rc.1`**.
 
 ---
 

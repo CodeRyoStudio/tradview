@@ -1,6 +1,5 @@
 /**
- * Bridge schema 3 contract types (skeleton — V2-00b).
- * Production wire format remains schema 2 until V2-B3.
+ * Bridge schema 3 contract types (V2-00b skeleton + V2-B3 runtime).
  * @see docs/bridge-schema-3.md, docs/DESIGN-v2.md §4.5
  */
 
@@ -14,10 +13,7 @@ import {
 
 export const BRIDGE_SCHEMA_VERSION_V3 = 3 as const;
 
-/**
- * Target `apiVersion` in schema-3 `chart.ready` @ TradView 2.0 GA.
- * Production wire still sends `apiVersion: 1` until core bumps `TRADVIEW_API_VERSION` (V2-B3+).
- */
+/** Target `apiVersion` in schema-3 `chart.ready` @ TradView 2.0. */
 export const TRADVIEW_API_VERSION_V2 = 2 as const;
 
 /** Advertised in chart.ready @ schema 3 */

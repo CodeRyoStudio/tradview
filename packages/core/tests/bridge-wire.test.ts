@@ -54,7 +54,10 @@ describe('wireChartBridge host.setChartPaneResizeFocus', () => {
     });
 
     posted.length = 0;
-    dispatch({ type: 'host.setChartPaneResizeFocus', payload: { pane: 'invalid' } });
+    dispatch({
+      type: 'host.setChartPaneResizeFocus',
+      payload: { chartId: 'test-chart', pane: 'invalid' },
+    });
 
     expect(setChartPaneResizeFocus).not.toHaveBeenCalled();
     const err = posted.find((p) => p.type === 'chart.error');
@@ -78,7 +81,10 @@ describe('wireChartBridge host.setChartPaneResizeFocus', () => {
 
     wireChartBridge({ controller, chart, bridge: adapter, chartId: 'c1' });
     posted.length = 0;
-    dispatch({ type: 'host.setChartPaneResizeFocus', payload: { pane: 'volume' } });
+    dispatch({
+      type: 'host.setChartPaneResizeFocus',
+      payload: { chartId: 'c1', pane: 'volume' },
+    });
     expect(setChartPaneResizeFocus).toHaveBeenCalledWith('volume');
     expect(posted.some((p) => p.type === 'chart.error')).toBe(false);
   });

@@ -15,8 +15,8 @@ const BRIDGE_INBOUND_CONTRACT: Record<BridgeInboundType, true> = Object.fromEntr
 const EXPECTED_INBOUND = [...BRIDGE_INBOUND_EVENTS] as BridgeInboundType[];
 
 describe('@coderyo/bridge contract', () => {
-  it('schema version is 2', () => {
-    expect(BRIDGE_SCHEMA_VERSION).toBe(2);
+  it('schema version is 3 (V2-B3)', () => {
+    expect(BRIDGE_SCHEMA_VERSION).toBe(3);
   });
 
   it('BRIDGE_INBOUND_EVENTS is exhaustive for BridgeInboundType', () => {

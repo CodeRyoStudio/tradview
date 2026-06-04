@@ -27,9 +27,9 @@ function loadFixture<T>(name: string): T {
 }
 
 describe('bridge schema 3 — contract vs docs/fixtures', () => {
-  it('production BRIDGE_SCHEMA_VERSION remains 2 until V2-B3', () => {
-    expect(BRIDGE_SCHEMA_VERSION).toBe(2);
-    expect(BRIDGE_SCHEMA_VERSION_V3).toBe(3);
+  it('production BRIDGE_SCHEMA_VERSION is 3 @ V2-B3', () => {
+    expect(BRIDGE_SCHEMA_VERSION).toBe(3);
+    expect(BRIDGE_SCHEMA_VERSION_V3).toBe(BRIDGE_SCHEMA_VERSION);
   });
 
   it('SCHEMA3_CHART_SCOPED_HOST_EVENTS equals BRIDGE_INBOUND_EVENTS (schema 2 parity)', () => {

@@ -136,7 +136,7 @@ describe('bridge layer wire', () => {
     unregisterChartLayerBridge('other');
   });
 
-  it('chart.ready advertises schema 2 and layerApi', () => {
+  it('chart.ready advertises schema 3 and layerApi', () => {
     const { adapter, posted } = createMockBridge();
     const chart = { on: vi.fn(), off: vi.fn() } as unknown as IChart;
     const controller = {
@@ -154,7 +154,12 @@ describe('bridge layer wire', () => {
     });
 
     const ready = posted.find((p) => p.type === 'chart.ready');
-    expect(ready?.payload?.bridgeSchemaVersion).toBe(2);
+    expect(ready?.payload?.bridgeSchemaVersion).toBe(3);
+    expect(ready?.payload?.apiVersion).toBe(2);
+    expect(ready?.payload?.workspaceId).toBe('default');
+    expect(ready?.payload?.charts).toEqual([
+      expect.objectContaining({ chartId: 'default', active: true }),
+    ]);
     expect(ready?.payload?.layerApi).toEqual(LAYER_API_READY);
   });
 
@@ -641,7 +646,10 @@ describe('bridge layer wire', () => {
     expect(getChartLayerBridgeState('default')?.visitedPageIds.has('page-2')).toBe(true);
 
     apply.mockClear();
-    dispatch({ type: 'host.setSymbol', payload: { symbol: 'ETHUSDT' } });
+    dispatch({
+      type: 'host.setSymbol',
+      payload: { chartId: 'default', symbol: 'ETHUSDT' },
+    });
     expect(setSymbol).toHaveBeenCalledWith('ETHUSDT');
     expect(getChartLayerBridgeState('default')?.visitedPageIds.size).toBe(0);
 
@@ -685,7 +693,10 @@ describe('bridge layer wire', () => {
       payload: { chartId: 'default', pageId: 'page-2' },
     });
     apply.mockClear();
-    dispatch({ type: 'host.setInterval', payload: { interval: '4h' } });
+    dispatch({
+      type: 'host.setInterval',
+      payload: { chartId: 'default', interval: '4h' },
+    });
     expect(setInterval).toHaveBeenCalledWith('4h');
     expect(getChartLayerBridgeState('default')?.visitedPageIds.size).toBe(0);
 

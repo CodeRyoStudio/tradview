@@ -1,4 +1,4 @@
-export const BRIDGE_SCHEMA_VERSION = 2 as const;
+export const BRIDGE_SCHEMA_VERSION = 3 as const;
 
 /** Chart pane id for `host.layer.*` (maps to `chart.main` / `chart.volume` / `chart.indicator`). */
 export type BridgeLayerPane = 'main' | 'volume' | 'indicator';
@@ -57,6 +57,9 @@ export const LAYER_API_READY = {
 
 export type BridgeOutboundType =
   | 'chart.ready'
+  | 'chart.workspaceReady'
+  | 'chart.focusChanged'
+  | 'chart.linkStateChanged'
   | 'chart.resize'
   | 'chart.connectionChange'
   | 'chart.destroyed'

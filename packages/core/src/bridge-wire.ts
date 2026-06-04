@@ -3,9 +3,14 @@ import {
   BRIDGE_SCHEMA_VERSION,
   isBridgeInbound,
   isBridgeLayerInboundType,
-  LAYER_API_READY,
+  isChartScopedHostEvent,
+  isWorkspaceHostEvent,
+  LAYER_API_READY_V3,
+  readInboundBridgeSchemaVersion,
+  readPayloadChartId,
   type BridgeInboundType,
   type BridgeOutboundType,
+  type ChartSummaryV3,
 } from '@coderyo/bridge';
 import {
   clearLayerBridgeVisitedPages,
@@ -21,7 +26,7 @@ import type { ChartController, ChartEvent } from './chart-controller.js';
 import type { IChart } from './create-chart.js';
 import { TRADVIEW_VERSION } from './version.js';
 
-export const TRADVIEW_API_VERSION = 1 as const;
+export const TRADVIEW_API_VERSION = 2 as const;
 
 const DRAWING_TOOLS = new Set<DrawingTool>([
   'cursor',
@@ -51,6 +56,9 @@ export interface WireChartBridgeOptions {
   chart: IChart;
   bridge: BridgeAdapter;
   chartId?: string;
+  workspaceId?: string;
+  /** Workspace chart list advertised in `chart.ready` / `chart.workspaceReady`. */
+  charts?: ChartSummaryV3[];
   /** Allowlist of outbound bridge events; default all mapped events. */
   outboundEvents?: BridgeOutboundType[];
   crosshairThrottleMs?: number;
@@ -72,13 +80,35 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     bridge.post({ type, payload });
   };
 
+  const workspaceId = opts.workspaceId ?? 'default';
+  const symbol =
+    typeof controller.getSymbol === 'function' ? controller.getSymbol() || undefined : undefined;
+  const interval =
+    typeof controller.getInterval === 'function'
+      ? controller.getInterval() || undefined
+      : undefined;
+  const charts: ChartSummaryV3[] = opts.charts ?? [
+    {
+      chartId,
+      symbol,
+      interval,
+      active: true,
+    },
+  ];
+
   post('chart.ready', {
     chartId,
     bridgeSchemaVersion: BRIDGE_SCHEMA_VERSION,
     apiVersion: TRADVIEW_API_VERSION,
+    workspaceId,
+    charts,
     version: TRADVIEW_VERSION,
-    layerApi: LAYER_API_READY,
+    layerApi: LAYER_API_READY_V3,
   });
+
+  if (shouldPost('chart.workspaceReady')) {
+    post('chart.workspaceReady', { workspaceId, charts });
+  }
 
   const postResize = () => {
     const el = controller.getContainer();
@@ -171,9 +201,107 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     ? registerChartLayerBridge({ ...opts.layerBridge, chartId })
     : undefined;
 
+  const rejectInbound = (
+    payloadChartId: string,
+    code: string,
+    message: string,
+  ): void => {
+    post('chart.error', {
+      chartId: payloadChartId || chartId,
+      code,
+      message,
+    });
+  };
+
   const offHost = bridge.onMessage((msg) => {
     if (!isBridgeInbound(msg)) return;
     const p = msg.payload ?? {};
+
+    const inboundSchema = readInboundBridgeSchemaVersion(p);
+    if (inboundSchema != null && inboundSchema !== BRIDGE_SCHEMA_VERSION) {
+      rejectInbound(
+        readPayloadChartId(p),
+        'UNSUPPORTED_BRIDGE_SCHEMA',
+        `Expected bridgeSchemaVersion ${BRIDGE_SCHEMA_VERSION}, got ${inboundSchema}`,
+      );
+      return;
+    }
+
+    if (isWorkspaceHostEvent(msg.type)) {
+      switch (msg.type) {
+        case 'host.workspace.setActiveChart': {
+          const id = readPayloadChartId(p);
+          if (!id) {
+            rejectInbound('', 'MISSING_CHART_ID', 'chartId is required for host.workspace.setActiveChart');
+            return;
+          }
+          if (id !== chartId) {
+            rejectInbound(id, 'CHART_NOT_FOUND', `No chart registered for chartId: ${id}`);
+            return;
+          }
+          post('chart.focusChanged', {
+            chartId: id,
+            previousChartId: undefined,
+          });
+          break;
+        }
+        case 'host.workspace.setLinkGroup': {
+          const groupId = typeof p.groupId === 'string' ? p.groupId : '';
+          const chartIds = Array.isArray(p.chartIds)
+            ? p.chartIds.filter((id): id is string => typeof id === 'string')
+            : [];
+          if (!groupId || chartIds.length === 0) return;
+          post('chart.linkStateChanged', {
+            groupId,
+            chartIds,
+            sync: (p.sync as Record<string, unknown>) ?? {},
+          });
+          break;
+        }
+        case 'host.workspace.createChart':
+        case 'host.workspace.destroyChart': {
+          const id = readPayloadChartId(p);
+          if (!id) {
+            rejectInbound('', 'MISSING_CHART_ID', `chartId is required for ${msg.type}`);
+            return;
+          }
+          rejectInbound(
+            id,
+            'CHART_NOT_FOUND',
+            'Multi-chart workspace is not available until V2-MC1',
+          );
+          break;
+        }
+        default:
+          break;
+      }
+      return;
+    }
+
+    if (
+      msg.type.startsWith('host.') &&
+      isChartScopedHostEvent(msg.type) &&
+      !msg.type.startsWith('host.layer.')
+    ) {
+      const payloadChartId = readPayloadChartId(p);
+      if (!payloadChartId) {
+        rejectInbound(
+          chartId,
+          'MISSING_CHART_ID',
+          `chartId is required in payload for ${msg.type}`,
+        );
+        return;
+      }
+      if (payloadChartId !== chartId) {
+        rejectInbound(
+          payloadChartId,
+          'CHART_NOT_FOUND',
+          `No chart registered for chartId: ${payloadChartId}`,
+        );
+        return;
+      }
+    }
+
     if (msg.type.startsWith('host.layer.')) {
       if (!isBridgeLayerInboundType(msg.type)) {
         post('chart.error', {

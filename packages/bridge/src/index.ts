@@ -1,5 +1,6 @@
 export * from './events.js';
 export * from './schema3-types.js';
+export * from './schema3-wire.js';
 
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'failed';
 
