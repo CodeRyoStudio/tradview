@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-04
+
+### Added
+
+- **GA release**: `@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0`; `TRADVIEW_API_VERSION = 2`; bridge schema **3** hard cut
+- **Docs**: `API-FREEZE-2.0.md` GA freeze approved; ADR WebGL renderer + bridge schema 3 **Accepted**
+- **CI**: `@coderyo/core` Vitest `installWebGL2TestContext` setup — `chart-controller.webgl` runs in CI
+
+### Fixed
+
+- **N1 (`ChartController`)**: `applyFeatures()` at end of constructor so WebGL `smoothPriceUpdate` / Pine / drawings apply from initial `features`
+
 ## [2.0.0-rc.4] - 2026-06-04
 
 ### Added
@@ -41,7 +53,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **V2-MC2–MC4 (`@coderyo/core`)**: link `crosshair` fan-out (`scrollToTimestamp`); `workspace-smoke.test.ts`
 - **V2-MC3 (`apps/playground`)**: `multi-chart.html` + `multi-chart-demo.ts` (`ChartWorkspace` + linked slots)
 - **V2-PINE2 (`@coderyo/pine-lite`)**: indicator builtins **18** (`wma`, `stdev`, `change`, `roc`, `atr`, `cci`, `mfi`, `stoch`, `sum`, `bb`, `macd`); `builtins-count.test.ts`
-- **V2-R13 (`@coderyo/renderer-webgl`)**: `port-parity.test.ts` — WebGL vs lite fixture parity (bar count after `setBars`, visible range `fromMs`/`toMs`, crosshair `null` clear); deferred Appendix A items remain `it.todo`
+- **V2-R13 (`@coderyo/renderer-webgl`)**: `port-parity.test.ts` — WebGL vs lite fixture parity (bar count after `setBars`, visible range `fromMs`/`toMs`, crosshair `null` clear); Appendix A parity covered in port-parity + WebGL integration tests
 - **V2-MC3 smoke (`@coderyo/core`)**: `multi-chart-demo.smoke.test.ts` static analysis for `ChartWorkspace` playground demo
 - **V2-C**: `examples/adapters/csv-rest` reference `createCsvRestDataProvider`
 - **V2-PROD stub**: `apps/sample-android/README.md` (CI compile placeholder)

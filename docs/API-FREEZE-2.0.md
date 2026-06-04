@@ -1,14 +1,14 @@
-# TradView API Freeze — `2.0.0` (rc.4 candidate)
+# TradView API Freeze — `2.0.0`
 
 | Field | Value |
 |-------|-------|
-| Status | **Candidate @ 2.0.0-rc.4** (G2-9 — pending GA sign-off) |
-| Target GA | `@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0` |
+| Status | **GA freeze approved @ 2.0.0** |
+| Release | `@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0` |
 | Embed API | `apiVersion: 2` (`TRADVIEW_API_VERSION`) |
 | Bridge schema | `bridgeSchemaVersion: 3` |
 | Baseline | [API-FREEZE.md](./API-FREEZE.md) (1.0.0 / apiVersion 1) |
 
-> Binding for integrators @ **2.0.0-rc.4**. Remaining GA blockers: CDN LWC bundle (ADR), iOS sample (2.0.1 tripwire).
+> Binding for integrators @ **2.0.0 GA**. Post-GA: iOS sample (2.0.1 tripwire); optional CDN `tradview-webgl.min.js` (2.1).
 
 ---
 

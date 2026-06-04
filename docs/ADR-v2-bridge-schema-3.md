@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Proposed** |
+| Status | **Accepted** |
 | Date | 2026-06-04 |
 | Decision | `@coderyo/bridge@3.0.0` with **`bridgeSchemaVersion: 3`**; **no** schema 2 @ `core@2` GA |
 | Related | [bridge-schema-3.md](./bridge-schema-3.md), [MIGRATION-bridge-3.md](./MIGRATION-bridge-3.md) |

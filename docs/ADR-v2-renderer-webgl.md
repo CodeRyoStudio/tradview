@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Proposed** (`phase_alpha` landed — V2-R1–R4b) |
+| Status | **Accepted** |
 | Date | 2026-06-04 |
 | Decision | `@coderyo/renderer-webgl` becomes the **primary** chart backend @ TradView **2.0.0 GA** |
 | Related | [DESIGN-v2.md](./DESIGN-v2.md) §4.2, [MIGRATION-2.0.md](./MIGRATION-2.0.md) §4 |

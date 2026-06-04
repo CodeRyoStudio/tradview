@@ -244,6 +244,8 @@ export class ChartController {
     } else {
       this.emit('connectionChange', 'disconnected');
     }
+
+    this.applyFeatures();
   }
 
   getFeatures(): ResolvedChartFeatures {
