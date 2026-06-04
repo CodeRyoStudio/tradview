@@ -146,13 +146,13 @@ const {
   statusBar,
   crosshairLegend,
   setActiveDrawingTool,
-  propertiesPanel,
   handleDrawingSelection,
   syncCompositorShellVisibility,
   bindLayerCompositorController,
   drawingOverlay,
   setActiveInterval,
 } = mountChartLayout(app, shellOpts);
+void layoutWidgetEl('propertiesPanel');
 
 function layoutWidgetEl(widgetId: string): HTMLElement | undefined {
   const cell = app.querySelector(`[data-widget-id="${widgetId}"]`);
@@ -240,7 +240,7 @@ layerCompositor = mountLayerCompositor(layoutRoot, {
 });
 
 bindLayerTimeScaleSync(chart, layerCompositor.controller, {
-  onSync: () => requestAnimationFrame(syncChartAfterLayout),
+  onSync: () => requestAnimationFrame(() => syncChartAfterLayout()),
 });
 
 const layerPanel = mountLayerPanel(document.body, layerCompositor.controller, {
@@ -255,7 +255,7 @@ const layerPanel = mountLayerPanel(document.body, layerCompositor.controller, {
     localStorage.setItem(LAYER_PRESET_ACTIVE_KEY, id);
     if (!layerCompositor.controller.setPreset(forked)) return;
     refreshPresetSelect();
-    requestAnimationFrame(syncChartAfterLayout);
+    requestAnimationFrame(() => syncChartAfterLayout());
   },
 });
 panelRef.current = layerPanel;
@@ -370,7 +370,7 @@ presetSelect.onchange = () => {
     });
     return;
   }
-  requestAnimationFrame(syncChartAfterLayout);
+  requestAnimationFrame(() => syncChartAfterLayout());
 };
 
 const initialPineScript = loadPineScriptPreference() ?? PINE_EDITOR_DEFAULT;

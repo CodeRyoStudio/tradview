@@ -161,7 +161,7 @@ export function attachLayerEditor(
     dx: number,
     dy: number,
   ): LayerFrame => {
-    let newBbox = { ...startBbox };
+    const newBbox = { ...startBbox };
     if (corner.includes('e')) newBbox.w = startBbox.w + dx;
     if (corner.includes('w')) {
       newBbox.x = startBbox.x + dx;

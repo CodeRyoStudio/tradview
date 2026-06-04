@@ -26,7 +26,10 @@ export function createDemoChartFeatures(opts: {
 }
 
 export function createDemoChartOptions(
-  base: Pick<ChartOptions, 'dataProvider' | 'indicatorHost' | 'symbolResolver' | 'chartId'> & {
+  base: Pick<
+    ChartOptions,
+    'dataProvider' | 'indicatorHost' | 'volumeMount' | 'symbolResolver' | 'chartId'
+  > & {
     symbol: string;
     interval: Interval;
     theme?: 'dark' | 'light';

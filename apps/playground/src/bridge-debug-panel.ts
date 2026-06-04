@@ -1,12 +1,32 @@
 import { createDefaultBridge, LAYER_HOST_EVENTS } from '@coderyo/bridge';
 import { wireChartBridge } from '@coderyo/core';
-import type { ChartController, IChart } from '@coderyo/core';
+import type { ChartController, IChart, LayerBridgeController, LayerBridgePreset } from '@coderyo/core';
 import {
   mergeLayoutPreset,
   normalizeLayoutPreset,
   type LayerController,
   type LayoutPreset,
 } from '@coderyo/ui-shell';
+
+function asLayerBridgePreset(p: LayoutPreset): LayerBridgePreset {
+  return p as unknown as LayerBridgePreset;
+}
+
+function wrapLayerController(lc: LayerController): LayerBridgeController {
+  return {
+    get activePageId() {
+      return lc.activePageId;
+    },
+    get presetRevision() {
+      return lc.presetRevision;
+    },
+    getPreset: () => asLayerBridgePreset(lc.getPreset()),
+    setLayerSyncGroup: (layerId, groupId) => lc.setLayerSyncGroup(layerId, groupId),
+    setLayerVisible: (layerId, visible) => lc.setLayerVisible(layerId, visible),
+    setActivePage: (pageId) => lc.setActivePage(pageId),
+    setPreset: (next) => lc.setPreset(next as unknown as LayoutPreset),
+  };
+}
 
 const TEMPLATES: Record<string, object> = {
   'host.layer.setSyncGroup': {
@@ -100,12 +120,18 @@ export function mountBridgeDebugPanel(
     layerBridge: {
       chartId,
       chart: opts.chart,
-      layerController: opts.layerController,
+      layerController: wrapLayerController(opts.layerController),
       compositorApply: opts.compositorApply,
       syncCompositorShellVisibility: opts.syncCompositorShellVisibility,
-      normalizePreset: (p) => normalizeLayoutPreset(p as LayoutPreset),
+      normalizePreset: (p) =>
+        asLayerBridgePreset(normalizeLayoutPreset(p as unknown as LayoutPreset)),
       mergePreset: (current, partial) =>
-        mergeLayoutPreset(current as LayoutPreset, partial as LayoutPreset),
+        asLayerBridgePreset(
+          mergeLayoutPreset(
+            current as unknown as LayoutPreset,
+            partial as unknown as LayoutPreset,
+          ),
+        ),
     },
   });
 

@@ -2,7 +2,7 @@
 
 ## 目前版本
 
-- **正式**：`1.0.3`（`VERSION` 檔為單一真相來源）
+- **正式**：`1.1.0`（`VERSION` 檔為單一真相來源；`@coderyo/bridge` 獨立為 `2.0.0`）
 - **API**：`apiVersion: 1`（見 [API-FREEZE.md](./API-FREEZE.md)）
 
 ---

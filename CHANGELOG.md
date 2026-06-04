@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-04
+
+### Added
+
+- **Layer compositor v2**: multi-page layouts, `bindLayerTimeScaleSync`, grouped pane time-scale sync (`resolvePaneSyncGroupsFromLayers`)
+- **Bridge schema 2** (`@coderyo/bridge@2.0.0`): `host.layer.*` remote layer control (preset merge + `preset.revision`, pane focus, lazy `allPages`, outbound `layer.*` events); `chart.ready` exposes `layerApi` only (hard cut from schema 1)
+- **core**: `bridge-layer-wire.ts`, `visitedPageIds` cleared on `setSymbol` / `setInterval`
+- **Playground**: Bridge layer sync JSON debug panel; `@coderyo/bridge` workspace dependency
+- **docs**: [ADR-bridge-layer-sync.md](./docs/ADR-bridge-layer-sync.md), [examples/bridge-layer-sync.md](./examples/bridge-layer-sync.md), API layer § updates
+
+### Changed
+
+- **BREAKING**: Bridge hosts must use `bridgeSchemaVersion: 2` and `host.layer.*` (no schema 1 in `chart.ready`)
+- Monorepo packages synced to **1.1.0** (`VERSION`); `TRADVIEW_API_VERSION` remains **1**
+
 ## [1.0.3] - 2026-06-03
 
 ### Added

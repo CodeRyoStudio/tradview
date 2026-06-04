@@ -1,16 +1,17 @@
 {
   "name": "@coderyo/playground",
-  "version": "0.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "pnpm --filter @coderyo/ui-shell build",
+    "predev": "pnpm --filter @coderyo/bridge build && pnpm --filter @coderyo/core build && pnpm --filter @coderyo/ui-shell build",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@coderyo/bridge": "workspace:*",
     "@coderyo/core": "workspace:*",
     "@coderyo/drawings": "workspace:*",
     "@coderyo/data": "workspace:*",

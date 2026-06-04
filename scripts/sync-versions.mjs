@@ -11,6 +11,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const version = readFileSync(resolve(root, 'VERSION'), 'utf8').trim();
 
+/** Packages with their own semver (e.g. bridge schema major); not overwritten by VERSION. */
+const INDEPENDENT_VERSION_PACKAGES = new Set(['@coderyo/bridge']);
+
 if (!/^\d+\.\d+\.\d+(-rc\.\d+)?$/.test(version)) {
   console.error(`[sync-versions] invalid VERSION: ${version}`);
   process.exit(1);
@@ -28,6 +31,10 @@ for (const rel of targets) {
   const raw = readFileSync(pkgPath, 'utf8').replace(/^\uFEFF/, '');
   const pkg = JSON.parse(raw);
   if (pkg.private) continue;
+  if (INDEPENDENT_VERSION_PACKAGES.has(pkg.name)) {
+    console.log(`[sync-versions] skip ${pkg.name} (keeps ${pkg.version})`);
+    continue;
+  }
   let changed = false;
   if (pkg.version !== version) {
     pkg.version = version;
