@@ -74,8 +74,5 @@ jobs:
       - name: RC gates
         run: pnpm check:rc
 
-      - name: Publish packages to npm
+      - name: Publish packages to npm (OIDC trusted publishing)
         run: pnpm -r publish --access public --tag latest --no-git-checks
-        env:
-          # Optional fallback: granular Automation token from npmjs.com → repo secret
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

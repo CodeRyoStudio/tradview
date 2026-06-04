@@ -38,6 +38,8 @@ git push origin v1.0.0-rc.1
 
 ### 方式 A — Trusted Publishing（推薦，不需 GitHub Secret）
 
+完整步驟見 **[TRUSTED-PUBLISHING.md](./TRUSTED-PUBLISHING.md)**。列出連結：`node scripts/print-trusted-publisher-links.mjs`。
+
 對 **每一個** 要發布的套件，在 [npmjs.com](https://www.npmjs.com) → 套件 → **Settings** → **Trusted publishing** → **GitHub Actions**，填：
 
 | 欄位 | 值 |
