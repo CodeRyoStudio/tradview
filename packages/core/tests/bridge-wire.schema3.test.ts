@@ -150,6 +150,31 @@ describe('wireChartBridge schema 3 (V2-B3)', () => {
     expect(posted.find((p) => p.type === 'chart.focusChanged')).toBeUndefined();
   });
 
+  it('posts chart.crosshair on crosshairChange', () => {
+    let crosshairHandler: ((p?: unknown) => void) | undefined;
+    const chart = {
+      on: vi.fn((ev: string, h: (p?: unknown) => void) => {
+        if (ev === 'crosshairChange') crosshairHandler = h;
+      }),
+      off: vi.fn(),
+    } as unknown as IChart;
+
+    const { adapter, posted } = createMockBridge();
+    wireChartBridge({
+      controller: mockController(),
+      chart,
+      bridge: adapter,
+      chartId: 'main',
+      outboundEvents: ['chart.crosshair'],
+    });
+
+    crosshairHandler?.({ time: 1_700_000_000_000, price: 42, ohlcv: null });
+    const evt = posted.find((p) => p.type === 'chart.crosshair');
+    expect(evt?.payload?.chartId).toBe('main');
+    expect(evt?.payload?.time).toBe(1_700_000_000_000);
+    expect(evt?.payload?.price).toBe(42);
+  });
+
   it('handles host.workspace.setActiveChart with focusChanged', () => {
     const { adapter, posted, dispatch } = createMockBridge();
     wireChartBridge({

@@ -23,19 +23,22 @@ export interface LinkGroup {
   id: string;
   chartIds: readonly string[];
   sync: LinkSyncFlags;
-  /** Monotonic; prevents re-entrant fan-out. */
-  generation: number;
+  /** Monotonic; prevents re-entrant fan-out. Defaults to workspace current generation. */
+  generation?: number;
 }
 
 export type LinkEvent =
   | { type: 'symbol'; symbol: string }
   | { type: 'interval'; interval: Interval }
   | { type: 'visibleRange'; range: ChartVisibleRange }
-  | { type: 'crosshair'; timeMs: number; price: number | null };
+  /** Aligns linked charts to the same bar time (`scrollToTimestamp`); `price` is advisory for hosts. */
+  | { type: 'crosshair'; timeMs: number | null; price: number | null };
 
 interface ChartEntry {
   chart: IChart;
   container: HTMLElement;
+  symbol?: string;
+  interval?: Interval;
 }
 
 /**
@@ -50,6 +53,8 @@ export class ChartWorkspace {
   private linkGeneration = 0;
   private applyingLink = false;
   private workspaceBridgeTeardown: (() => void) | null = null;
+  /** Per-chart last linked crosshair time (ms) — skips duplicate pointermove fan-out. */
+  private readonly lastLinkedCrosshairMs = new Map<string, number>();
 
   constructor(private readonly options: ChartWorkspaceOptions) {
     this.workspaceId = options.workspaceId ?? 'default';
@@ -78,8 +83,10 @@ export class ChartWorkspace {
   }
 
   listChartSummaries(): ChartSummaryV3[] {
-    return [...this.charts.keys()].map((chartId) => ({
+    return [...this.charts.entries()].map(([chartId, entry]) => ({
       chartId,
+      symbol: entry.symbol,
+      interval: entry.interval,
       active: chartId === this.activeChartId,
     }));
   }
@@ -104,7 +111,12 @@ export class ChartWorkspace {
       },
     });
 
-    const entry: ChartEntry = { chart, container };
+    const entry: ChartEntry = {
+      chart,
+      container,
+      symbol: opts?.symbol?.trim() || undefined,
+      interval: opts?.interval,
+    };
     this.charts.set(chartId, entry);
     if (!this.activeChartId) this.activeChartId = chartId;
 
@@ -113,10 +125,14 @@ export class ChartWorkspace {
         info && typeof info === 'object' && 'symbol' in info
           ? String((info as { symbol: string }).symbol)
           : '';
-      if (sym) this.notifySymbolChange(chartId, sym);
+      if (sym) {
+        entry.symbol = sym;
+        this.notifySymbolChange(chartId, sym);
+      }
     });
     chart.on('intervalChange', (interval) => {
       if (typeof interval === 'string') {
+        entry.interval = interval as Interval;
         this.notifyIntervalChange(chartId, interval as Interval);
       }
     });
@@ -131,12 +147,22 @@ export class ChartWorkspace {
     chart.on('crosshairChange', (payload) => {
       const p = payload as { time?: number; price?: number | null } | null;
       if (p?.time != null) {
+        const last = this.lastLinkedCrosshairMs.get(chartId);
+        if (last === p.time) return;
+        this.lastLinkedCrosshairMs.set(chartId, p.time);
         this.applyLinkEvent(chartId, {
           type: 'crosshair',
           timeMs: p.time,
           price: p.price ?? null,
         });
+        return;
       }
+      this.lastLinkedCrosshairMs.delete(chartId);
+      this.applyLinkEvent(chartId, {
+        type: 'crosshair',
+        timeMs: null,
+        price: null,
+      });
     });
     chart.on('destroyed', () => {
       this.charts.delete(chartId);
@@ -224,7 +250,12 @@ export class ChartWorkspace {
             if (sync.visibleRange) target.setVisibleRange(event.range);
             break;
           case 'crosshair':
-            if (sync.crosshair) target.scrollToTimestamp(event.timeMs);
+            if (!sync.crosshair) break;
+            if (event.timeMs == null) {
+              target.clearCrosshair();
+            } else {
+              target.scrollToTimestamp(event.timeMs);
+            }
             break;
         }
       }

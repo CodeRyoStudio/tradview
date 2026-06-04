@@ -27,6 +27,7 @@ export class WebGLChartRenderBackend {
   readonly busRegistry = new MsTimeScaleBusRegistry();
   private readonly orchestrator: WebGLPaneOrchestrator;
   private bars: Bar[] = [];
+  private offBusTransform: (() => void) | null = null;
   constructor(
     private readonly container: HTMLElement,
     options: WebGLChartRenderOptions = {},
@@ -43,7 +44,7 @@ export class WebGLChartRenderBackend {
         : undefined,
     });
     this.orchestrator.mount(container);
-    this.busRegistry.getOrCreateBus('main').subscribeTransform(() => {
+    this.offBusTransform = this.busRegistry.getOrCreateBus('main').subscribeTransform(() => {
       this.syncBusFromViewport();
     });
   }
@@ -77,6 +78,8 @@ export class WebGLChartRenderBackend {
   }
 
   destroy(): void {
+    this.offBusTransform?.();
+    this.offBusTransform = null;
     this.orchestrator.destroy();
   }
 
@@ -276,7 +279,10 @@ export class WebGLChartRenderBackend {
   subscribeCrosshair(handler: (payload: unknown) => void): () => void {
     const dpr = globalThis.devicePixelRatio ?? 1;
     const onMove = (e: PointerEvent) => {
-      if (this.bars.length === 0) return;
+      if (this.bars.length === 0) {
+        handler(null);
+        return;
+      }
       const rect = this.container.getBoundingClientRect();
       const x = (e.clientX - rect.left) * dpr;
       const y = (e.clientY - rect.top) * dpr;

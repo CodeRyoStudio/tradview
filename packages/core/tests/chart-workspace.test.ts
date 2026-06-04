@@ -2,17 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DataProvider } from '@coderyo/data';
 
 vi.mock('../src/create-chart.js', () => {
-  const chart = {
+  const makeChart = () => ({
     on: vi.fn().mockReturnThis(),
     off: vi.fn().mockReturnThis(),
     destroy: vi.fn(),
     setSymbol: vi.fn().mockResolvedValue(undefined),
     setInterval: vi.fn().mockResolvedValue(undefined),
     setVisibleRange: vi.fn().mockReturnThis(),
-  };
-  return { createChart: vi.fn(() => chart) };
+  });
+  return { createChart: vi.fn(() => makeChart()) };
 });
 
+import { createChart } from '../src/create-chart.js';
 import { ChartWorkspace } from '../src/chart-workspace.js';
 
 const stubProvider = {
@@ -29,10 +30,19 @@ describe('ChartWorkspace (V2-MC1)', () => {
     a.style.height = '160px';
     document.body.append(a);
 
-    const c1 = ws.createChart('c1', a, { chartId: 'c1' });
+    const c1 = ws.createChart('c1', a, {
+      chartId: 'c1',
+      symbol: 'BINANCE:BTCUSDT',
+      interval: '1h',
+    });
     expect(ws.getChart('c1')).toBe(c1);
     expect(ws.listChartSummaries()).toEqual([
-      expect.objectContaining({ chartId: 'c1', active: true }),
+      expect.objectContaining({
+        chartId: 'c1',
+        active: true,
+        symbol: 'BINANCE:BTCUSDT',
+        interval: '1h',
+      }),
     ]);
 
     ws.destroy();
@@ -51,15 +61,18 @@ describe('ChartWorkspace (V2-MC1)', () => {
 
     const c1 = ws.createChart('c1', a, { chartId: 'c1' });
     ws.createChart('c2', b, { chartId: 'c2' });
+    const c2 = vi.mocked(createChart).mock.results[1]!.value as {
+      setSymbol: ReturnType<typeof vi.fn>;
+    };
     ws.setLinkGroup({
       id: 'g1',
       chartIds: ['c1', 'c2'],
       sync: { symbol: true },
-      generation: 0,
     });
 
     await c1.setSymbol('BINANCE:BTCUSDT');
     ws.notifySymbolChange('c1', 'BINANCE:BTCUSDT');
+    expect(c2.setSymbol).toHaveBeenCalledWith('BINANCE:BTCUSDT');
 
     ws.destroy();
     a.remove();

@@ -60,4 +60,40 @@ describe.skipIf(!hasWebGL2())('ChartController webgl renderer (V2-R12)', () => {
     controller.destroy();
     el.remove();
   });
+
+  it('emits crosshairChange from pointer move when bars loaded', async () => {
+    const el = document.createElement('div');
+    el.style.width = '400px';
+    el.style.height = '300px';
+    document.body.appendChild(el);
+
+    const payloads: unknown[] = [];
+    const controller = new ChartController(el, {
+      dataProvider: stubProvider,
+      features: { renderer: 'webgl', indicators: null },
+    });
+    controller.on('crosshairChange', (p) => payloads.push(p));
+
+    stubProvider.getHistory = vi.fn(async () => ({
+      bars: sampleBars,
+      hasMore: false,
+    }));
+    await controller.setSymbol('BINANCE:BTCUSDT');
+
+    const rect = el.getBoundingClientRect();
+    el.dispatchEvent(
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        clientX: rect.left + rect.width * 0.5,
+        clientY: rect.top + rect.height * 0.4,
+      }),
+    );
+
+    expect(payloads.some((p) => p && typeof p === 'object' && 'time' in (p as object))).toBe(
+      true,
+    );
+
+    controller.destroy();
+    el.remove();
+  });
 });

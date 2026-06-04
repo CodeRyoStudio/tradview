@@ -17,6 +17,12 @@ export interface CreateWorkspaceChartSlotsOptions {
   idPrefix?: string;
 }
 
+export interface WorkspaceChartSlotsHandle {
+  slots: WorkspaceChartSlot[];
+  root: HTMLElement;
+  destroy: () => void;
+}
+
 function layoutStyle(layout: WorkspaceChartSlotsLayout): string {
   switch (layout) {
     case 'column':
@@ -36,7 +42,7 @@ function layoutStyle(layout: WorkspaceChartSlotsLayout): string {
 export function createWorkspaceChartSlots(
   parent: HTMLElement,
   opts: CreateWorkspaceChartSlotsOptions = {},
-): WorkspaceChartSlot[] {
+): WorkspaceChartSlotsHandle {
   const layout = opts.layout ?? 'grid2';
   const ids = opts.slotIds ?? ['chart-a', 'chart-b'];
   const prefix = opts.idPrefix ?? 'tv-ws-slot-';
@@ -46,7 +52,7 @@ export function createWorkspaceChartSlots(
   root.style.cssText = layoutStyle(layout);
   parent.appendChild(root);
 
-  return ids.map((chartId) => {
+  const slots = ids.map((chartId) => {
     const containerId = `${prefix}${chartId}`;
     const element = document.createElement('div');
     element.id = containerId;
@@ -57,4 +63,12 @@ export function createWorkspaceChartSlots(
     root.appendChild(element);
     return { chartId, containerId, element };
   });
+
+  return {
+    slots,
+    root,
+    destroy: () => {
+      root.remove();
+    },
+  };
 }

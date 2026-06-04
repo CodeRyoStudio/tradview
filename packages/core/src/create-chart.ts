@@ -49,6 +49,8 @@ export interface IChart {
   setVisibleRange(range: ChartVisibleRange): IChart;
   /** Scroll so `tsMs` aligns to the right edge of the viewport. */
   scrollToTimestamp(tsMs: number, animationMs?: number): IChart;
+  /** Clear crosshair state (emits `crosshairChange` null); used by workspace link sync. */
+  clearCrosshair(): IChart;
   /** Re-fetch recent history without clearing scroll/zoom. */
   reloadHistory(): Promise<IChart>;
   resize(size?: { width?: number; height?: number }): IChart;
@@ -132,6 +134,10 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
     },
     scrollToTimestamp: (tsMs, animationMs) => {
       controller.scrollToTimestamp(tsMs, animationMs);
+      return wrap(controller, beforeDestroy);
+    },
+    clearCrosshair: () => {
+      controller.clearCrosshair();
       return wrap(controller, beforeDestroy);
     },
     reloadHistory: async () => {

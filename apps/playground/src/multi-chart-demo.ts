@@ -9,7 +9,7 @@ const provider = createGatewayDataProvider({
   wsUrl: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`,
 });
 
-const slots = createWorkspaceChartSlots(workspaceEl, {
+const { slots } = createWorkspaceChartSlots(workspaceEl, {
   layout: 'grid2',
   slotIds: ['chart-a', 'chart-b'],
 });
@@ -32,7 +32,6 @@ const applyLink = () => {
     id: 'default',
     chartIds: slots.map((s) => s.chartId),
     sync: readSync(),
-    generation: 0,
   });
 };
 

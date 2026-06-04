@@ -666,6 +666,12 @@ export class ChartController {
     return this;
   }
 
+  /** Emit `crosshairChange` null (workspace link clear + integrator hooks). */
+  clearCrosshair(): this {
+    this.emit('crosshairChange', null);
+    return this;
+  }
+
   async reloadHistory(): Promise<this> {
     if (!this.hasActiveSymbol()) return this;
     const savedRange = this.getVisibleRange();
