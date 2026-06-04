@@ -1,15 +1,14 @@
-# TradView API Freeze — `2.0.0` (draft skeleton)
+# TradView API Freeze — `2.0.0` (rc.4 candidate)
 
 | Field | Value |
 |-------|-------|
-| Status | **Draft skeleton** (V2-00b — not final freeze) |
+| Status | **Candidate @ 2.0.0-rc.4** (G2-9 — pending GA sign-off) |
 | Target GA | `@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0` |
 | Embed API | `apiVersion: 2` (`TRADVIEW_API_VERSION`) |
 | Bridge schema | `bridgeSchemaVersion: 3` |
-| Final freeze candidate | **2.0.0-rc.4** (W16) |
 | Baseline | [API-FREEZE.md](./API-FREEZE.md) (1.0.0 / apiVersion 1) |
 
-> Planned breaking deltas vs 1.x are listed below. **Do not** treat this file as binding until rc.4 sign-off.
+> Binding for integrators @ **2.0.0-rc.4**. Remaining GA blockers: CDN LWC bundle (ADR), iOS sample (2.0.1 tripwire).
 
 ---
 
@@ -53,6 +52,7 @@
 | `features.debugWebGL` | `core` | Shader debug |
 | `features.protobuf` | `core` | Opt-in binary WS |
 | `getVisibleRange` / `setVisibleRange` | `core` | Retained from 1.x |
+| `setCrosshair` / `clearCrosshair` | `core` | Workspace `sync.crosshair`; WebGL DOM overlay |
 | Link sync | `core` | Via workspace + bridge events |
 
 ### Removed @ 2.0.0-rc.2 (PR-L7b landed)

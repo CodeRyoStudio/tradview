@@ -30,6 +30,10 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'barIndexForTimeMs',
   'createChartCoordinateMapper',
   'timeMsAtBarIndex',
+  'installWebGL2TestContext',
+  'installWebGL2TestHarness',
+  'isWebGL2TestContextInstalled',
+  'pinePlotsToLineSpecs',
 ] as const;
 
 describe('@coderyo/renderer-webgl public exports', () => {

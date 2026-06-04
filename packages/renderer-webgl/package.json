@@ -1,6 +1,6 @@
 {
   "name": "@coderyo/renderer-webgl",
-  "version": "2.0.0",
+  "version": "2.0.0-rc.4",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -23,6 +23,7 @@
     "@coderyo/series": "workspace:*"
   },
   "devDependencies": {
+    "@coderyo/renderer-lite": "workspace:*",
     "@coderyo/eslint-config": "workspace:*",
     "@coderyo/tsconfig": "workspace:*",
     "happy-dom": "^20.9.0",

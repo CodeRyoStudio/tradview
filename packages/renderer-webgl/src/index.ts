@@ -57,3 +57,9 @@ export {
   yToPrice,
 } from './price-scale.js';
 export type { PriceRange, PriceScaleMode } from './price-scale.js';
+export {
+  installWebGL2TestContext,
+  installWebGL2TestHarness,
+  isWebGL2TestContextInstalled,
+} from './webgl2-test-context.js';
+export { pinePlotsToLineSpecs, type PinePlotLineInput } from './pine-overlay-lines.js';

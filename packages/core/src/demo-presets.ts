@@ -5,12 +5,15 @@ import type { Interval } from '@coderyo/data';
 import type { ChartFeatures } from './chart-features.js';
 import type { ChartOptions } from './chart-controller.js';
 
-/** Playground / docs: opt-in full TV-like chart features. */
+/** Playground / docs: opt-in full TV-like chart features (WebGL-safe @ GA). */
 export function createDemoChartFeatures(opts: {
   indicatorConfig?: IndicatorConfig;
   returnToCursorAfterDraw?: boolean;
+  renderer?: 'webgl' | 'lite';
 }): ChartFeatures {
+  const renderer = opts.renderer ?? 'webgl';
   return {
+    renderer,
     fetchPolicy: 'lazy-left-only',
     streamMode: 'bar+tick',
     gaps: { whitespace: false, fillVisibleHoles: false },

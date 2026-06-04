@@ -1,3 +1,7 @@
+import { installWebGL2TestContext } from '../src/webgl2-test-context.js';
+
+installWebGL2TestContext();
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Bar } from '@coderyo/data';
 import { intervalMs } from '@coderyo/data';
@@ -13,8 +17,6 @@ import {
   syntheticBars,
   webglVisibleRangeMs,
 } from './port-parity-fixtures.js';
-
-const describeWebGL = describe.skipIf(!hasWebGL2());
 
 describe('renderer-webgl port parity vs lite contract (V2-R13)', () => {
   it('LOD fixture bar count matches lite setBars decimation', () => {
@@ -46,7 +48,7 @@ describe('renderer-webgl port parity vs lite contract (V2-R13)', () => {
 
 });
 
-describeWebGL('renderer-webgl smoothPriceUpdate (V2-R13)', () => {
+describe('renderer-webgl smoothPriceUpdate (V2-R13)', () => {
   it('WebGL backend accepts setSmoothPriceUpdate toggle (LWC animator deferred)', () => {
     const backend = new WebGLChartRenderBackend(document.createElement('div'));
     expect(() => backend.setSmoothPriceUpdate(true, 200)).not.toThrow();
@@ -54,7 +56,7 @@ describeWebGL('renderer-webgl smoothPriceUpdate (V2-R13)', () => {
   });
 });
 
-describeWebGL('renderer-webgl port parity vs lite runtime (V2-R13)', () => {
+describe('renderer-webgl port parity vs lite runtime (V2-R13)', () => {
   const roots: HTMLElement[] = [];
 
   afterEach(() => {

@@ -6,11 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-06-04
+## [2.0.0-rc.4] - 2026-06-04
 
 ### Added
 
-- **GA (`@coderyo/*@2.0.0`, `@coderyo/bridge@3.0.0`)**: `DEFAULT_CHART_FEATURES.renderer` → **`webgl`**; `TRADVIEW_API_VERSION = 2`; schema 2 inbound rejected (`UNSUPPORTED_BRIDGE_SCHEMA`)
+- **Review remediation (GA path)**: WebGL `setSmoothPriceUpdate` (`BarSmoothAnimator`), `setPinePlots` (main-pane overlays), `setPaneSyncGroups` / `applyTimeScaleSyncFromLayers`; DOM crosshair overlay; Vitest WebGL2 mock (`installWebGL2TestContext`) — port-parity runs in CI
+- **Bridge**: `createDefaultBridge` origin allowlist (`allowInboundOrigins`); rejects wildcard inbound by default
+- **Security**: csv-rest max bytes/rows + fetch timeout; Android URL allowlist + emulator-only cleartext NSC
+- **Docs**: `docs/SDK.md`; `API-FREEZE-2.0.md` rc.4 candidate; ADR §6 CDN exception
+- **Tests**: `chart-renderer-webgl.setcrosshair-clear`, `workspace-shell.smoke`, `bridge-origin`, `pine-overlay-lines`
+
+### Changed
+
+- **VERSION** → `2.0.0-rc.4` (GA tag deferred until CDN LWC split / full DESIGN sign-off)
+- **Not GA-tagged**: prior `[2.0.0]` claims moved here as rc.4 candidate scope
+
+### Added (rc.4 candidate — was listed as GA)
+
+- **`@coderyo/*@2.0.0` candidate**, `@coderyo/bridge@3.0.0`: `DEFAULT_CHART_FEATURES.renderer` → **`webgl`**; `TRADVIEW_API_VERSION = 2`; schema 2 inbound rejected (`UNSUPPORTED_BRIDGE_SCHEMA`)
 - **`IChart.setCrosshair`**: programmatic crosshair sync (workspace `sync.crosshair` uses `setCrosshair`, not `scrollToTimestamp`)
 - **WebGL Appendix A parity (V2-R13)**: `compensatePrependForBuses`, log-scale rendering (`setLogScale`), port-parity tests (LOD, crosshair null, prepend delta, MACD/RSI/KDJ panes, independent `MsTimeScaleBusRegistry`)
 - **V2-R14**: CDN gate `tradview.min.js` ≤ **400 KB** gzip (`pnpm check:cdn-size` @ **210 KB**)
@@ -20,7 +33,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **Bridge**: `@coderyo/bridge@3.0.0` (GA hard cut; no `bridge@2` + `core@2`)
-- **`smoothPriceUpdate` / Pine script plots on WebGL**: feature flags honored; animation/Pine VM plots remain **lite-only** (see `ADR-v2-renderer-webgl.md`)
+- **`smoothPriceUpdate` / Pine on WebGL**: `BarSmoothAnimator` + `pinePlotsToLineSpecs` wired @ rc.4 (see `ADR-v2-renderer-webgl.md` for CDN)
 
 ### Added (pre-GA rc.2)
 

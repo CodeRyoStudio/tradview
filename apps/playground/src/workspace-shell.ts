@@ -12,7 +12,10 @@ const provider = createGatewayDataProvider({
   wsUrl: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?v=1.0`,
 });
 
-const bridge = createDefaultBridge();
+const bridge = createDefaultBridge({
+  origin: location.origin,
+  allowInboundOrigins: [location.origin],
+});
 const { slots } = createWorkspaceChartSlots(workspaceEl, {
   layout: 'grid2',
   slotIds: ['chart-a', 'chart-b'],

@@ -2,9 +2,13 @@ import type { Bar } from '@coderyo/data';
 import { intervalMs, type Interval } from '@coderyo/data';
 import { DEFAULT_INDICATOR_CONFIG, type IndicatorConfig } from '@coderyo/indicators';
 import {
+  BarSmoothAnimator,
   computePrependSliceDeltaForViewport,
   type CrosshairPayload,
+  type PinePlotLine,
 } from '@coderyo/renderer-lite';
+import { WebGLCrosshairOverlay } from './webgl-crosshair-overlay.js';
+import { resolvePaneSyncGroupsFromLayers } from './resolve-pane-sync-groups.js';
 import {
   priceRangeForBars,
   priceToY as mapPriceToY,
@@ -31,20 +35,22 @@ export interface WebGLChartRenderOptions extends Omit<WebGLPaneOrchestratorOptio
 }
 
 /**
- * WebGL render surface for {@link ChartController} (V2-R12).
- * LWC-only paths (Pine plots, multi-pane sync groups) are no-ops until port parity.
+ * WebGL render surface for {@link ChartController} (V2-R12 / Appendix A).
  */
 export class WebGLChartRenderBackend {
   readonly busRegistry = new MsTimeScaleBusRegistry();
   private readonly orchestrator: WebGLPaneOrchestrator;
   private bars: Bar[] = [];
   private offBusTransform: (() => void) | null = null;
-  /** One-shot clear from {@link subscribeCrosshair} (symbol reload / clearBars). */
-  private crosshairEmitClear: (() => void) | null = null;
+
   private readonly crosshairListeners = new Set<(payload: CrosshairPayload | null) => void>();
   private programmaticCrosshair: CrosshairPayload | null = null;
   private logScaleEnabled = false;
   private syncingBusFromViewport = false;
+  private smoothPriceUpdate = false;
+  private smoothPriceDurationMs = 150;
+  private barAnimator: BarSmoothAnimator | null = null;
+  private readonly crosshairOverlay: WebGLCrosshairOverlay;
   constructor(
     private readonly container: HTMLElement,
     options: WebGLChartRenderOptions = {},
@@ -61,6 +67,7 @@ export class WebGLChartRenderBackend {
         : undefined,
     });
     this.orchestrator.mount(container);
+    this.crosshairOverlay = new WebGLCrosshairOverlay(container);
     this.offBusTransform = this.busRegistry.getOrCreateBus('main').subscribeTransform(() => {
       this.syncBusFromViewport();
     });
@@ -105,6 +112,9 @@ export class WebGLChartRenderBackend {
   destroy(): void {
     this.offBusTransform?.();
     this.offBusTransform = null;
+    this.barAnimator?.cancel();
+    this.barAnimator = null;
+    this.crosshairOverlay.destroy();
     this.orchestrator.destroy();
   }
 
@@ -135,12 +145,27 @@ export class WebGLChartRenderBackend {
     /* spacing applied via setBarSpace */
   }
 
-  setSmoothPriceUpdate(_enabled: boolean, _durationMs: number): void {
-    /* BarSmoothAnimator is LWC-only; flag stored on ChartFeatures for lite path */
+  setSmoothPriceUpdate(enabled: boolean, durationMs: number): void {
+    this.smoothPriceUpdate = enabled;
+    this.smoothPriceDurationMs = durationMs;
+    if (!enabled) {
+      this.barAnimator?.cancel();
+      this.barAnimator = null;
+      return;
+    }
+    if (!this.barAnimator) {
+      this.barAnimator = new BarSmoothAnimator(durationMs, (frame) => {
+        if (this.bars.length === 0) return;
+        this.bars[this.bars.length - 1] = frame;
+        this.orchestrator.setBars(this.bars);
+      });
+    } else {
+      this.barAnimator.setDuration(durationMs);
+    }
   }
 
-  setPinePlots(_plots: unknown): void {
-    /* Pine script plots render on lite; WebGL uses main-chart MA/BOLL overlays @ GA */
+  setPinePlots(plots: PinePlotLine[] | null): void {
+    this.orchestrator.setPineOverlayLines(plots);
   }
 
   setResizeFocusPanes(_panes: ChartPaneId[] | null): void {
@@ -151,8 +176,8 @@ export class WebGLChartRenderBackend {
     /* single main bus */
   }
 
-  setPaneSyncGroups(_patch: PaneSyncGroupPatch): void {
-    /* compositor sync is LWC path */
+  setPaneSyncGroups(patch: PaneSyncGroupPatch): void {
+    this.orchestrator.setPaneSyncGroups(patch);
   }
 
   preserveViewportOnNextSetBars(): void {
@@ -182,10 +207,20 @@ export class WebGLChartRenderBackend {
     this.orchestrator.render();
   }
 
-  updateLastBar(bar: Bar, _opts?: { animate?: boolean }): boolean {
+  updateLastBar(
+    bar: Bar,
+    opts?: { animate?: boolean; smooth?: boolean; durationMs?: number },
+  ): boolean {
+    const smooth = opts?.smooth ?? opts?.animate ?? this.smoothPriceUpdate;
     if (this.bars.length === 0) {
       this.bars = [bar];
+    } else if (smooth && this.barAnimator) {
+      const prev = this.bars[this.bars.length - 1];
+      this.barAnimator.setDuration(opts?.durationMs ?? this.smoothPriceDurationMs);
+      this.barAnimator.animateTo(bar, prev);
+      return true;
     } else {
+      this.barAnimator?.cancel();
       this.bars[this.bars.length - 1] = bar;
     }
     this.orchestrator.setBars(this.bars);
@@ -309,11 +344,14 @@ export class WebGLChartRenderBackend {
         : null,
     };
     this.notifyCrosshairListeners(this.programmaticCrosshair);
+    this.updateCrosshairVisual(this.programmaticCrosshair);
   }
 
   clearCrosshair(): void {
     this.programmaticCrosshair = null;
-    this.crosshairEmitClear?.();
+    this.crosshairActive = false;
+    this.crosshairOverlay.hide();
+    this.notifyCrosshairListeners(null);
   }
 
   subscribeCrosshair(handler: (payload: unknown) => void): () => void {
@@ -333,6 +371,8 @@ export class WebGLChartRenderBackend {
   /** Emit crosshair clear when bar series transitions to empty (reload), not on every move. */
   private onBarsBecameEmpty(): void {
     this.programmaticCrosshair = null;
+    this.crosshairActive = false;
+    this.crosshairOverlay.hide();
     this.notifyCrosshairListeners(null);
   }
 
@@ -343,12 +383,12 @@ export class WebGLChartRenderBackend {
   private attachPointerCrosshair(): void {
     const dpr = globalThis.devicePixelRatio ?? 1;
     const emitClear = (): void => {
-      if (!this.crosshairActive) return;
+      if (!this.crosshairActive && !this.programmaticCrosshair) return;
       this.crosshairActive = false;
       this.programmaticCrosshair = null;
+      this.crosshairOverlay.hide();
       this.notifyCrosshairListeners(null);
     };
-    this.crosshairEmitClear = emitClear;
     this.pointerMove = (e: PointerEvent) => {
       if (this.bars.length === 0) return;
       const rect = this.container.getBoundingClientRect();
@@ -370,6 +410,7 @@ export class WebGLChartRenderBackend {
           : null,
       };
       this.notifyCrosshairListeners(this.programmaticCrosshair);
+      this.updateCrosshairVisual(this.programmaticCrosshair);
     };
     this.pointerLeave = () => emitClear();
     this.container.addEventListener('pointermove', this.pointerMove);
@@ -377,7 +418,6 @@ export class WebGLChartRenderBackend {
   }
 
   private detachPointerCrosshair(): void {
-    this.crosshairEmitClear = null;
     if (this.pointerMove) this.container.removeEventListener('pointermove', this.pointerMove);
     if (this.pointerLeave) this.container.removeEventListener('pointerleave', this.pointerLeave);
     this.pointerMove = null;
@@ -402,6 +442,28 @@ export class WebGLChartRenderBackend {
     return this.logScaleEnabled ? 'log' : 'linear';
   }
 
+  private updateCrosshairVisual(payload: CrosshairPayload | null): void {
+    if (!payload?.time) {
+      this.crosshairOverlay.hide();
+      return;
+    }
+    const metrics = this.orchestrator.getMainPaneLayoutMetrics();
+    const vp = this.orchestrator.getViewport();
+    if (!metrics || !vp || this.bars.length === 0) return;
+    const w = this.container.clientWidth || 800;
+    const plotW = vp.plotWidthPx(w);
+    const idx = barIndexForTimeMs(this.bars, payload.time);
+    const xCss = vp.plotXForBarIndex(idx, plotW);
+    let yCss = metrics.mainPaneHeight / 2;
+    if (payload.price != null && Number.isFinite(payload.price)) {
+      const range = this.visiblePriceRange();
+      if (range) {
+        yCss = mapPriceToY(payload.price, range, 0, metrics.mainPaneHeight, this.priceScaleMode());
+      }
+    }
+    this.crosshairOverlay.show(xCss, yCss, metrics.mainPaneHeight, w);
+  }
+
   private nearestBar(tMs: number): Bar | undefined {
     let best: Bar | undefined;
     let bestDt = Infinity;
@@ -415,8 +477,8 @@ export class WebGLChartRenderBackend {
     return best;
   }
 
-  applyTimeScaleSyncFromLayers(_layers: LayerSyncInput[], _pageId?: string): void {
-    /* layer compositor sync: lite only */
+  applyTimeScaleSyncFromLayers(layers: LayerSyncInput[], pageId?: string): void {
+    this.setPaneSyncGroups(resolvePaneSyncGroupsFromLayers(layers, pageId));
   }
 
   private syncBusFromViewport(): void {

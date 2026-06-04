@@ -20,6 +20,7 @@ vi.mock('@coderyo/renderer-webgl', async (importOriginal) => {
         barSpacing: 8,
         rightPaddingPx: 56,
         plotWidthPx: () => 300,
+        plotXForBarIndex: () => 150,
         barIndexAtPlotX: () => 0,
         visibleBarIndexRange: () => ({ from: 0, to: 9 }),
         setBarCount: vi.fn(),

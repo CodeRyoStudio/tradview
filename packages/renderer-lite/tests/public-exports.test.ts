@@ -10,6 +10,7 @@ const PUBLIC_RENDERER_LITE_VALUE_EXPORTS = [
   'TimeScaleBus',
   'TimeScaleBusRegistry',
   'attachPaneResizer',
+  'BarSmoothAnimator',
   'bollOverlayLines',
   'buildSliceTimes',
   'compensatePrependOnBus',

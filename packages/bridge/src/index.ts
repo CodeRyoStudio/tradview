@@ -16,7 +16,22 @@ export interface BridgeInbound {
 
 export interface BridgeAdapterOptions {
   target?: Window;
+  /** `postMessage` targetOrigin (default: current `location.origin` in browser). */
   origin?: string;
+  /**
+   * Inbound `message` origins allowed (default: `[origin]` when origin is set).
+   * Dev-only escape hatch: `allowAnyInboundOrigin: true` (logs once).
+   */
+  allowInboundOrigins?: string[];
+  allowAnyInboundOrigin?: boolean;
+}
+
+function resolveDefaultOrigin(explicit?: string): string {
+  if (explicit) return explicit;
+  if (typeof location !== 'undefined' && location.origin && location.origin !== 'null') {
+    return location.origin;
+  }
+  return 'null';
 }
 
 export function createDefaultBridge(opts: BridgeAdapterOptions = {}): BridgeAdapter {
@@ -25,15 +40,29 @@ export function createDefaultBridge(opts: BridgeAdapterOptions = {}): BridgeAdap
 
 export class BridgeAdapter {
   private readonly target: Window;
-  private readonly origin: string;
+  private readonly postOrigin: string;
+  private readonly inboundOrigins: Set<string> | null;
   private listeners = new Set<(msg: BridgeInbound) => void>();
 
   constructor(opts: BridgeAdapterOptions) {
     this.target = opts.target ?? window.parent;
-    this.origin = opts.origin ?? '*';
+    this.postOrigin = resolveDefaultOrigin(opts.origin);
+
+    if (opts.allowAnyInboundOrigin) {
+      this.inboundOrigins = null;
+      if (typeof console !== 'undefined') {
+        console.warn(
+          '[@coderyo/bridge] allowAnyInboundOrigin=true — dev only; do not use in production embeds',
+        );
+      }
+    } else {
+      const list = opts.allowInboundOrigins ?? [this.postOrigin];
+      this.inboundOrigins = new Set(list.filter((o) => o && o !== '*'));
+    }
+
     if (typeof window !== 'undefined') {
       window.addEventListener('message', (ev) => {
-        if (opts.origin && opts.origin !== '*' && ev.origin !== opts.origin) return;
+        if (this.inboundOrigins && !this.inboundOrigins.has(ev.origin)) return;
         const data = ev.data as BridgeInbound;
         if (data?.type?.startsWith('host.')) {
           for (const l of this.listeners) l(data);
@@ -43,7 +72,7 @@ export class BridgeAdapter {
   }
 
   post(event: BridgeEvent): void {
-    this.target.postMessage(event, this.origin);
+    this.target.postMessage(event, this.postOrigin);
   }
 
   onMessage(handler: (msg: BridgeInbound) => void): () => void {

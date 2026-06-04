@@ -8,6 +8,7 @@ export {
   defaultBarSpacingForInterval,
   resolveBarSpacingForInterval,
 } from './viewport-fit.js';
+export { BarSmoothAnimator } from './bar-smooth-animator.js';
 export {
   isLayeredPaneMount,
   shouldResizeChartPane,

@@ -10,6 +10,7 @@ import { WebGLIndicatorStack } from './webgl-indicator-stack.js';
 import { ViewportSyncBus } from './viewport-sync-bus.js';
 import { WebGLDrawingLayer } from './webgl-drawing-layer.js';
 import type { DrawingTool } from '@coderyo/drawings';
+import { pinePlotsToLineSpecs, type PinePlotLineInput } from './pine-overlay-lines.js';
 
 /** Layout: main candles ~60%, volume ~15%, indicators ~25% when indicator panes visible. */
 const CHART_SECTION_RATIO_WITH_INDICATORS = 0.75;
@@ -33,6 +34,13 @@ export interface WebGLDrawingsOptions {
   symbol?: string;
   interval?: string;
 }
+
+/** Mirrors core {@link PaneSyncGroupPatch} without depending on renderer-lite. */
+export type WebGLPaneSyncGroupPatch = {
+  main?: string | null;
+  volume?: string | null;
+  indicator?: string | null;
+};
 
 export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
   /** Initial CSS size when mount container has zero layout. */
@@ -65,6 +73,8 @@ export class WebGLPaneOrchestrator {
   private perfStats: RenderPerfStats = { lastRenderMs: 0 };
   private readonly onIndicatorConfigChange?: (config: IndicatorConfig) => void;
   private drawingLayer: WebGLDrawingLayer | null = null;
+  private paneSyncPatch: WebGLPaneSyncGroupPatch = {};
+  private indicatorFollowsMain = true;
 
   constructor(private readonly options: WebGLPaneOrchestratorOptions = {}) {
     this.maxRenderPoints = options.maxRenderPoints ?? 4000;
@@ -246,6 +256,46 @@ export class WebGLPaneOrchestrator {
     this.pane?.setLogScale(enabled);
   }
 
+  setPineOverlayLines(plots: readonly PinePlotLineInput[] | null): void {
+    this.pane?.setPineOverlayLines(pinePlotsToLineSpecs(plots));
+    this.render();
+  }
+
+  /** Layer compositor pane sync groups (main/volume share viewport; indicator optional follower). */
+  setPaneSyncGroups(patch: WebGLPaneSyncGroupPatch): void {
+    if (patch.main !== undefined) this.paneSyncPatch.main = patch.main;
+    if (patch.volume !== undefined) this.paneSyncPatch.volume = patch.volume;
+    if (patch.indicator !== undefined) {
+      this.paneSyncPatch.indicator = patch.indicator;
+      const mainG = this.paneSyncPatch.main ?? 'prices';
+      const indG = patch.indicator;
+      const follow =
+        indG != null && String(indG).length > 0 && String(indG) === String(mainG);
+      if (follow !== this.indicatorFollowsMain) {
+        this.indicatorFollowsMain = follow;
+        if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
+          this.recreateIndicatorStack();
+        }
+      }
+    }
+  }
+
+  getPaneSyncPatch(): WebGLPaneSyncGroupPatch {
+    return { ...this.paneSyncPatch };
+  }
+
+  private recreateIndicatorStack(): void {
+    this.indicators?.destroy();
+    this.indicators = null;
+    const stack = this.createIndicatorStack();
+    if (stack && this.lastBars.length > 0) {
+      stack.setBars(this.lastBars);
+      this.syncBus?.propagate();
+    }
+    this.applyIndicatorLayout();
+    this.syncSize();
+  }
+
   /** Indicator pane viewports (tests). */
   getIndicatorViewports(): import('./chart-viewport.js').ChartViewport[] {
     return this.indicators?.getPaneViewports() ?? [];
@@ -271,13 +321,16 @@ export class WebGLPaneOrchestrator {
     }
   }
 
-  private createIndicatorStack(): void {
-    if (!this.indicatorRoot || !this.syncBus) return;
+  private createIndicatorStack(): WebGLIndicatorStack | null {
+    if (!this.indicatorRoot || !hasVisibleIndicatorPanes(this.indicatorConfig)) {
+      return null;
+    }
+    const bus = this.indicatorFollowsMain ? this.syncBus ?? undefined : undefined;
     this.indicators = new WebGLIndicatorStack(this.indicatorRoot, {
       theme: this.options.theme,
       debug: this.options.debug,
       config: this.indicatorConfig,
-      syncBus: this.syncBus,
+      syncBus: bus,
       onConfigChange: (config) => {
         this.indicatorConfig = config;
         this.onIndicatorConfigChange?.(config);
@@ -285,6 +338,7 @@ export class WebGLPaneOrchestrator {
         this.syncSize();
       },
     });
+    return this.indicators;
   }
 
   private observeResize(): void {

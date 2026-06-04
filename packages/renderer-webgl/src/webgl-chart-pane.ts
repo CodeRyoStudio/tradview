@@ -11,7 +11,7 @@ import { ChartInteraction } from './chart-interaction.js';
 import { mergeTheme, type ChartThemeColors } from './theme.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import type { ViewportSyncBus } from './viewport-sync-bus.js';
-import { LineSeriesRenderer } from './line-series-renderer.js';
+import { LineSeriesRenderer, type LineSeriesSpec } from './line-series-renderer.js';
 import { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
 import type { MainPaneLayout } from './chart-coordinates.js';
 import { priceRangeForBars, type PriceScaleMode } from './price-scale.js';
@@ -52,6 +52,7 @@ export class WebGLChartPane {
   private rafId: number | null = null;
   private disposed = false;
   private priceScaleMode: PriceScaleMode = 'linear';
+  private pineOverlayLines: LineSeriesSpec[] = [];
 
   constructor(
     container: HTMLElement,
@@ -129,6 +130,11 @@ export class WebGLChartPane {
     return this.priceScaleMode;
   }
 
+  setPineOverlayLines(lines: readonly LineSeriesSpec[]): void {
+    this.pineOverlayLines = lines.slice();
+    this.scheduleRender();
+  }
+
   /** WebGL chart surface (pan/zoom + drawing hit-test host). */
   getChartCanvas(): HTMLCanvasElement {
     return this.context.canvas;
@@ -189,7 +195,10 @@ export class WebGLChartPane {
       priceScaleMode: this.priceScaleMode,
     });
 
-    const overlayLines = buildMainOverlayLineSpecs(this.bars, this.indicatorConfig);
+    const overlayLines = [
+      ...buildMainOverlayLineSpecs(this.bars, this.indicatorConfig),
+      ...this.pineOverlayLines,
+    ];
     if (overlayLines.length > 0 && to >= from) {
       const priceRange = priceRangeForBars(this.bars, from, to, this.priceScaleMode);
       this.overlays.render({

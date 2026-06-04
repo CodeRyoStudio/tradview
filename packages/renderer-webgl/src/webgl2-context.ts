@@ -1,3 +1,5 @@
+import { isWebGL2TestContextInstalled } from './webgl2-test-context.js';
+
 export interface WebGL2ContextOptions {
   /** When true, log shader compile errors to console. */
   debug?: boolean;
@@ -107,8 +109,9 @@ export class WebGL2Context {
   }
 }
 
-/** Detect WebGL2 for conditional tests. */
+/** Detect WebGL2 for conditional tests (includes vitest mock context). */
 export function hasWebGL2(): boolean {
+  if (isWebGL2TestContextInstalled()) return true;
   if (typeof document === 'undefined') return false;
   const canvas = document.createElement('canvas');
   const gl = canvas.getContext('webgl2');
