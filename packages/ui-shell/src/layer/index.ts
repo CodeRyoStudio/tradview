@@ -14,5 +14,6 @@ export * from './compositor-shell.js';
 export * from './compositor-shell-sync.js';
 export * from './page-navigator.js';
 export * from './bind-layer-time-scale-sync.js';
+export * from './layer-bridge-registration.js';
 export * from './merge-preset.js';
 export * from './resolve-pane-layers.js';

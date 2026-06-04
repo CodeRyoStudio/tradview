@@ -1,32 +1,7 @@
 import { createDefaultBridge, LAYER_HOST_EVENTS } from '@coderyo/bridge';
 import { wireChartBridge } from '@coderyo/core';
-import type { ChartController, IChart, LayerBridgeController, LayerBridgePreset } from '@coderyo/core';
-import {
-  mergeLayoutPreset,
-  normalizeLayoutPreset,
-  type LayerController,
-  type LayoutPreset,
-} from '@coderyo/ui-shell';
-
-function asLayerBridgePreset(p: LayoutPreset): LayerBridgePreset {
-  return p as unknown as LayerBridgePreset;
-}
-
-function wrapLayerController(lc: LayerController): LayerBridgeController {
-  return {
-    get activePageId() {
-      return lc.activePageId;
-    },
-    get presetRevision() {
-      return lc.presetRevision;
-    },
-    getPreset: () => asLayerBridgePreset(lc.getPreset()),
-    setLayerSyncGroup: (layerId, groupId) => lc.setLayerSyncGroup(layerId, groupId),
-    setLayerVisible: (layerId, visible) => lc.setLayerVisible(layerId, visible),
-    setActivePage: (pageId) => lc.setActivePage(pageId),
-    setPreset: (next) => lc.setPreset(next as unknown as LayoutPreset),
-  };
-}
+import type { ChartController, IChart } from '@coderyo/core';
+import { createLayerBridgeRegistration, type LayerController } from '@coderyo/ui-shell';
 
 const TEMPLATES: Record<string, object> = {
   'host.layer.setSyncGroup': {
@@ -117,22 +92,13 @@ export function mountBridgeDebugPanel(
     chart: opts.chart,
     bridge,
     chartId,
-    layerBridge: {
+    layerBridge: createLayerBridgeRegistration({
       chartId,
       chart: opts.chart,
-      layerController: wrapLayerController(opts.layerController),
+      layerController: opts.layerController,
       compositorApply: opts.compositorApply,
       syncCompositorShellVisibility: opts.syncCompositorShellVisibility,
-      normalizePreset: (p) =>
-        asLayerBridgePreset(normalizeLayoutPreset(p as unknown as LayoutPreset)),
-      mergePreset: (current, partial) =>
-        asLayerBridgePreset(
-          mergeLayoutPreset(
-            current as unknown as LayoutPreset,
-            partial as unknown as LayoutPreset,
-          ),
-        ),
-    },
+    }),
   });
 
   const panel = document.createElement('aside');
@@ -266,20 +232,23 @@ export function mountBridgeDebugPanel(
   panel.append(header, body);
   parent.appendChild(panel);
 
-  // Mirror parent postMessage into debug log when host sends host.*
+  const onHostMessage = (ev: MessageEvent) => {
+    const data = ev.data as { type?: string };
+    if (data?.type?.startsWith('host.')) {
+      log.push({ dir: 'in', ts: Date.now(), body: data });
+      renderLog();
+    }
+  };
   if (typeof window !== 'undefined') {
-    window.addEventListener('message', (ev) => {
-      const data = ev.data as { type?: string };
-      if (data?.type?.startsWith('host.')) {
-        log.push({ dir: 'in', ts: Date.now(), body: data });
-        renderLog();
-      }
-    });
+    window.addEventListener('message', onHostMessage);
   }
 
   return {
     bridge,
     teardown: () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('message', onHostMessage);
+      }
       teardownWire();
       panel.remove();
     },

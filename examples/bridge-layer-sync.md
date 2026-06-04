@@ -75,6 +75,42 @@ webView.postMessage(JSON.stringify({
 }));
 ```
 
+## Android (Kotlin + WebView)
+
+```kotlin
+import android.webkit.WebView
+import org.json.JSONObject
+
+fun postLayerSyncGroup(webView: WebView, chartId: String = "default") {
+    val payload = JSONObject()
+        .put("type", "host.layer.setSyncGroup")
+        .put(
+            "payload",
+            JSONObject()
+                .put("chartId", chartId)
+                .put("pane", "main")
+                .put("groupId", "prices")
+                .put("allPages", true),
+        )
+    val js = "window.postMessage(${payload}, '*');"
+    webView.post { webView.evaluateJavascript(js, null) }
+}
+
+fun postSetActivePage(webView: WebView, pageId: String, chartId: String = "default") {
+    val payload = JSONObject()
+        .put("type", "host.layer.setActivePage")
+        .put(
+            "payload",
+            JSONObject()
+                .put("chartId", chartId)
+                .put("pageId", pageId),
+        )
+    webView.post { webView.evaluateJavascript("window.postMessage(${payload}, '*');", null) }
+}
+```
+
+Register `@JavascriptInterface` only if you use a custom bridge; `postMessage` matches Playground and iOS examples. Read `bridgeSchemaVersion` from the first `chart.ready` before sending `host.layer.*`.
+
 ## iOS (WKWebView)
 
 ```swift

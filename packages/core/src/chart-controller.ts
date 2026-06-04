@@ -937,6 +937,8 @@ export class ChartController {
 
     this.loadingMore = true;
     try {
+      const sortedTimesBefore = [...this.store.sortedTimes];
+      let didPrepend = false;
       for (const req of reqs) {
         if (!this.isLoadGenerationCurrent(loadGen)) return;
         const history = await fetchChartHistory(
@@ -945,12 +947,21 @@ export class ChartController {
         );
         if (!this.isLoadGenerationCurrent(loadGen)) return;
         if (history.bars.length === 0) continue;
+        const prepend = req.mode === 'loadMore';
+        if (prepend) didPrepend = true;
         await this.store.mergeBars(
           history.bars.map((bar) => ({ bar, source: 'rest' as const })),
-          req.mode === 'loadMore',
+          prepend,
         );
       }
       if (!this.isLoadGenerationCurrent(loadGen)) return;
+      if (didPrepend && this.visibleRangeInitialized) {
+        this.orchestrator.compensatePrependForBuses(
+          sortedTimesBefore,
+          this.store.sortedTimes,
+          this.store.interval,
+        );
+      }
       this.refreshRender(loadGen);
     } catch (err) {
       this.emit('error', err);

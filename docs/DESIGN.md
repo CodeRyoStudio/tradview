@@ -1311,7 +1311,7 @@ flowchart TB
 **PR-06 Spike AC（追加）**
 
 - [ ] 在 **marked gap** 兩側已載入段之間 pan，三 pane 時間軸誤差 < 1px — **手動 QA required**；ms→slice 契約見 §10.4.1 + `time-scale-bus.test.ts`（無三 pane 像素 gate）
-- [ ] prepend 1000 根後十字線 `t` 不跳變 — 圖表層待補契約測試；資料層見 `packages/series` `mergeBars(prepend)`
+- [x] prepend 後十字線 `t` 不跳變 — `ChartController.maybeLoadMore` + `PaneOrchestrator.compensatePrependForBuses`（§10.4.1）；契約：`time-scale-prepend-crosshair.test.ts`、`prepend-compensation.test.ts`；資料層 `packages/series` `mergeBars(prepend)`
 
 ### 10.5 LWC 時間軸、缺口與 `setBars`
 

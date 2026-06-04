@@ -3,6 +3,7 @@ export * from './pane-resize.js';
 export * from './indicator-panes.js';
 export * from './time-scale-bus.js';
 export * from './time-scale-bus-registry.js';
+export * from './time-scale-prepend.js';
 export {
   defaultBarSpacingForInterval,
   resolveBarSpacingForInterval,

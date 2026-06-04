@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`createLayerBridgeRegistration` / `wrapLayerController`** (`@coderyo/ui-shell`) for Bridge schema 2 layer registration
+- **Prepend compensation (§10.4.1)**: `compensatePrependForBuses` wired from `ChartController.maybeLoadMore`; exports `buildSliceTimes`, `computePrependSliceDeltaForViewport`, `compensatePrependOnRegistry`
+- **docs**: [MIGRATION-bridge-2.md](./docs/MIGRATION-bridge-2.md); Android/Kotlin in [examples/bridge-layer-sync.md](./examples/bridge-layer-sync.md)
+
+### Changed
+
+- **`TimeScaleBus.compensatePrependLogicalRange`**: ms→slice fallback when LWC returns null logical range; validates `referenceChart` membership
+
 ## [1.1.0] - 2026-06-04
 
 ### Added

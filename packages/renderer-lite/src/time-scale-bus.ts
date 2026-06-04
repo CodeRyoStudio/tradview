@@ -1,4 +1,5 @@
 import type { IChartApi, LogicalRange, UTCTimestamp } from 'lightweight-charts';
+import { logicalRangeForVisibleWindow } from './time-scale-prepend.js';
 
 export interface ChartVisibleRange {
   fromMs: number;
@@ -91,6 +92,50 @@ export class TimeScaleBus {
     this.syncing = true;
     for (const chart of this.charts) {
       chart.timeScale().scrollToPosition(position, animated);
+    }
+    this.syncing = false;
+    this.emit();
+  }
+
+  /**
+   * DESIGN §10.4.1: after historical prepend, shift every pane's logical range by Δ
+   * so canonical `visibleFromMs` / `visibleToMs` (and crosshair time mapping) stay fixed.
+   */
+  compensatePrependLogicalRange(
+    delta: number,
+    referenceChart?: IChartApi,
+    sliceTimes?: readonly number[],
+  ): void {
+    const d = Math.max(0, Math.floor(delta));
+    if (d === 0 || this.charts.length === 0) return;
+    const ref =
+      referenceChart && this.charts.includes(referenceChart)
+        ? referenceChart
+        : this.charts[0]!;
+    const ts = ref.timeScale();
+    let current: LogicalRange | null =
+      typeof ts.getVisibleLogicalRange === 'function'
+        ? ts.getVisibleLogicalRange()
+        : null;
+    if (
+      !current &&
+      sliceTimes?.length &&
+      this.visibleToMs > this.visibleFromMs
+    ) {
+      current = logicalRangeForVisibleWindow(
+        sliceTimes,
+        this.visibleFromMs,
+        this.visibleToMs,
+      );
+    }
+    if (!current) return;
+    const next = {
+      from: (current.from as number) + d,
+      to: (current.to as number) + d,
+    } as LogicalRange;
+    this.syncing = true;
+    for (const chart of this.charts) {
+      chart.timeScale().setVisibleLogicalRange(next);
     }
     this.syncing = false;
     this.emit();

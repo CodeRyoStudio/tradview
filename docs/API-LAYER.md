@@ -262,28 +262,31 @@ Remote layer control uses **`bridgeSchemaVersion: 2`** (`@coderyo/bridge@2.0.0`)
 Register after compositor mount:
 
 ```typescript
-import { wireChartBridge, registerChartLayerBridge } from '@coderyo/core';
-import { mergeLayoutPreset, normalizeLayoutPreset } from '@coderyo/ui-shell';
+import { wireChartBridge } from '@coderyo/core';
+import { createLayerBridgeRegistration } from '@coderyo/ui-shell';
+import type { ChartLayerBridgeRegistration } from '@coderyo/core';
 
-wireChartBridge({
+const chartId = 'default';
+
+const layerBridge: ChartLayerBridgeRegistration = createLayerBridgeRegistration({
+  chartId,
   chart,
-  controller,
-  bridge,
-  chartId: 'default',
-  layerBridge: {
-    chartId: 'default',
-    chart,
-    layerController: compositor.controller,
-    compositorApply: () => compositor.apply(),
-    normalizePreset: normalizeLayoutPreset,
-    mergePreset: mergeLayoutPreset,
-  },
+  layerController: compositor.controller,
+  compositorApply: () => compositor.apply(),
+  syncCompositorShellVisibility: () =>
+    layout.syncCompositorShellVisibility?.(compositor.controller),
 });
+
+wireChartBridge({ chart, controller, bridge, chartId, layerBridge });
 ```
+
+`createLayerBridgeRegistration` wraps `LayerController` → `LayerBridgeController` and defaults `normalizePreset` / `mergePreset` to `normalizeLayoutPreset` / `mergeLayoutPreset`. Override those fields only when you need custom merge rules.
+
+**Integrator note:** Bridge wire types use `LayerBridgePreset` (core); ui-shell uses `LayoutPreset` (v2). The helper applies a deliberate cast between the two shapes — they share the same JSON fields (`pages`, `layers`, `groups`, `revision`). Custom `normalizePreset` / `mergePreset` overrides must accept/return `LayerBridgePreset` and perform their own validation if you bypass ui-shell helpers.
 
 `LayoutPreset.revision` (integer ≥ 1) guards against stale remote presets (`STALE_PRESET_REVISION`). `host.setSymbol` / `host.setInterval` clear lazy time-scale visit state.
 
-Examples: [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · ADR: [ADR-bridge-layer-sync.md](./ADR-bridge-layer-sync.md)
+Examples: [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · Migration: [MIGRATION-bridge-2.md](./MIGRATION-bridge-2.md) · ADR: [ADR-bridge-layer-sync.md](./ADR-bridge-layer-sync.md)
 
 ---
 
@@ -291,7 +294,7 @@ Examples: [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · A
 
 See `packages/ui-shell/tests/public-exports.test.ts` for the full frozen export set. Primary symbols:
 
-`bindLayerTimeScaleSync`, `mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `mountPageNavigator`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `presetStorageKey`, `loadPreset`, `savePreset`, `listPresets`, `layoutSchemaToPreset`, `syncOverlayLayersToMain`, `syncAllOverlayLayersToMain`, `syncCompositorShellVisibilityFromFeatures`, `getDrawingOverlayVisible`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `LAYER_PRESET_VERSION` — full runtime allowlist: `packages/ui-shell/tests/public-exports.test.ts`.
+`bindLayerTimeScaleSync`, `createLayerBridgeRegistration`, `wrapLayerController`, `mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `mountPageNavigator`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `presetStorageKey`, `loadPreset`, `savePreset`, `listPresets`, `layoutSchemaToPreset`, `syncOverlayLayersToMain`, `syncAllOverlayLayersToMain`, `syncCompositorShellVisibilityFromFeatures`, `getDrawingOverlayVisible`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `LAYER_PRESET_VERSION` — full runtime allowlist: `packages/ui-shell/tests/public-exports.test.ts`.
 
 ---
 

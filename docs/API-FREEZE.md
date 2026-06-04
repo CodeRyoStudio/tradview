@@ -85,6 +85,8 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 | `syncTimeScaleGroupId`（`LayerNode`） | 圖層 preset：同組同步時間軸；空/省略 = 該 pane 獨立 |
 | `bindLayerTimeScaleSync(chart, controller, opts?)` | 一次綁定 chart ↔ controller；preset / 分頁 / sync 組變更時自動 `applyTimeScaleSyncFromLayers` |
+| `createLayerBridgeRegistration(opts)` | 建立 `ChartLayerBridgeRegistration`（`wireChartBridge` / `registerChartLayerBridge`）；預設 `normalizeLayoutPreset` + `mergeLayoutPreset` |
+| `wrapLayerController(lc)` | `LayerController` → `LayerBridgeController` 適配（進階整合用） |
 | `IChart.applyTimeScaleSyncFromLayers(layers, pageId?)` | 將 preset 同步組套用到 `PaneOrchestrator` 多 bus；`pageId` 限定作用中分頁 |
 | `LayerController.setLayerSyncGroup(layerId, groupId)` | 執行期修改圖層同步組（`''` = 獨立） |
 | `LayoutPreset.revision` | 整數 ≥ 1；`mergeLayoutPreset` / Bridge `host.layer.setPreset` |

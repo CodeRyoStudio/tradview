@@ -15,6 +15,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { intervalMs, type Bar, type Interval } from '@coderyo/data';
+import { compensatePrependOnRegistry } from './time-scale-prepend.js';
 import { lodDecimateBars } from '@coderyo/series';
 import { gridOptions } from './chart-grid.js';
 import {
@@ -774,6 +775,24 @@ export class PaneOrchestrator {
   preserveViewportOnNextSetBars(): void {
     this.skipNextInitialFit = true;
     this.didInitialFit = true;
+  }
+
+  /**
+   * DESIGN §10.4.1: after `mergeBars(..., prepend)` shift logical ranges on every sync bus
+   * so canonical ms viewport and crosshair `t` stay stable.
+   */
+  compensatePrependForBuses(
+    sortedTimesBefore: readonly number[],
+    sortedTimesAfter: readonly number[],
+    interval: Interval,
+  ): void {
+    compensatePrependOnRegistry({
+      registry: this.busRegistry,
+      sortedTimesBefore,
+      sortedTimesAfter,
+      intervalMs: intervalMs(interval),
+      referenceChart: this.mainChart,
+    });
   }
 
   getVisibleRange(): ChartVisibleRange | null {

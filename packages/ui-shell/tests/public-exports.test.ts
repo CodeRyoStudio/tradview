@@ -26,6 +26,8 @@ const PUBLIC_UI_SHELL_VALUE_EXPORTS = [
   'attachChartContextMenu',
   'attachLayerEditor',
   'bindLayerTimeScaleSync',
+  'createLayerBridgeRegistration',
+  'wrapLayerController',
   'bindShortcutsModal',
   'clampBBox',
   'clampFrame',
