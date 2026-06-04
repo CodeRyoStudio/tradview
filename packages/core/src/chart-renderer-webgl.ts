@@ -28,6 +28,9 @@ export class WebGLChartRenderBackend {
   private readonly orchestrator: WebGLPaneOrchestrator;
   private bars: Bar[] = [];
   private offBusTransform: (() => void) | null = null;
+  /** One-shot clear from {@link subscribeCrosshair} (symbol reload / clearBars). */
+  private crosshairEmitClear: (() => void) | null = null;
+  private syncingBusFromViewport = false;
   constructor(
     private readonly container: HTMLElement,
     options: WebGLChartRenderOptions = {},
@@ -54,14 +57,22 @@ export class WebGLChartRenderBackend {
   }
 
   setBars(bars: readonly Bar[], _gaps?: number[]): void {
+    const hadBars = this.bars.length > 0;
     this.bars = bars as Bar[];
     this.orchestrator.setBars(this.bars);
     this.syncBusFromViewport();
+    if (hadBars && this.bars.length === 0) {
+      this.onBarsBecameEmpty();
+    }
   }
 
   clearBars(): void {
+    const hadBars = this.bars.length > 0;
     this.bars = [];
     this.orchestrator.setBars([]);
+    if (hadBars) {
+      this.onBarsBecameEmpty();
+    }
   }
 
   resetViewState(): void {
@@ -308,12 +319,19 @@ export class WebGLChartRenderBackend {
       });
     };
     const onLeave = () => emitClear();
+    this.crosshairEmitClear = emitClear;
     this.container.addEventListener('pointermove', onMove);
     this.container.addEventListener('pointerleave', onLeave);
     return () => {
+      this.crosshairEmitClear = null;
       this.container.removeEventListener('pointermove', onMove);
       this.container.removeEventListener('pointerleave', onLeave);
     };
+  }
+
+  /** Emit crosshair clear when bar series transitions to empty (reload), not on every move. */
+  private onBarsBecameEmpty(): void {
+    this.crosshairEmitClear?.();
   }
 
   private nearestBar(tMs: number): Bar | undefined {
@@ -334,10 +352,16 @@ export class WebGLChartRenderBackend {
   }
 
   private syncBusFromViewport(): void {
+    if (this.syncingBusFromViewport) return;
     const vp = this.orchestrator.getViewport();
     if (!vp || this.bars.length === 0) return;
-    const fromMs = timeMsAtBarIndex(this.bars, vp.visibleFrom);
-    const toMs = timeMsAtBarIndex(this.bars, vp.visibleTo);
-    this.busRegistry.getOrCreateBus('main').setBarsTimeRange(fromMs, toMs);
+    this.syncingBusFromViewport = true;
+    try {
+      const fromMs = timeMsAtBarIndex(this.bars, vp.visibleFrom);
+      const toMs = timeMsAtBarIndex(this.bars, vp.visibleTo);
+      this.busRegistry.getOrCreateBus('main').setBarsTimeRange(fromMs, toMs);
+    } finally {
+      this.syncingBusFromViewport = false;
+    }
   }
 }
