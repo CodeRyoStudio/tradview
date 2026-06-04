@@ -4,14 +4,14 @@ import {
   type ProtoWsEnvelopeBodyArm,
 } from './proto-schema.js';
 import type { Envelope } from '../types.js';
+// Bundled at build time — avoids protobufjs `fs.readFile` in browser (Vite externalizes `fs`).
+import tradviewProtoSource from '../../proto/tradview.proto';
 
 /** Negotiated when `encoding: 'json'` (default). */
 export const WS_SUBPROTOCOL_JSON = 'tradview-json';
 
 /** Negotiated when `encoding: 'protobuf'`. */
 export const WS_SUBPROTOCOL_PROTOBUF = 'tradview-protobuf';
-
-const protoUrl = new URL('../../proto/tradview.proto', import.meta.url);
 
 const TYPE_TO_ARM = Object.fromEntries(
   Object.entries(PROTO_WS_ENVELOPE_BODY_TYPE_MAP).map(([arm, type]) => [type, arm]),
@@ -43,11 +43,9 @@ function stripProtobufJsAliases<T>(value: T): T {
 let envelopeTypePromise: Promise<protobuf.Type> | null = null;
 
 async function loadProtoRoot(): Promise<protobuf.Root> {
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    const { fileURLToPath } = await import('node:url');
-    return protobuf.load(fileURLToPath(protoUrl));
-  }
-  return protobuf.load(protoUrl.href);
+  const parsed = protobuf.parse(tradviewProtoSource);
+  if (!parsed.root) throw new Error('tradview.proto parse produced no root');
+  return parsed.root;
 }
 
 function getEnvelopeType(): Promise<protobuf.Type> {

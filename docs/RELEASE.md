@@ -12,7 +12,7 @@
 | Tag | 已交付（摘要） |
 |-----|----------------|
 | **rc.1** | WebGL `phase_alpha`（V2-R1–R4b）、`apps/playground/webgl-demo.html`、PR-02b-1（proto/REST types）、PR-L7a（grid `@deprecated`） |
-| **rc.2** | PR-L7b（grid 公開 API 移除 + `/migrate`）、PR-02b-2（WS protobuf codec）、**V2-R5** `phase_beta` 指標窗（WebGL MACD/RSI/KDJ，仍不接 `createChart`） |
+| **rc.2** | PR-L7b、PR-02b-2、**V2-R5–R8** WebGL `phase_beta`（指標窗 + 主圖 MA/EMA/BOLL + LOD + bench；仍不接 `createChart`） |
 
 `VERSION` 維持 **`2.0.0-rc.2`** 直至下一 RC bump；勿為 rc.1 單獨改 VERSION。
 
@@ -33,7 +33,8 @@ pnpm check:rc
 |------|------|
 | `test` | 含 `@coderyo/core` 的 **`arch-boundary.test.ts`**（禁止 core → ui-shell）；**勿**在 `check:rc` 重複跑 `arch:boundary` |
 | `test:scripts` | `scripts/check-rc.test.mjs` — RC 步驟與 LWC skip 邏輯 |
-| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **80 KB**（DESIGN-v2 §8：R2 **40 KB** + phase_beta **≤40 KB** @ V2-R5–R8）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
+| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **120 KB**（R2 40 + R5–R7 **≤40** + R8 **≤40**）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
+| `bench:webgl` | 列印 bundle 大小；GPU 幀時請用 `webgl-demo.html?bench=1` |
 | `check:lwc-size` | **僅**當 `VERSION` **不**匹配 `2.0.0` / `2.0.0-rc.N` 時執行（V2 WebGL 線跳過 LWC gate）。@ **`2.0.0-rc.2`**，`pnpm check:rc` → `test:scripts` 驗證此 skip 邏輯 |
 
 手動邊界檢查（除錯用）：`pnpm arch:boundary`（與 `pnpm test` 內 core 測試相同）。

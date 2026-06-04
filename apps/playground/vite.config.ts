@@ -28,5 +28,12 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['lightweight-charts'],
+    exclude: ['ws'],
+  },
+  resolve: {
+    alias: {
+      // Browser playground uses native WebSocket; avoid pulling Node `ws` into the bundle.
+      ws: resolve(__dirname, 'src/stubs/empty-ws.ts'),
+    },
   },
 });

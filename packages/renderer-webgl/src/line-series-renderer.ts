@@ -1,6 +1,7 @@
 import type { ChartViewport } from './chart-viewport.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import type { PaneRect } from './candlestick-renderer.js';
+import { priceToY, type PriceRange } from './price-scale.js';
 
 export interface LineSeriesSpec {
   values: readonly (number | null)[];
@@ -21,6 +22,8 @@ export interface LineSeriesRenderParams {
   resolution: [number, number];
   lines: LineSeriesSpec[];
   histogram?: HistogramSeriesSpec;
+  /** When set, line values are prices (main chart Y scale, V2-R6 overlays). */
+  priceRange?: PriceRange;
 }
 
 function valueRange(
@@ -51,9 +54,13 @@ function valueRange(
 
 function yForValue(
   value: number,
-  range: { min: number; max: number },
+  range: PriceRange,
   pane: PaneRect,
+  priceScale: boolean,
 ): number {
+  if (priceScale) {
+    return priceToY(value, range, pane.top, pane.top + pane.height);
+  }
   const span = range.max - range.min;
   const t = span > 0 ? (value - range.min) / span : 0.5;
   return pane.top + pane.height * (1 - t);
@@ -82,25 +89,27 @@ export class LineSeriesRenderer {
   }
 
   render(params: LineSeriesRenderParams): void {
-    const { viewport, plotWidthPx, pane, resolution, lines, histogram } = params;
+    const { viewport, plotWidthPx, pane, resolution, lines, histogram, priceRange } = params;
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from) return;
 
     const seriesValues = lines.map((l) => l.values);
     if (histogram) seriesValues.push(histogram.values);
-    const range = valueRange(seriesValues, from, to);
+    const range =
+      priceRange ?? valueRange(seriesValues, from, to);
+    const usePriceScale = priceRange != null;
 
     const out = this.scratch;
     out.length = 0;
 
     if (histogram) {
-      const zeroY = yForValue(0, range, pane);
+      const zeroY = yForValue(0, range, pane, usePriceScale);
       const barWidth = Math.max(1, viewport.barSpacing * 0.72);
       for (let i = from; i <= to; i++) {
         const v = histogram.values[i];
         if (v == null) continue;
         const cx = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
-        const yVal = yForValue(v, range, pane);
+        const yVal = yForValue(v, range, pane, usePriceScale);
         const top = Math.min(zeroY, yVal);
         const bottom = Math.max(zeroY, yVal);
         const h = Math.max(1, bottom - top);
@@ -121,7 +130,7 @@ export class LineSeriesRenderer {
           continue;
         }
         const x = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
-        const y = yForValue(v, range, pane);
+        const y = yForValue(v, range, pane, usePriceScale);
         if (prevX != null && prevY != null) {
           pushLineSegment(out, prevX, prevY, x, y, w, spec.color);
         }

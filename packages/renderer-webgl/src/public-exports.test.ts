@@ -24,6 +24,7 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'priceRangeForBars',
   'maxVolumeForBars',
   'priceToY',
+  'buildMainOverlayLineSpecs',
 ] as const;
 
 describe('@coderyo/renderer-webgl public exports', () => {

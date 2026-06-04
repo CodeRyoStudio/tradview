@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * V2-R2 gate: @coderyo/renderer-webgl ESM bundle raw size (DESIGN-v2 §8).
- * Default 80 KB raw = R2 cap (40 KB) + phase_beta increment (V2-R5–R8, ≤40 KB).
+ * Default 120 KB raw = R2 (40) + phase_beta (≤40 @ R5) + phase_beta LOD/overlays (≤40 @ R8).
  * Override: TRADVIEW_WEBGL_MAX_KB.
  */
 import { readFileSync, existsSync } from 'node:fs';
@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const bundlePath = resolve(root, 'packages/renderer-webgl/dist/index.js');
-const maxKb = Number(process.env.TRADVIEW_WEBGL_MAX_KB ?? 80);
+const maxKb = Number(process.env.TRADVIEW_WEBGL_MAX_KB ?? 120);
 
 if (!existsSync(bundlePath)) {
   console.log('[webgl-size] building @coderyo/renderer-webgl…');

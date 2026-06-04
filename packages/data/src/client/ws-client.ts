@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws';
 import { DataError } from '../errors.js';
 import {
   decodeWsProtobufEnvelope,
@@ -49,15 +48,102 @@ interface ActiveSubscription extends Subscription {
   handlers: RealtimeHandlers;
 }
 
-function toMessageBuffer(data: WebSocket.RawData): Uint8Array {
-  if (Buffer.isBuffer(data)) return new Uint8Array(data);
+const WS_OPEN = 1;
+
+type WsLike = {
+  readonly readyState: number;
+  send(data: string | Uint8Array | ArrayBuffer): void;
+  close(code?: number, reason?: string): void;
+  onopen: ((ev: Event) => void) | null;
+  onmessage: ((ev: { data: unknown }) => void) | null;
+  onclose: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+function toMessageBuffer(data: unknown): Uint8Array {
+  if (data instanceof Uint8Array) return data;
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
-  if (Array.isArray(data)) return Buffer.concat(data);
-  return new Uint8Array(Buffer.from(String(data), 'utf8'));
+  if (ArrayBuffer.isView(data)) {
+    const view = data as ArrayBufferView;
+    return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+  }
+  if (typeof data === 'string') return new TextEncoder().encode(data);
+  const Buf = (globalThis as typeof globalThis & { Buffer?: { isBuffer: (v: unknown) => boolean; from: (v: string, enc: string) => Uint8Array; concat: (parts: Uint8Array[]) => Uint8Array } }).Buffer;
+  if (Buf?.isBuffer(data)) return new Uint8Array(data as Uint8Array);
+  if (Array.isArray(data) && Buf) return new Uint8Array(Buf.concat(data as Uint8Array[]));
+  return new TextEncoder().encode(String(data));
+}
+
+function messageDataToUtf8(data: unknown): string {
+  if (typeof data === 'string') return data;
+  return new TextDecoder().decode(toMessageBuffer(data));
+}
+
+type WsRuntime = 'node' | 'browser';
+
+type WsConnection = {
+  runtime: WsRuntime;
+  socket: WsLike;
+};
+
+function isNodeRuntime(): boolean {
+  return typeof process !== 'undefined' && typeof process.versions?.node === 'string';
+}
+
+async function openWsConnection(
+  url: string,
+  protocols: string[],
+  headers: Record<string, string>,
+): Promise<WsConnection> {
+  if (isNodeRuntime()) {
+    const { WebSocket: NodeWebSocket } = await import('ws');
+    return {
+      runtime: 'node',
+      socket: new NodeWebSocket(url, protocols, { headers }) as unknown as WsLike,
+    };
+  }
+  if (typeof globalThis.WebSocket === 'function') {
+    return {
+      runtime: 'browser',
+      socket: new globalThis.WebSocket(url, protocols) as unknown as WsLike,
+    };
+  }
+  throw new DataError({
+    code: 'CONFIG_ERROR',
+    message: 'WebSocket is not available in this environment',
+    recoverable: false,
+    transport: 'ws',
+  });
+}
+
+function bindSocketHandlers(
+  conn: WsConnection,
+  handlers: {
+    onOpen: () => void | Promise<void>;
+    onMessage: (data: unknown) => void;
+    onClose: () => void;
+    onError: () => void;
+  },
+): void {
+  if (conn.runtime === 'node') {
+    const nodeWs = conn.socket as import('ws').WebSocket;
+    nodeWs.on('open', () => void handlers.onOpen());
+    nodeWs.on('message', (data) => handlers.onMessage(data));
+    nodeWs.on('close', handlers.onClose);
+    nodeWs.on('error', handlers.onError);
+    return;
+  }
+
+  const ws = conn.socket;
+  ws.onopen = () => void handlers.onOpen();
+  ws.onmessage = (ev) => handlers.onMessage(ev.data);
+  ws.onclose = handlers.onClose;
+  ws.onerror = handlers.onError;
+  if (ws.readyState === WS_OPEN) void handlers.onOpen();
 }
 
 export class TradViewWsClient {
-  private ws: WebSocket | null = null;
+  private conn: WsConnection | null = null;
   private state: ConnectionState = 'disconnected';
   private reconnectAttempt = 0;
   private stopped = false;
@@ -83,7 +169,7 @@ export class TradViewWsClient {
   setEncoding(encoding: WsEncoding): void {
     if (this.encoding === encoding) return;
     this.encoding = encoding;
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.conn?.socket.readyState === WS_OPEN) {
       void this.disconnect().then(() => this.connect());
     }
   }
@@ -97,11 +183,27 @@ export class TradViewWsClient {
   async disconnect(): Promise<void> {
     this.stopped = true;
     this.clearPing();
-    const socket = this.ws;
-    this.ws = null;
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    const conn = this.conn;
+    this.conn = null;
+    const socket = conn?.socket;
+    if (conn?.runtime === 'node' && socket) {
+      const nodeWs = socket as import('ws').WebSocket;
+      if (nodeWs.readyState === WS_OPEN) {
+        await new Promise<void>((resolve) => {
+          nodeWs.once('close', () => resolve());
+          nodeWs.close();
+          setTimeout(resolve, 500);
+        });
+      } else {
+        nodeWs.close();
+      }
+    } else if (socket && socket.readyState === WS_OPEN) {
       await new Promise<void>((resolve) => {
-        socket.once('close', () => resolve());
+        const prevClose = socket.onclose;
+        socket.onclose = () => {
+          prevClose?.();
+          resolve();
+        };
         socket.close();
         setTimeout(resolve, 500);
       });
@@ -159,7 +261,7 @@ export class TradViewWsClient {
   }
 
   private async ensureConnected(): Promise<void> {
-    if (this.state === 'connected' && this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.state === 'connected' && this.conn?.socket.readyState === WS_OPEN) return;
     if (this.stopped) throw new DataError({ code: 'CONFIG_ERROR', message: 'WS disconnected', recoverable: false, transport: 'ws' });
     await this.connect();
   }
@@ -181,41 +283,42 @@ export class TradViewWsClient {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(url, [this.wsSubprotocol()], { headers });
-      this.ws = ws;
-
-      ws.on('open', async () => {
-        try {
-          await this.opts.auth?.onConnect?.('ws');
-          await this.sendAuthIfNeeded();
-          this.reconnectAttempt = 0;
-          this.setState('connected');
-          this.startPing();
-          await this.resubscribeAll();
-          resolve();
-        } catch (e) {
-          reject(e instanceof Error ? e : new Error(String(e)));
-        }
-      });
-
-      ws.on('message', (data) => {
-        void this.handleMessage(data);
-      });
-
-      ws.on('close', () => {
-        this.clearPing();
-        if (!this.stopped && !this.authFailed) {
-          void this.scheduleReconnect();
-        } else if (this.authFailed) {
-          this.setState('failed');
-        } else {
-          this.setState('disconnected');
-        }
-      });
-
-      ws.on('error', () => {
-        /* close handler drives reconnect */
-      });
+      void openWsConnection(url, [this.wsSubprotocol()], headers)
+        .then((opened) => {
+          this.conn = opened;
+          bindSocketHandlers(opened, {
+            onOpen: async () => {
+              try {
+                await this.opts.auth?.onConnect?.('ws');
+                await this.sendAuthIfNeeded();
+                this.reconnectAttempt = 0;
+                this.setState('connected');
+                this.startPing();
+                await this.resubscribeAll();
+                resolve();
+              } catch (e) {
+                reject(e instanceof Error ? e : new Error(String(e)));
+              }
+            },
+            onMessage: (data) => {
+              void this.handleMessage(data);
+            },
+            onClose: () => {
+              this.clearPing();
+              if (!this.stopped && !this.authFailed) {
+                void this.scheduleReconnect();
+              } else if (this.authFailed) {
+                this.setState('failed');
+              } else {
+                this.setState('disconnected');
+              }
+            },
+            onError: () => {
+              /* close handler drives reconnect */
+            },
+          });
+        })
+        .catch(reject);
     });
   }
 
@@ -333,13 +436,13 @@ export class TradViewWsClient {
         transport: 'ws',
       });
       this.broadcastError(err);
-      this.ws?.close();
+      this.conn?.socket.close();
       return;
     }
 
     try {
       await this.opts.auth.refreshToken();
-      this.ws?.close();
+      this.conn?.socket.close();
       this.reconnectAttempt = 0;
       await this.openSocket();
     } catch {
@@ -358,7 +461,7 @@ export class TradViewWsClient {
     }
   }
 
-  private async parseIncomingMessage(data: WebSocket.RawData): Promise<Envelope | null> {
+  private async parseIncomingMessage(data: unknown): Promise<Envelope | null> {
     if (this.encoding === 'protobuf') {
       try {
         return await decodeWsProtobufEnvelope(toMessageBuffer(data));
@@ -367,14 +470,14 @@ export class TradViewWsClient {
       }
     }
     try {
-      const text = typeof data === 'string' ? data : data.toString('utf8');
+      const text = messageDataToUtf8(data);
       return JSON.parse(text) as Envelope;
     } catch {
       return null;
     }
   }
 
-  private async handleMessage(data: WebSocket.RawData) {
+  private async handleMessage(data: unknown) {
     const msg = await this.parseIncomingMessage(data);
     if (!msg) return;
 
@@ -489,14 +592,15 @@ export class TradViewWsClient {
   }
 
   private send(msg: Envelope) {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    const socket = this.conn?.socket;
+    if (socket?.readyState !== WS_OPEN) return;
     if (this.encoding === 'protobuf') {
       void encodeWsProtobufEnvelope(msg).then((bytes) => {
-        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(bytes);
+        if (this.conn?.socket.readyState === WS_OPEN) this.conn.socket.send(bytes);
       });
       return;
     }
-    this.ws.send(JSON.stringify(msg));
+    socket.send(JSON.stringify(msg));
   }
 
   private startPing() {

@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "pnpm --filter @coderyo/bridge build && pnpm --filter @coderyo/core build && pnpm --filter @coderyo/ui-shell build",
-    "dev": "vite",
+    "predev": "pnpm --filter @coderyo/bridge build && pnpm --filter @coderyo/core build && pnpm --filter @coderyo/data build && pnpm --filter @coderyo/ui-shell build && pnpm --filter @coderyo/renderer-lite build",
+    "dev": "node ../../scripts/playground-dev.mjs",
+    "dev:vite-only": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

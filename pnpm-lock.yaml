@@ -365,6 +365,12 @@ importers:
       '@coderyo/data':
         specifier: workspace:*
         version: link:../data
+      '@coderyo/indicators':
+        specifier: workspace:*
+        version: link:../indicators
+      '@coderyo/series':
+        specifier: workspace:*
+        version: link:../series
     devDependencies:
       '@coderyo/eslint-config':
         specifier: workspace:*

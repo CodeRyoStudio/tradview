@@ -5,9 +5,10 @@ import {
 import { WebGLPaneOrchestrator } from '@coderyo/renderer-webgl';
 import { generateDemoBars } from './synthetic-bars.js';
 
-const BAR_COUNT = 600;
+const BAR_COUNT = 12_000;
 const SYMBOL = 'BINANCE:BTCUSDT';
 const INTERVAL = '1h';
+const benchMode = new URLSearchParams(location.search).get('bench') === '1';
 
 function showError(message: string): void {
   const el = document.getElementById('error');
@@ -22,8 +23,17 @@ function updateHud(orch: WebGLPaneOrchestrator, barCount: number): void {
   const vpEl = document.getElementById('hud-viewport');
   const spEl = document.getElementById('hud-spacing');
   const indEl = document.getElementById('hud-indicators');
+  const lodEl = document.getElementById('hud-lod');
+  const perfEl = document.getElementById('hud-perf');
   if (!vp) return;
-  if (barsEl) barsEl.textContent = `bars: ${barCount}`;
+  const lod = orch.getLodStats();
+  const perf = orch.getRenderPerfStats();
+  if (barsEl) {
+    barsEl.textContent =
+      lod.inputCount > lod.outputCount
+        ? `bars: ${lod.outputCount} (lod ${lod.inputCount}→${lod.outputCount})`
+        : `bars: ${barCount}`;
+  }
   if (vpEl) {
     vpEl.textContent = `viewport: ${vp.visibleFrom.toFixed(1)} … ${vp.visibleTo.toFixed(1)}`;
   }
@@ -31,15 +41,26 @@ function updateHud(orch: WebGLPaneOrchestrator, barCount: number): void {
   const cfg = orch.getIndicatorConfig();
   if (indEl) {
     const on = [
+      cfg.showMa && 'MA',
+      cfg.showEma && 'EMA',
+      cfg.showBoll && 'BOLL',
       cfg.showMacd && 'MACD',
       cfg.showRsi && 'RSI',
       cfg.showKdj && 'KDJ',
     ].filter(Boolean);
-    indEl.textContent = `indicators: ${on.length ? on.join(', ') : 'off'}`;
+    indEl.textContent = `layers: ${on.length ? on.join(', ') : 'off'}`;
+  }
+  if (lodEl && lod.inputCount > 0) {
+    lodEl.textContent = `lod: ${lod.inputCount} → ${lod.outputCount} @ max 4000`;
+  }
+  if (perfEl) {
+    const parts = [`render: ${perf.lastRenderMs.toFixed(2)}ms`];
+    if (perf.benchAvgMs != null) parts.push(`bench avg: ${perf.benchAvgMs.toFixed(2)}ms`);
+    perfEl.textContent = parts.join(' · ');
   }
 }
 
-function buildIndicatorToggles(
+function buildToggles(
   initial: IndicatorConfig,
   onChange: (config: IndicatorConfig) => void,
 ): void {
@@ -48,6 +69,9 @@ function buildIndicatorToggles(
 
   let config = { ...initial };
   const keys: Array<{ key: keyof IndicatorConfig; label: string }> = [
+    { key: 'showMa', label: 'MA' },
+    { key: 'showEma', label: 'EMA' },
+    { key: 'showBoll', label: 'BOLL' },
     { key: 'showMacd', label: 'MACD' },
     { key: 'showRsi', label: 'RSI' },
     { key: 'showKdj', label: 'KDJ' },
@@ -85,6 +109,8 @@ function main(): void {
 
   let indicatorConfig: IndicatorConfig = {
     ...DEFAULT_INDICATOR_CONFIG,
+    showMa: true,
+    showBoll: true,
     showMacd: true,
     showRsi: true,
     showKdj: true,
@@ -95,6 +121,7 @@ function main(): void {
     orch = new WebGLPaneOrchestrator({
       volumeHeightRatio: 0.22,
       barSpacing: 7,
+      maxRenderPoints: 4000,
       indicatorConfig,
       onIndicatorConfigChange: (cfg) => {
         indicatorConfig = cfg;
@@ -109,13 +136,19 @@ function main(): void {
     return;
   }
 
-  buildIndicatorToggles(indicatorConfig, (cfg) => {
+  buildToggles(indicatorConfig, (cfg) => {
     indicatorConfig = cfg;
     orch.setIndicatorConfig(cfg);
   });
 
   updateHud(orch, bars.length);
   const hudTimer = window.setInterval(() => updateHud(orch, bars.length), 200);
+
+  if (benchMode) {
+    const avg = orch.runRenderBenchmark(80);
+    console.log(`[webgl-bench] avg render: ${avg.toFixed(2)} ms (80 frames)`);
+    updateHud(orch, bars.length);
+  }
 
   window.addEventListener('beforeunload', () => {
     window.clearInterval(hudTimer);

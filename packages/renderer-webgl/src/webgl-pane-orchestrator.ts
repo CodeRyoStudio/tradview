@@ -4,6 +4,7 @@ import {
   hasVisibleIndicatorPanes,
   type IndicatorConfig,
 } from '@coderyo/indicators';
+import { lodDecimateBars } from '@coderyo/series';
 import { WebGLChartPane, type WebGLChartPaneOptions } from './webgl-chart-pane.js';
 import { WebGLIndicatorStack } from './webgl-indicator-stack.js';
 import { ViewportSyncBus } from './viewport-sync-bus.js';
@@ -13,12 +14,24 @@ const CHART_SECTION_RATIO_WITH_INDICATORS = 0.75;
 const VOLUME_RATIO_IN_CHART_SECTION = 15 / 75;
 const DEFAULT_VOLUME_RATIO_SOLO = 0.22;
 
+export interface LodStats {
+  inputCount: number;
+  outputCount: number;
+}
+
+export interface RenderPerfStats {
+  lastRenderMs: number;
+  benchAvgMs?: number;
+}
+
 export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
   /** Initial CSS size when mount container has zero layout. */
   initialWidth?: number;
   initialHeight?: number;
   indicatorConfig?: IndicatorConfig;
   onIndicatorConfigChange?: (config: IndicatorConfig) => void;
+  /** Max bars sent to GPU after LOD decimation (V2-R8, §11.5). */
+  maxRenderPoints?: number;
 }
 
 /**
@@ -35,9 +48,13 @@ export class WebGLPaneOrchestrator {
   private resizeObserver: ResizeObserver | null = null;
   private indicatorConfig: IndicatorConfig = DEFAULT_INDICATOR_CONFIG;
   private lastBars: Bar[] = [];
+  private readonly maxRenderPoints: number;
+  private lodStats: LodStats = { inputCount: 0, outputCount: 0 };
+  private perfStats: RenderPerfStats = { lastRenderMs: 0 };
   private readonly onIndicatorConfigChange?: (config: IndicatorConfig) => void;
 
   constructor(private readonly options: WebGLPaneOrchestratorOptions = {}) {
+    this.maxRenderPoints = options.maxRenderPoints ?? 4000;
     this.indicatorConfig = options.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG;
     this.onIndicatorConfigChange = options.onIndicatorConfigChange;
   }
@@ -73,7 +90,10 @@ export class WebGLPaneOrchestrator {
   }
 
   setBars(bars: readonly Bar[]): void {
-    this.lastBars = bars.slice();
+    const inputCount = bars.length;
+    const renderBars = lodDecimateBars(bars as Bar[], this.maxRenderPoints);
+    this.lodStats = { inputCount, outputCount: renderBars.length };
+    this.lastBars = renderBars;
     this.pane?.setData(this.lastBars);
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.setBars(this.lastBars);
@@ -81,8 +101,31 @@ export class WebGLPaneOrchestrator {
     }
   }
 
+  getLodStats(): LodStats {
+    return { ...this.lodStats };
+  }
+
+  getRenderPerfStats(): RenderPerfStats {
+    return { ...this.perfStats };
+  }
+
+  /**
+   * Run `iterations` full renders and store average ms in perf stats (V2-R7 bench).
+   */
+  runRenderBenchmark(iterations = 60): number {
+    if (!this.pane) return 0;
+    const t0 = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      this.pane.render();
+    }
+    const avg = (performance.now() - t0) / iterations;
+    this.perfStats = { ...this.perfStats, benchAvgMs: avg };
+    return avg;
+  }
+
   setIndicatorConfig(config: IndicatorConfig): void {
     this.indicatorConfig = config;
+    this.pane?.setIndicatorConfig(config);
     this.applyIndicatorLayout();
     this.onIndicatorConfigChange?.(config);
     if (!this.indicators && hasVisibleIndicatorPanes(config)) {
@@ -117,10 +160,12 @@ export class WebGLPaneOrchestrator {
   }
 
   render(): void {
+    const t0 = performance.now();
     this.pane?.render();
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.resize();
     }
+    this.perfStats = { ...this.perfStats, lastRenderMs: performance.now() - t0 };
   }
 
   destroy(): void {

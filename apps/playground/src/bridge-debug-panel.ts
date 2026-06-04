@@ -80,12 +80,7 @@ export function mountBridgeDebugPanel(
   };
 
   const log: Array<{ dir: 'in' | 'out'; ts: number; body: unknown }> = [];
-  const origPost = bridge.post.bind(bridge);
-  bridge.post = (event) => {
-    log.push({ dir: 'out', ts: Date.now(), body: event });
-    renderLog();
-    origPost(event);
-  };
+  let renderLog = () => {};
 
   const teardownWire = wireChartBridge({
     controller: opts.controller,
@@ -173,7 +168,7 @@ export function mountBridgeDebugPanel(
   logEl.style.cssText =
     'margin:0;overflow:auto;max-height:140px;background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:6px;white-space:pre-wrap;word-break:break-all;';
 
-  const renderLog = () => {
+  renderLog = () => {
     logEl.textContent = log
       .slice(-40)
       .map((e) => {
@@ -181,6 +176,13 @@ export function mountBridgeDebugPanel(
         return `${arrow} ${new Date(e.ts).toISOString().slice(11, 23)} ${JSON.stringify(e.body)}`;
       })
       .join('\n');
+  };
+
+  const origPost = bridge.post.bind(bridge);
+  bridge.post = (event) => {
+    log.push({ dir: 'out', ts: Date.now(), body: event });
+    renderLog();
+    origPost(event);
   };
 
   const dispatchInbound = (msg: { type: string; payload?: Record<string, unknown> }) => {

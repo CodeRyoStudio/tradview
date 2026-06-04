@@ -1,4 +1,8 @@
 import type { Bar } from '@coderyo/data';
+import {
+  DEFAULT_INDICATOR_CONFIG,
+  type IndicatorConfig,
+} from '@coderyo/indicators';
 import { ChartViewport } from './chart-viewport.js';
 import { CandlestickRenderer } from './candlestick-renderer.js';
 import { VolumeRenderer } from './volume-renderer.js';
@@ -7,6 +11,9 @@ import { ChartInteraction } from './chart-interaction.js';
 import { mergeTheme, type ChartThemeColors } from './theme.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import type { ViewportSyncBus } from './viewport-sync-bus.js';
+import { LineSeriesRenderer } from './line-series-renderer.js';
+import { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
+import { priceRangeForBars } from './price-scale.js';
 
 export interface WebGLChartPaneOptions {
   /** Fraction of height for volume pane (0–0.5). */
@@ -36,7 +43,9 @@ export class WebGLChartPane {
 
   private candles: CandlestickRenderer;
   private volume: VolumeRenderer;
+  private overlays: LineSeriesRenderer;
   private gridBatch: SolidBatchRenderer;
+  private indicatorConfig: IndicatorConfig = DEFAULT_INDICATOR_CONFIG;
   private interaction: ChartInteraction | null = null;
   private syncBus: ViewportSyncBus | null = null;
   private rafId: number | null = null;
@@ -55,12 +64,14 @@ export class WebGLChartPane {
 
     this.candles = new CandlestickRenderer(gl, this.debug);
     this.volume = new VolumeRenderer(gl, this.debug);
+    this.overlays = new LineSeriesRenderer(gl, this.debug);
     this.gridBatch = new SolidBatchRenderer(gl, this.debug);
 
     this.context.setContextHandlers({
       onRestored: () => {
         this.candles.onContextRestored();
         this.volume.onContextRestored();
+        this.overlays.onContextRestored();
         this.gridBatch.markDirty();
         this.scheduleRender();
       },
@@ -98,6 +109,15 @@ export class WebGLChartPane {
     this.afterViewportChange();
   }
 
+  setIndicatorConfig(config: IndicatorConfig): void {
+    this.indicatorConfig = config;
+    this.scheduleRender();
+  }
+
+  getIndicatorConfig(): IndicatorConfig {
+    return this.indicatorConfig;
+  }
+
   resize(cssWidth: number, cssHeight: number): void {
     this.width = cssWidth;
     this.context.resize(cssWidth, cssHeight);
@@ -125,14 +145,30 @@ export class WebGLChartPane {
 
     const resolution: [number, number] = [w, h];
 
+    const mainPane = { left: 0, top: 0, width: w, height: mainH };
+    const { from, to } = this.viewport.visibleBarIndexRange();
+
     this.candles.render({
       bars: this.bars,
       viewport: this.viewport,
       plotWidthPx: plotW,
-      pane: { left: 0, top: 0, width: w, height: mainH },
+      pane: mainPane,
       resolution,
       theme: this.theme,
     });
+
+    const overlayLines = buildMainOverlayLineSpecs(this.bars, this.indicatorConfig);
+    if (overlayLines.length > 0 && to >= from) {
+      const priceRange = priceRangeForBars(this.bars, from, to);
+      this.overlays.render({
+        viewport: this.viewport,
+        plotWidthPx: plotW,
+        pane: mainPane,
+        resolution,
+        lines: overlayLines,
+        priceRange,
+      });
+    }
 
     this.volume.render({
       bars: this.bars,
@@ -156,6 +192,7 @@ export class WebGLChartPane {
     this.interaction = null;
     this.candles.dispose();
     this.volume.dispose();
+    this.overlays.dispose();
     this.gridBatch.dispose();
     this.context.destroy();
   }

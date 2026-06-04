@@ -33,6 +33,9 @@ export type { WebGLIndicatorPaneId, WebGLIndicatorPaneOptions } from './webgl-in
 
 export { ViewportSyncBus } from './viewport-sync-bus.js';
 
+export { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
+export type { LodStats, RenderPerfStats } from './webgl-pane-orchestrator.js';
+
 export { DEFAULT_CHART_THEME, mergeTheme } from './theme.js';
 export type { ChartThemeColors } from './theme.js';
 

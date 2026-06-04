@@ -390,14 +390,16 @@ export class ChartController {
     await this.store.mergeRealtime({ bar, partial });
     if (!this.isLoadGenerationCurrent(loadGen)) return;
 
-    const bars = this.activeVirtualWindow().getBarsForRender();
-    const last = bars[bars.length - 1];
-    if (last && this.features.smoothPriceUpdate) {
-      this.orchestrator.updateLastBar(last, {
+    if (this.features.smoothPriceUpdate) {
+      const updated = this.orchestrator.updateLastBar(bar, {
         smooth: true,
         durationMs: this.features.smoothPriceDurationMs,
       });
-      this.drawingManager?.redraw();
+      if (updated) {
+        this.drawingManager?.redraw();
+      } else {
+        this.refreshRender(loadGen);
+      }
     } else {
       this.refreshRender(loadGen);
     }

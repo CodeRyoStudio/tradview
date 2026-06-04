@@ -4,6 +4,7 @@
  */
 
 export const CHECK_RC_STEP_LWC = 'check:lwc-size';
+export const CHECK_RC_STEP_WEBGL = 'check:webgl-size';
 
 /** Ordered pnpm script names executed by check-rc.mjs (excludes version file read). */
 export const CHECK_RC_STEPS_BASE = [
@@ -13,6 +14,7 @@ export const CHECK_RC_STEPS_BASE = [
   'test:scripts',
   'typecheck',
   'lint',
+  'check:webgl-size',
   'build:cdn',
   'check:cdn-size',
 ];

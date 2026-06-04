@@ -66,6 +66,15 @@ describeWebGL('WebGLPaneOrchestrator sync + indicator data', () => {
     }
   });
 
+  it('lod decimates large bar sets (V2-R8)', () => {
+    const { orch } = mountOrchestrator();
+    orch.setBars(syntheticBars(8000));
+    const lod = orch.getLodStats();
+    expect(lod.inputCount).toBe(8000);
+    expect(lod.outputCount).toBeLessThanOrEqual(4000);
+    expect(lod.outputCount).toBeGreaterThan(0);
+  });
+
   it('setIndicatorConfig re-applies bars without a second setBars', () => {
     const noPanes = clearedIndicatorConfig(DEFAULT_INDICATOR_CONFIG);
     const { orch } = mountOrchestrator(noPanes);

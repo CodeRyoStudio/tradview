@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@coderyo/data": "workspace:*",
-    "@coderyo/indicators": "workspace:*"
+    "@coderyo/indicators": "workspace:*",
+    "@coderyo/series": "workspace:*"
   },
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",

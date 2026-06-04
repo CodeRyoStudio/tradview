@@ -2,11 +2,12 @@
 
 WebGL2 chart renderer for TradView V2.
 
-## Phase alpha (V2-R1–R4b)
+## Phase beta (V2-R5–R8)
 
-- `WebGLPaneOrchestrator` — main OHLC pane + volume histogram (standalone; not wired to `@coderyo/core`)
-- `WebGLChartPane` — single canvas with pan/zoom
-- Demo: `apps/playground/webgl-demo.html`
+- `WebGLPaneOrchestrator` — main + volume + MACD/RSI/KDJ + **MA/EMA/BOLL overlays** (V2-R6)
+- **LOD** via `lodDecimateBars` + `maxRenderPoints` (V2-R8)
+- **Perf**: `getRenderPerfStats()`, `runRenderBenchmark()`; `pnpm bench:webgl`; demo `?bench=1`
+- Demo: `apps/playground/webgl-demo.html` (not wired to `@coderyo/core` until V2-R12)
 
 ## Usage
 

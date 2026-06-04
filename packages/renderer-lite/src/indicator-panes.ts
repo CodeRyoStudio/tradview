@@ -357,14 +357,8 @@ export class IndicatorPaneStack {
       { show: this.config.showRsi, chart: this.rsiChart },
       { show: this.config.showKdj, chart: this.kdjChart },
     ];
-    for (const { show, chart } of panes) {
-      if (!show || !chart) continue;
-      const el = chart.chartElement()?.parentElement;
-      if (!el) continue;
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (w > 0 && h > 0) chart.resize(w, h);
-    }
+    // autoSize: true — container layout drives chart dimensions for each pane.
+    void panes;
   }
 
   destroy(): void {

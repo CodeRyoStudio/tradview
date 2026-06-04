@@ -161,6 +161,8 @@ export class PaneOrchestrator {
   private priceLine: IPriceLine | null = null;
   private barAnimator: BarSmoothAnimator | null = null;
   private smoothPriceDurationMs = 150;
+  /** Ms open time of the newest bar applied to LWC series (guards stale `update`). */
+  private lastSeriesBarTimeMs: number | null = null;
 
   constructor(opts: PaneOrchestratorOptions) {
     this.maxRenderPoints = opts.maxRenderPoints ?? 4000;
@@ -327,23 +329,50 @@ export class PaneOrchestrator {
     }
   }
 
-  /** Update the last candle (and price line); optional smooth interpolation. */
-  updateLastBar(target: Bar, opts?: { smooth?: boolean; durationMs?: number }): void {
+  /**
+   * Update the last candle (and price line); optional smooth interpolation.
+   * @returns false when `target` is older than the series last bar (caller should `setBars`).
+   */
+  updateLastBar(target: Bar, opts?: { smooth?: boolean; durationMs?: number }): boolean {
+    if (this.lastSeriesBarTimeMs !== null && target.t < this.lastSeriesBarTimeMs) {
+      return false;
+    }
+
     const prev = this.barByTime.get(target.t);
+    const prevLastT = this.barTimesOrdered[this.barTimesOrdered.length - 1];
     const smooth = opts?.smooth ?? !!this.barAnimator;
     const duration = opts?.durationMs ?? this.smoothPriceDurationMs;
+    if (prevLastT !== undefined && target.t > prevLastT) {
+      this.barAnimator?.cancel();
+    }
     if (smooth && this.barAnimator) {
       this.barAnimator.setDuration(duration);
-      this.barAnimator.animateTo(target, prev ?? target);
-      return;
+      const from =
+        prevLastT !== undefined && target.t > prevLastT
+          ? this.barByTime.get(prevLastT)
+          : prev;
+      this.barAnimator.animateTo(target, from ?? target);
+      return true;
     }
     this.barAnimator?.cancel();
     this.applyLastBarToSeries(target);
+    return true;
   }
 
   private applyLastBarToSeries(bar: Bar): void {
+    if (this.lastSeriesBarTimeMs !== null && bar.t < this.lastSeriesBarTimeMs) {
+      return;
+    }
+
     this.barByTime.set(bar.t, bar);
     this.mainSeries.update(barToCandle(bar));
+    this.lastSeriesBarTimeMs = bar.t;
+    if (
+      this.barTimesOrdered.length === 0 ||
+      bar.t > this.barTimesOrdered[this.barTimesOrdered.length - 1]!
+    ) {
+      this.barTimesOrdered.push(bar.t);
+    }
     if (this.isVolumeVisible()) {
       this.volumeSeries.update(barToVolume(bar));
     }
@@ -594,6 +623,8 @@ export class PaneOrchestrator {
     const renderBars = lodDecimateBars(bars, this.maxRenderPoints);
     this.barByTime = new Map(renderBars.map((b) => [b.t, b]));
     this.barTimesOrdered = renderBars.map((b) => b.t);
+    this.lastSeriesBarTimeMs =
+      renderBars.length > 0 ? renderBars[renderBars.length - 1]!.t : null;
 
     const gapSet = new Set(gaps ?? []);
     const seenTimes = new Set<number>();
@@ -831,6 +862,7 @@ export class PaneOrchestrator {
     this.barAnimator?.cancel();
     this.barByTime = new Map();
     this.barTimesOrdered = [];
+    this.lastSeriesBarTimeMs = null;
     this.mainSeries.setData([]);
     this.maSeries.setData([]);
     this.volumeSeries.setData([]);
@@ -947,20 +979,8 @@ export class PaneOrchestrator {
     this.overlayCanvas.height = rect.height * devicePixelRatio;
   }
 
-  private syncChartSize(opts?: { allPanes?: boolean }): void {
-    const all = opts?.allPanes === true;
-    const mainEl = this.mainChart.chartElement().parentElement;
-    const volEl = this.volumeChart.chartElement().parentElement;
-    if (mainEl && (all || this.shouldResizePane('main'))) {
-      const w = mainEl.clientWidth;
-      const h = mainEl.clientHeight;
-      if (w > 0 && h > 0) this.mainChart.resize(w, h);
-    }
-    if (this.isVolumeVisible() && volEl && (all || this.shouldResizePane('volume'))) {
-      const w = volEl.clientWidth;
-      const h = volEl.clientHeight;
-      if (w > 0 && h > 0) this.volumeChart.resize(w, h);
-    }
+  private syncChartSize(_opts?: { allPanes?: boolean }): void {
+    // Charts use LWC `autoSize: true`; container CSS drives dimensions (no manual resize).
   }
 
   private layoutForTheme(dark: boolean) {
