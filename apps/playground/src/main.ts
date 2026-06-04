@@ -1,4 +1,10 @@
-import { createChart, createDemoChartOptions, type IChart } from '@coderyo/core';
+import {
+  createChart,
+  createDemoChartOptions,
+  type ChartController,
+  type IChart,
+} from '@coderyo/core';
+import { mountBridgeDebugPanel } from './bridge-debug-panel.js';
 import { createGatewayDataProvider, createPassthroughSymbolResolver } from '@coderyo/data';
 import { EXTENDED_INTERVALS, type Interval } from '@coderyo/data';
 import { bindChartKeyboard } from '@coderyo/interaction';
@@ -259,6 +265,19 @@ bindLayerCompositorController?.(layerCompositor.controller);
 const syncShellCompositorVisibility = () => {
   syncCompositorShellVisibility?.(layerCompositor.controller);
 };
+
+mountBridgeDebugPanel(document.body, {
+  chart,
+  controller: {
+    getContainer: () => chartMain,
+    getSymbol: () => lastSymbol,
+    getInterval: () => lastInterval,
+  } as ChartController,
+  layerController: layerCompositor.controller,
+  compositorApply: () => layerCompositor.apply(),
+  syncCompositorShellVisibility: () => syncShellCompositorVisibility(),
+  chartId: 'default',
+});
 
 const footerEl = document.getElementById('demo-footer')!;
 const presetLabel = document.createElement('label');

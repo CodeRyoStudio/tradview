@@ -4,7 +4,7 @@
 |------|-----|
 | 套件版本 | `1.0.0`（見 repo 根目錄 `VERSION`） |
 | Embed API | `apiVersion: 1`（`TRADVIEW_API_VERSION`） |
-| Bridge schema | `bridgeSchemaVersion: 1` |
+| Bridge schema | `bridgeSchemaVersion: 2`（`@coderyo/bridge@2.0.0`，hard cut） |
 | 協議 | REST/WS **JSON v1.0**（Protobuf v1.1 不在 1.0 範圍） |
 | 凍結日 | 2026-06-03 |
 
@@ -87,21 +87,48 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 | `bindLayerTimeScaleSync(chart, controller, opts?)` | 一次綁定 chart ↔ controller；preset / 分頁 / sync 組變更時自動 `applyTimeScaleSyncFromLayers` |
 | `IChart.applyTimeScaleSyncFromLayers(layers, pageId?)` | 將 preset 同步組套用到 `PaneOrchestrator` 多 bus；`pageId` 限定作用中分頁 |
 | `LayerController.setLayerSyncGroup(layerId, groupId)` | 執行期修改圖層同步組（`''` = 獨立） |
+| `LayoutPreset.revision` | 整數 ≥ 1；`mergeLayoutPreset` / Bridge `host.layer.setPreset` |
+| `mergeLayoutPreset` | `replace: false` 時 upsert pages/layers/groups |
 | `DEFAULT_SYNC_TIME_SCALE_GROUP` | 可選預設字串；**normalize 不會**自動填入 |
 
 ---
 
-## 3. Bridge（schema 1，向後相容擴充）
+## 3. Bridge（schema 2，hard cut）
 
-### 新增 inbound `host.*`
+### `chart.ready`（schema 2）
 
-`host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`, `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`, `host.setChartPaneResizeFocus`
+- `bridgeSchemaVersion: 2` only（不再回傳 `1`）
+- `layerApi`: `{ presetVersion: 2, hostEvents[], outboundLayerEvents[] }`
+
+### Inbound `host.layer.*`（皆需 `chartId`）
+
+`host.layer.setSyncGroup`, `host.layer.setVisible`, `host.layer.setActivePage`, `host.layer.setPreset`, `host.layer.applyTimeScaleSync`
+
+- `setSyncGroup`：**僅** `pane` + `allPages`（拒絕 `layerId`）
+- `setPreset`：`preset.revision` 整數 ≥ 1；預設 merge（`replace` 省略或 `false`）；錯誤碼 `CHART_NOT_FOUND` | `LAYER_BRIDGE_NOT_REGISTERED` | `MISSING_CHART_ID`
+
+### 保留 inbound `host.*`（non-layer）
+
+`host.setSymbol`, `host.setInterval`, `host.setTheme`, `host.setShowGrid`, `host.fitContent`, `host.scrollToRealtime`, `host.setLogScale`, `host.setBarSpace`, `host.setVisibleRange`, `host.scrollToTimestamp`, `host.reloadHistory`, `host.setLocale`, `host.setFeatures`, `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`, `host.setChartPaneResizeFocus`, `host.resize`, `host.destroy`
 
 **P2 createChart**（文件化，非 Bridge 動態掛載）：`volumeMount`, `indicatorHost`
 
-### 新增 outbound
+### Outbound
 
-`chart.barUpdate` — `{ chartId, t, c }`
+| 事件 | 說明 |
+|------|------|
+| `chart.barUpdate` | `{ chartId, t, c }` |
+| `chart.layerSyncGroupChanged` | `{ chartId, pane, groupId, allPages, activePageId }` |
+| `chart.layerPageChanged` | `{ chartId, pageId, previousPageId }` |
+| `chart.layerVisibleChanged` | `{ chartId, pane, visible, allPages }` |
+
+### LayoutPreset v2 擴充
+
+| 欄位 | 說明 |
+|------|------|
+| `revision` | 整數 ≥ 1；Bridge `setPreset` 防呆（`STALE_PRESET_REVISION`） |
+
+範例：[examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · ADR：[ADR-bridge-layer-sync.md](./ADR-bridge-layer-sync.md)
 
 ---
 

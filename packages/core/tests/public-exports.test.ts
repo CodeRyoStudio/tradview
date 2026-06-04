@@ -33,6 +33,15 @@ const PUBLIC_CORE_VALUE_EXPORTS = [
   'runPineLite',
   'saveIndicatorConfig',
   'wireChartBridge',
+  'registerChartLayerBridge',
+  'unregisterChartLayerBridge',
+  'clearLayerBridgeVisitedPages',
+  'handleLayerBridgeMessage',
+  'resolvePaneLayerIds',
+  'isValidLayerBridgePane',
+  'resolvePaneSyncGroupsForBridge',
+  'hasLayerBridgeRegistration',
+  'mergeLayerBridgePreset',
 ] as const;
 
 describe('@coderyo/core public exports', () => {

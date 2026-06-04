@@ -18,9 +18,12 @@ export class LayerController {
   activePageId: string;
   /** P2: active chart pane layer (click-to-focus). */
   focusedPaneLayerId: string | null = null;
+  /** Monotonic preset revision (Bridge `host.layer.setPreset`). */
+  presetRevision: number;
 
   constructor(initial: LayoutPreset) {
     this.preset = cloneLayoutPreset(initial);
+    this.presetRevision = this.preset.revision ?? 1;
     this.activePageId = this.preset.pages[0]?.id ?? 'page-1';
   }
 
@@ -44,6 +47,7 @@ export class LayerController {
   setPreset(next: LayoutPreset): boolean {
     if (this.isInteracting()) return false;
     this.preset = cloneLayoutPreset(next);
+    this.presetRevision = this.preset.revision ?? 1;
     if (!this.preset.pages.some((p) => p.id === this.activePageId)) {
       this.activePageId = this.preset.pages[0]?.id ?? 'page-1';
     }
@@ -105,7 +109,7 @@ export class LayerController {
 
   setActivePage(pageId: string): boolean {
     if (!this.preset.pages.some((p) => p.id === pageId)) return false;
-    if (this.activePageId === pageId) return true;
+    if (this.activePageId === pageId) return false;
     this.activePageId = pageId;
     this.focusedPaneLayerId = null;
     this.emit();

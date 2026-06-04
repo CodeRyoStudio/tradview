@@ -2,7 +2,7 @@
 
 | 欄位 | 值 |
 |------|-----|
-| 狀態 | **Accepted**（兩輪問卷定案；doc-first 待 PR-B1） |
+| 狀態 | **Implemented**（PR-B1–B5，2026-06-04） |
 | 日期 | 2026-06-04 |
 | 決策者 | 整合方 + 架構（使用者問卷定案） |
 | 相關 | [API-LAYER.md](./API-LAYER.md), [API-FREEZE.md](./API-FREEZE.md), [API.md](./API.md), [API-FRAMEWORK-PLAN.md](./API-FRAMEWORK-PLAN.md) |
@@ -380,7 +380,12 @@ webView.postMessage(JSON.stringify({
 // 僅 active 頁 main 獨立（不影響其他頁）
 postMessage(JSON.stringify({
   type: 'host.layer.setSyncGroup',
-  payload: { pane: 'main', groupId: '', allPages: false },
+  payload: {
+    chartId: 'default',
+    pane: 'main',
+    groupId: '',
+    allPages: false,
+  },
 }));
 ```
 
@@ -389,9 +394,14 @@ postMessage(JSON.stringify({
 postMessage(JSON.stringify({
   type: 'host.layer.setPreset',
   payload: {
+    chartId: 'default',
     replace: false,
     preset: {
       version: 2,
+      revision: 2,
+      id: 'remote-layout',
+      name: 'Remote',
+      author: 'integrator',
       pages: [{ id: 'page-2', title: 'Alt' }],
       layers: [{ id: 'm2', pageId: 'page-2', type: 'chart.main', widgetKey: 'chartMain', frame: { x:0,y:0,w:1,h:0.7 }, zIndex: 0 }],
       groups: [],

@@ -11,7 +11,7 @@
 | 圖表核心 | `createChart(host, { dataProvider, features? })` | 必填 `dataProvider`；可省略 `symbol` → 空白圖直到 `setSymbol` |
 | 殼層（可選） | `mountChartLayout(root, opts?)` | TopBar、工具列、圖例、StatusBar 等 **預設全關** |
 | 圖層 Compositor（建議） | `mountLayerCompositor` + `LayerController` | v2 `LayoutPreset`；見 [API-LAYER.md](./API-LAYER.md) |
-| Bridge（可選） | `wireChartBridge` 或 `createChart` 內建 `bridge` | 出站白名單；入站含 `host.setChartPaneResizeFocus` |
+| Bridge（可選） | `wireChartBridge` 或 `createChart` 內建 `bridge` | **schema 2**；`host.layer.*` + `layerBridge`；見 [API.md §8](./API.md#8-webview-bridge) |
 
 ```typescript
 import { createChart, createDemoChartOptions } from '@coderyo/core';
@@ -237,9 +237,9 @@ createChart('#chart', {
 });
 ```
 
-**Web → Native**：`chart.ready`、`chart.resize`、`chart.connectionChange`、`chart.crosshair`、`chart.visibleRange`、`chart.symbol`、`chart.interval`、`chart.error`、`chart.destroyed`。
+**Web → Native**：`chart.ready`（含 `layerApi`）、`chart.resize`、`chart.connectionChange`、`chart.crosshair`、`chart.visibleRange`、`chart.symbol`、`chart.interval`、`chart.error`、`chart.destroyed`，以及 `chart.layerSyncGroupChanged` / `chart.layerPageChanged` / `chart.layerVisibleChanged`。
 
-**Native → Web**（完整表見 [API.md §8](./API.md#8-webview-bridge)）：含 `host.setChartPaneResizeFocus`、`host.setIndicatorConfig`、`host.clearAllIndicators` 等。`volumeMount` / `indicatorHost` 僅在 `createChart` 建立時設定。
+**Native → Web**（完整表見 [API.md §8](./API.md#8-webview-bridge)）：含 `host.layer.*`（需 `chartId`）、`host.setChartPaneResizeFocus`、`host.setIndicatorConfig` 等。範例：[examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md)。`volumeMount` / `indicatorHost` 僅在 `createChart` 建立時設定。
 
 ## 本地 Demo
 

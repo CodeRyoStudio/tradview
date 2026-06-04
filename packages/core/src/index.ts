@@ -25,6 +25,22 @@ export {
 } from './resolve-pane-sync-groups.js';
 export { wireChartBridge, type WireChartBridgeOptions } from './bridge-wire.js';
 export {
+  registerChartLayerBridge,
+  unregisterChartLayerBridge,
+  clearLayerBridgeVisitedPages,
+  hasLayerBridgeRegistration,
+  handleLayerBridgeMessage,
+  resolvePaneLayerIds,
+  isValidLayerBridgePane,
+  resolvePaneSyncGroupsForBridge,
+  type ChartLayerBridgeRegistration,
+  type LayerBridgeController,
+  type LayerBridgePreset,
+  type LayerBridgePane,
+  type LayerTimeScaleSyncChart,
+} from './bridge-layer-wire.js';
+export { mergeLayerBridgePreset } from './merge-layer-bridge-preset.js';
+export {
   type ChartStorageAdapter,
   createLocalChartStorage,
   defaultChartStorage,

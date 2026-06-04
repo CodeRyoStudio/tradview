@@ -1,4 +1,34 @@
-export const BRIDGE_SCHEMA_VERSION = 1 as const;
+export const BRIDGE_SCHEMA_VERSION = 2 as const;
+
+/** Chart pane id for `host.layer.*` (maps to `chart.main` / `chart.volume` / `chart.indicator`). */
+export type BridgeLayerPane = 'main' | 'volume' | 'indicator';
+
+export const LAYER_PRESET_VERSION = 2 as const;
+
+export const LAYER_HOST_EVENTS = [
+  'host.layer.setSyncGroup',
+  'host.layer.setVisible',
+  'host.layer.setActivePage',
+  'host.layer.setPreset',
+  'host.layer.applyTimeScaleSync',
+] as const;
+
+export type BridgeLayerInboundType = (typeof LAYER_HOST_EVENTS)[number];
+
+export const LAYER_OUTBOUND_EVENTS = [
+  'chart.layerSyncGroupChanged',
+  'chart.layerPageChanged',
+  'chart.layerVisibleChanged',
+] as const;
+
+export type BridgeLayerOutboundType = (typeof LAYER_OUTBOUND_EVENTS)[number];
+
+/** Payload fragment advertised in `chart.ready` for schema 2 layer hosts. */
+export const LAYER_API_READY = {
+  presetVersion: LAYER_PRESET_VERSION,
+  hostEvents: [...LAYER_HOST_EVENTS],
+  outboundLayerEvents: [...LAYER_OUTBOUND_EVENTS],
+} as const;
 
 export type BridgeOutboundType =
   | 'chart.ready'
@@ -10,7 +40,8 @@ export type BridgeOutboundType =
   | 'chart.symbol'
   | 'chart.visibleRange'
   | 'chart.barUpdate'
-  | 'chart.error';
+  | 'chart.error'
+  | BridgeLayerOutboundType;
 
 export type BridgeInboundType =
   | 'host.setSymbol'
@@ -32,7 +63,8 @@ export type BridgeInboundType =
   | 'host.setDrawingTool'
   | 'host.setChartPaneResizeFocus'
   | 'host.resize'
-  | 'host.destroy';
+  | 'host.destroy'
+  | BridgeLayerInboundType;
 
 export interface BridgeOutboundEvent {
   type: BridgeOutboundType;
@@ -46,4 +78,13 @@ export interface BridgeInboundMessage {
 
 export function isBridgeInbound(msg: unknown): msg is BridgeInboundMessage {
   return typeof msg === 'object' && msg !== null && typeof (msg as BridgeInboundMessage).type === 'string';
+}
+
+export function isBridgeLayerInboundType(type: string): type is BridgeLayerInboundType {
+  return (LAYER_HOST_EVENTS as readonly string[]).includes(type);
+}
+
+/** Schema 2.0 rejects deprecated `layerId` on `host.layer.setSyncGroup`. */
+export function bridgeLayerPayloadHasDeprecatedLayerId(payload: Record<string, unknown> | undefined): boolean {
+  return payload != null && 'layerId' in payload;
 }

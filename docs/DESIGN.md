@@ -466,7 +466,19 @@ export interface BridgeAdapter {
 }
 
 export type BridgeEvent =
-  | { type: 'chart.ready'; payload: { chartId: string; bridgeSchemaVersion: 1; apiVersion: number } }
+  | {
+      type: 'chart.ready';
+      payload: {
+        chartId: string;
+        bridgeSchemaVersion: 2;
+        apiVersion: number;
+        layerApi?: {
+          presetVersion: 2;
+          hostEvents: string[];
+          outboundLayerEvents: string[];
+        };
+      };
+    }
   | { type: 'chart.crosshair'; payload: CrosshairPayload }
   | { type: 'chart.interval'; payload: { interval: Interval } }
   | { type: 'chart.symbol'; payload: { symbol: string } }

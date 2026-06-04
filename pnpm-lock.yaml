@@ -178,9 +178,6 @@ importers:
       '@coderyo/tsconfig':
         specifier: workspace:*
         version: link:../../tools/tsconfig
-      happy-dom:
-        specifier: ^20.9.0
-        version: 20.9.0
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)
@@ -417,6 +414,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.0
         version: 6.43.0
+      '@coderyo/bridge':
+        specifier: workspace:*
+        version: link:../bridge
       '@coderyo/core':
         specifier: workspace:*
         version: link:../core

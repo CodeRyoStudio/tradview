@@ -122,8 +122,13 @@ export function normalizeLayoutPreset(input: LayoutPreset): LayoutPreset {
     });
   }
 
+  const revisionRaw = Number(input.revision);
+  const revision =
+    Number.isFinite(revisionRaw) && revisionRaw >= 1 ? Math.floor(revisionRaw) : 1;
+
   return {
     version: LAYER_PRESET_VERSION,
+    revision,
     id: String(input.id || 'unnamed'),
     name: String(input.name || input.id || 'Untitled'),
     author: input.author === 'user' ? 'user' : 'integrator',

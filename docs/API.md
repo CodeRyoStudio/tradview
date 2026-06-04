@@ -1,7 +1,7 @@
 # TradView API 參考
 
 > **版本**：`1.0.0` · **Embed API**：`apiVersion: 1`（`TRADVIEW_API_VERSION`）  
-> **npm scope**：`@coderyo/*` · **Bridge schema**：`bridgeSchemaVersion: 1`
+> **npm scope**：`@coderyo/*` · **Bridge schema**：`bridgeSchemaVersion: 2`（`@coderyo/bridge@2.0.0`）
 
 本文描述整合方使用的公開 API。架構與協議細節見 [DESIGN.md](./DESIGN.md)；凍結承諾見 [API-FREEZE.md](./API-FREEZE.md)；嵌入範例見 [EMBEDDING.md](./EMBEDDING.md)。
 
@@ -468,7 +468,10 @@ bridge.onMessage((msg) => { /* host.* */ });
 
 | type | payload（主要欄位） |
 |------|---------------------|
-| `chart.ready` | `chartId`, `bridgeSchemaVersion`, `apiVersion`, `version` |
+| `chart.ready` | `chartId`, `bridgeSchemaVersion`, `apiVersion`, `version`, `layerApi` |
+| `chart.layerSyncGroupChanged` | `chartId`, `pane`, `groupId`, `allPages`, `activePageId` |
+| `chart.layerPageChanged` | `chartId`, `pageId`, `previousPageId` |
+| `chart.layerVisibleChanged` | `chartId`, `pane`, `visible`, `allPages` |
 | `chart.resize` | `chartId`, `width`, `height` |
 | `chart.connectionChange` | `chartId`, `state` |
 | `chart.crosshair` | `chartId`, `time`, `price`, `ohlcv`, `symbol`, `interval` |
@@ -503,7 +506,23 @@ bridge.onMessage((msg) => { /* host.* */ });
 | `host.setChartPaneResizeFocus` | `{ pane: 'main' \| 'volume' \| 'indicator' \| 'all' }` — 無效 `pane` 觸發 outbound `chart.error`（`INVALID_PANE`） |
 | `host.destroy` | — |
 
+### Native → Web（入站，`host.layer.*`，schema 2）
+
+皆需 `chartId`。詳見 [ADR-bridge-layer-sync.md](./ADR-bridge-layer-sync.md) 與 [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md)。
+
+| type | payload（主要欄位） |
+|------|---------------------|
+| `host.layer.setSyncGroup` | `{ chartId, pane, groupId, allPages? }` — **僅 `pane`**（拒絕 `layerId`）；`groupId: ''` = 獨立 |
+| `host.layer.setVisible` | `{ chartId, pane, visible, allPages? }` |
+| `host.layer.setActivePage` | `{ chartId, pageId }` |
+| `host.layer.setPreset` | `{ chartId, preset, replace? }` — `preset.revision` 必填；省略 `replace` = merge；`replace: true` 整份覆蓋 |
+| `host.layer.applyTimeScaleSync` | `{ chartId, pageId?, allPages? }` |
+
+`wireChartBridge({ layerBridge })` 或 `registerChartLayerBridge` 註冊圖層控制器後才處理 `host.layer.*`。
+
 **P2 掛載**：`volumeMount` / `indicatorHost` 僅能透過 `createChart` 選項在建立時指定（Bridge 不動態掛載 pane）。
+
+`host.setChartPaneResizeFocus` 與 sync 組 **獨立**（focus 只門控 resize）。
 
 入站訊息需通過 `isBridgeInbound(msg)` 校驗（`@coderyo/bridge`）。
 
@@ -616,7 +635,7 @@ chart.disableIndicatorLayer('rsi');
 | `TradView.mountChartLayout` | 同 npm |
 | `TradView.TRADVIEW_API_VERSION` | `1` |
 | `TradView.TRADVIEW_VERSION` | 例如 `'1.0.0-rc.4'` |
-| `TradView.BRIDGE_SCHEMA_VERSION` | `1` |
+| `TradView.BRIDGE_SCHEMA_VERSION` | `2` |
 
 ---
 

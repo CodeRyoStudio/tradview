@@ -58,6 +58,11 @@ export interface BindGroup {
 
 export interface LayoutPreset {
   version: typeof LAYER_PRESET_VERSION;
+  /**
+   * Monotonic revision for remote `host.layer.setPreset` merge/replace (integer ≥ 1).
+   * @public Bridge schema 2 — stale host revision is rejected with `STALE_PRESET_REVISION`.
+   */
+  revision?: number;
   id: string;
   name: string;
   author: LayerPresetAuthor;

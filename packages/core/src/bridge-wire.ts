@@ -2,9 +2,17 @@ import type { BridgeAdapter } from '@coderyo/bridge';
 import {
   BRIDGE_SCHEMA_VERSION,
   isBridgeInbound,
+  isBridgeLayerInboundType,
+  LAYER_API_READY,
   type BridgeInboundType,
   type BridgeOutboundType,
 } from '@coderyo/bridge';
+import {
+  clearLayerBridgeVisitedPages,
+  handleLayerBridgeMessage,
+  registerChartLayerBridge,
+  type ChartLayerBridgeRegistration,
+} from './bridge-layer-wire.js';
 import type { DrawingTool } from '@coderyo/drawings';
 import type { Interval } from '@coderyo/data';
 import type { IndicatorConfig } from '@coderyo/indicators';
@@ -36,6 +44,8 @@ const CHART_EVENT_TO_BRIDGE: Partial<Record<ChartEvent, BridgeOutboundType>> = {
   barUpdate: 'chart.barUpdate',
 };
 
+export type { ChartLayerBridgeRegistration } from './bridge-layer-wire.js';
+
 export interface WireChartBridgeOptions {
   controller: ChartController;
   chart: IChart;
@@ -44,6 +54,8 @@ export interface WireChartBridgeOptions {
   /** Allowlist of outbound bridge events; default all mapped events. */
   outboundEvents?: BridgeOutboundType[];
   crosshairThrottleMs?: number;
+  /** Schema 2 layer bridge (register via `registerChartLayerBridge` or pass here). */
+  layerBridge?: ChartLayerBridgeRegistration;
 }
 
 /** @public Wire host bridge messages to chart + controller events. */
@@ -65,6 +77,7 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     bridgeSchemaVersion: BRIDGE_SCHEMA_VERSION,
     apiVersion: TRADVIEW_API_VERSION,
     version: TRADVIEW_VERSION,
+    layerApi: LAYER_API_READY,
   });
 
   const postResize = () => {
@@ -154,15 +167,40 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     }
   }
 
+  const unregisterLayer = opts.layerBridge
+    ? registerChartLayerBridge({ ...opts.layerBridge, chartId })
+    : undefined;
+
   const offHost = bridge.onMessage((msg) => {
     if (!isBridgeInbound(msg)) return;
     const p = msg.payload ?? {};
+    if (msg.type.startsWith('host.layer.')) {
+      if (!isBridgeLayerInboundType(msg.type)) {
+        post('chart.error', {
+          chartId: typeof p.chartId === 'string' ? p.chartId : '',
+          code: 'SCHEMA_MISMATCH',
+          message: `Unknown host.layer.* event: ${msg.type}`,
+        });
+        return;
+      }
+      handleLayerBridgeMessage(msg.type, p, {
+        bridge,
+        post: (type, payload) => post(type as BridgeOutboundType, payload),
+      });
+      return;
+    }
     switch (msg.type as BridgeInboundType) {
       case 'host.setSymbol':
-        if (typeof p.symbol === 'string') chart.setSymbol(p.symbol);
+        if (typeof p.symbol === 'string') {
+          chart.setSymbol(p.symbol);
+          clearLayerBridgeVisitedPages(chartId);
+        }
         break;
       case 'host.setInterval':
-        if (typeof p.interval === 'string') chart.setInterval(p.interval as Interval);
+        if (typeof p.interval === 'string') {
+          chart.setInterval(p.interval as Interval);
+          clearLayerBridgeVisitedPages(chartId);
+        }
         break;
       case 'host.setTheme':
         if (p.theme === 'dark' || p.theme === 'light') chart.setTheme(p.theme);
@@ -256,6 +294,7 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
   return () => {
     if (crosshairTimer) clearTimeout(crosshairTimer);
     offHost();
+    unregisterLayer?.();
     for (const [ev, fn] of handlers) chart.off(ev, fn);
   };
 }

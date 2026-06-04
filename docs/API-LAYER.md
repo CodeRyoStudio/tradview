@@ -247,7 +247,47 @@ Helpers in `chart-pane-mount.ts` build default pane layers for a preset. Integra
 
 ---
 
-## 10. Related exports (allowlist)
+## 10. Bridge schema 2 (`host.layer.*`)
+
+Remote layer control uses **`bridgeSchemaVersion: 2`** (`@coderyo/bridge@2.0.0`). `chart.ready` includes `layerApi` with `hostEvents` / `outboundLayerEvents`.
+
+| Web API | Bridge |
+|---------|--------|
+| `LayerController.setLayerSyncGroup` | `host.layer.setSyncGroup` (`pane`, `allPages`; no `layerId`) |
+| `LayerController.setLayerVisible` | `host.layer.setVisible` |
+| `LayerController.setActivePage` | `host.layer.setActivePage` |
+| `LayerController.setPreset` / `mergeLayoutPreset` | `host.layer.setPreset` (`revision`, `replace`) |
+| `bindLayerTimeScaleSync` / `applyTimeScaleSyncFromLayers` | `host.layer.applyTimeScaleSync` |
+
+Register after compositor mount:
+
+```typescript
+import { wireChartBridge, registerChartLayerBridge } from '@coderyo/core';
+import { mergeLayoutPreset, normalizeLayoutPreset } from '@coderyo/ui-shell';
+
+wireChartBridge({
+  chart,
+  controller,
+  bridge,
+  chartId: 'default',
+  layerBridge: {
+    chartId: 'default',
+    chart,
+    layerController: compositor.controller,
+    compositorApply: () => compositor.apply(),
+    normalizePreset: normalizeLayoutPreset,
+    mergePreset: mergeLayoutPreset,
+  },
+});
+```
+
+`LayoutPreset.revision` (integer ≥ 1) guards against stale remote presets (`STALE_PRESET_REVISION`). `host.setSymbol` / `host.setInterval` clear lazy time-scale visit state.
+
+Examples: [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · ADR: [ADR-bridge-layer-sync.md](./ADR-bridge-layer-sync.md)
+
+---
+
+## 11. Related exports (allowlist)
 
 See `packages/ui-shell/tests/public-exports.test.ts` for the full frozen export set. Primary symbols:
 
@@ -255,7 +295,7 @@ See `packages/ui-shell/tests/public-exports.test.ts` for the full frozen export 
 
 ---
 
-## 11. See also
+## 12. See also
 
 | Doc | Content |
 |-----|---------|

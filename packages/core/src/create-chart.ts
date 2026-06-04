@@ -4,6 +4,7 @@ import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
 import type { IndicatorConfig } from '@coderyo/indicators';
 import type { DataProvider } from '@coderyo/data';
 import { wireChartBridge, TRADVIEW_API_VERSION } from './bridge-wire.js';
+import type { ChartLayerBridgeRegistration } from './bridge-layer-wire.js';
 import { ChartController, type ChartOptions } from './chart-controller.js';
 import type { ChartFeatures, ResolvedChartFeatures } from './chart-features.js';
 import { TRADVIEW_VERSION } from './version.js';
@@ -22,6 +23,8 @@ export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   /** If set, only these bridge outbound events are posted. */
   bridgeOutboundEvents?: BridgeOutboundType[];
   bridgeCrosshairThrottleMs?: number;
+  /** Schema 2: remote layer control (`host.layer.*`). */
+  layerBridge?: ChartLayerBridgeRegistration;
 }
 
 /** @public Chart instance API for integrators (apiVersion 1). */
@@ -227,6 +230,7 @@ export function createChart(
       chartId: options.chartId,
       outboundEvents: options.bridgeOutboundEvents,
       crosshairThrottleMs: options.bridgeCrosshairThrottleMs,
+      layerBridge: options.layerBridge,
     });
   }
   return chart;
