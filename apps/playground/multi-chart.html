@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TradView — multi-chart workspace (V2-MC3)</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #0d1117;
+        color: #e6edf3;
+        font-family: system-ui, sans-serif;
+      }
+      #toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid #30363d;
+        font-size: 12px;
+      }
+      #workspace {
+        height: calc(100% - 41px);
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="toolbar">
+        <strong>ChartWorkspace</strong>
+        <label><input type="checkbox" id="sync-symbol" checked /> symbol</label>
+        <label><input type="checkbox" id="sync-interval" checked /> interval</label>
+        <label><input type="checkbox" id="sync-range" /> visible range</label>
+        <label><input type="checkbox" id="sync-crosshair" checked /> crosshair</label>
+      </div>
+      <div id="workspace"></div>
+    </div>
+    <script type="module" src="/src/multi-chart-demo.ts"></script>
+  </body>
+</html>

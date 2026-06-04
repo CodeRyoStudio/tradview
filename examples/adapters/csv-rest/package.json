@@ -1,0 +1,19 @@
+{
+  "name": "@tradview-example/csv-rest-adapter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Self-hosted CSV REST reference adapter (V2-C)",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@coderyo/data": "workspace:*"
+  },
+  "devDependencies": {
+    "@coderyo/tsconfig": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -30,7 +30,8 @@ export interface LinkGroup {
 export type LinkEvent =
   | { type: 'symbol'; symbol: string }
   | { type: 'interval'; interval: Interval }
-  | { type: 'visibleRange'; range: ChartVisibleRange };
+  | { type: 'visibleRange'; range: ChartVisibleRange }
+  | { type: 'crosshair'; timeMs: number; price: number | null };
 
 interface ChartEntry {
   chart: IChart;
@@ -127,6 +128,16 @@ export class ChartWorkspace {
         });
       }
     });
+    chart.on('crosshairChange', (payload) => {
+      const p = payload as { time?: number; price?: number | null } | null;
+      if (p?.time != null) {
+        this.applyLinkEvent(chartId, {
+          type: 'crosshair',
+          timeMs: p.time,
+          price: p.price ?? null,
+        });
+      }
+    });
     chart.on('destroyed', () => {
       this.charts.delete(chartId);
       if (this.activeChartId === chartId) {
@@ -211,6 +222,9 @@ export class ChartWorkspace {
             break;
           case 'visibleRange':
             if (sync.visibleRange) target.setVisibleRange(event.range);
+            break;
+          case 'crosshair':
+            if (sync.crosshair) target.scrollToTimestamp(event.timeMs);
             break;
         }
       }

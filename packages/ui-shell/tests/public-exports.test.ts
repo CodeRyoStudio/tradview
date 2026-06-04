@@ -34,6 +34,7 @@ const PUBLIC_UI_SHELL_VALUE_EXPORTS = [
   'createI18nProvider',
   'createSymbolSearchDialog',
   'createThemeProvider',
+  'createWorkspaceChartSlots',
   'deleteUserPreset',
   'expandLegacyChartHostLayers',
   'forkPreset',

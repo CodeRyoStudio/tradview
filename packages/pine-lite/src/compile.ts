@@ -1,5 +1,11 @@
 import type { PineExpr, PineProgram, PineStmt } from './ast.js';
-import { builtinArity, isBuiltin, SERIES_IDENTIFIERS } from './builtins.js';
+import {
+  builtinArity,
+  isBuiltin,
+  PERIOD_INDICATOR_BUILTINS,
+  SERIES_IDENTIFIERS,
+  type IndicatorBuiltin,
+} from './builtins.js';
 import type { IrOp, PineIrProgram } from './ir.js';
 
 class Emitter {
@@ -82,14 +88,7 @@ class Emitter {
           errors.push(`'${expr.name}' expects ${arity} arguments, got ${expr.args.length}`);
           return false;
         }
-        const fn = expr.name as
-          | 'sma'
-          | 'ema'
-          | 'rsi'
-          | 'highest'
-          | 'lowest'
-          | 'crossover'
-          | 'crossunder';
+        const fn = expr.name as IndicatorBuiltin;
         if (
           (fn === 'crossover' || fn === 'crossunder') &&
           expr.args[0]?.kind === 'ident' &&
@@ -106,11 +105,7 @@ class Emitter {
           return true;
         }
         if (
-          (fn === 'sma' ||
-            fn === 'ema' ||
-            fn === 'rsi' ||
-            fn === 'highest' ||
-            fn === 'lowest') &&
+          PERIOD_INDICATOR_BUILTINS.has(fn) &&
           expr.args[0]?.kind === 'ident' &&
           SERIES_IDENTIFIERS.has(expr.args[0].name)
         ) {

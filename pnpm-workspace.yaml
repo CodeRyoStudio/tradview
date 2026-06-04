@@ -3,3 +3,4 @@ packages:
   - 'apps/*'
   - 'tools/*'
   - 'bundle/*'
+  - 'examples/adapters/*'

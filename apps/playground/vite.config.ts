@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         webglDemo: resolve(__dirname, 'webgl-demo.html'),
+        multiChart: resolve(__dirname, 'multi-chart.html'),
       },
     },
   },

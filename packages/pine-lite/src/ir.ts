@@ -1,3 +1,7 @@
+import type { IndicatorBuiltin } from './builtins.js';
+
+export type IrIndicatorFn = IndicatorBuiltin;
+
 export type IrOp =
   | { op: 'push'; value: number }
   | { op: 'load_series'; name: string }
@@ -5,7 +9,7 @@ export type IrOp =
   | { op: 'store_var'; name: string }
   | {
       op: 'call_ind';
-      fn: 'sma' | 'ema' | 'rsi' | 'highest' | 'lowest' | 'crossover' | 'crossunder';
+      fn: IrIndicatorFn;
       series: string;
       series2?: string;
     }

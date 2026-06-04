@@ -8,6 +8,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **V2-L1 (`@coderyo/ui-shell`)**: `createWorkspaceChartSlots` for multi-chart DOM `containerId` mounts (depends V2-MC1 only)
+- **V2-MC2–MC4 (`@coderyo/core`)**: link `crosshair` fan-out (`scrollToTimestamp`); `workspace-smoke.test.ts`
+- **V2-MC3 (`apps/playground`)**: `multi-chart.html` + `multi-chart-demo.ts` (`ChartWorkspace` + linked slots)
+- **V2-PINE2 (`@coderyo/pine-lite`)**: indicator builtins **18** (`wma`, `stdev`, `change`, `roc`, `atr`, `cci`, `mfi`, `stoch`, `sum`, `bb`, `macd`); `builtins-count.test.ts`
+- **V2-R13 skeleton (`@coderyo/renderer-webgl`)**: `port-parity.test.ts` harness (Appendix A checklist)
+- **V2-C**: `examples/adapters/csv-rest` reference `createCsvRestDataProvider`
+- **V2-PROD stub**: `apps/sample-android/README.md` (CI compile placeholder)
+- **V2-R12 follow-up**: WebGL `subscribeCrosshair` via pointer move on `WebGLChartRenderBackend`
 - **V2-B4–B8 + V2-MC1 + V2-R12 (`@coderyo/core`)**: `ChartWorkspace` + `wireWorkspaceBridge` (schema 3 `host.workspace.*`, `chart.workspaceReady`); link group fan-out (`applyLinkEvent`); `features.renderer: 'webgl' | 'lite'` with `WebGLChartRenderBackend` (`MsTimeScaleBus` shim); tests `chart-workspace`, `workspace-bridge`, `chart-controller.webgl`
 - **V2-B3 (`@coderyo/bridge@3.0.0-rc.1`, `@coderyo/core`)**: runtime `BRIDGE_SCHEMA_VERSION = 3`; `TRADVIEW_API_VERSION = 2`; `chart.ready` adds `workspaceId` + `charts[]`; `chart.workspaceReady` / workspace host stubs; chart-scoped `host.*` requires `chartId` (`MISSING_CHART_ID`, `CHART_NOT_FOUND`, `UNSUPPORTED_BRIDGE_SCHEMA`); `schema3-wire.ts` + `schema3-events.test.ts`; `bridge-wire.schema3.test.ts`
 - **V2-R9–R11 (`@coderyo/renderer-webgl`, `phase_gamma`)**: `chart-coordinates` mapper (`createChartCoordinateMapper`, `barIndexForTimeMs`); `WebGLDrawingLayer` + `drawings.enabled` on `WebGLPaneOrchestrator` (`setDrawingTool`, `setDrawingsLayerVisible`); playground `webgl-demo` drawing toolbar; `check:webgl-size` cap **170 KB** (R11 +50 KB); depends on `@coderyo/drawings`

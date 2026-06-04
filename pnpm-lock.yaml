@@ -111,6 +111,22 @@ importers:
         specifier: ^6.3.5
         version: 6.4.3(@types/node@22.19.19)(tsx@4.22.4)
 
+  examples/adapters/csv-rest:
+    dependencies:
+      '@coderyo/data':
+        specifier: workspace:*
+        version: link:../../../packages/data
+    devDependencies:
+      '@coderyo/tsconfig':
+        specifier: workspace:*
+        version: link:../../../tools/tsconfig
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/node@22.19.19)(happy-dom@20.9.0)(tsx@4.22.4)
+
   packages/bridge:
     devDependencies:
       '@coderyo/eslint-config':

@@ -273,8 +273,48 @@ export class WebGLChartRenderBackend {
     return min + t * span;
   }
 
-  subscribeCrosshair(_handler: (payload: unknown) => void): () => void {
-    return () => {};
+  subscribeCrosshair(handler: (payload: unknown) => void): () => void {
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    const onMove = (e: PointerEvent) => {
+      if (this.bars.length === 0) return;
+      const rect = this.container.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * dpr;
+      const y = (e.clientY - rect.top) * dpr;
+      const time = this.xToTime(x);
+      if (time == null) {
+        handler(null);
+        return;
+      }
+      const price = this.yToPrice(y);
+      const bar = this.bars.find((b) => b.t === time) ?? this.nearestBar(time);
+      handler({
+        time,
+        price,
+        ohlcv: bar
+          ? { o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v }
+          : null,
+      });
+    };
+    const onLeave = () => handler(null);
+    this.container.addEventListener('pointermove', onMove);
+    this.container.addEventListener('pointerleave', onLeave);
+    return () => {
+      this.container.removeEventListener('pointermove', onMove);
+      this.container.removeEventListener('pointerleave', onLeave);
+    };
+  }
+
+  private nearestBar(tMs: number): Bar | undefined {
+    let best: Bar | undefined;
+    let bestDt = Infinity;
+    for (const b of this.bars) {
+      const dt = Math.abs(b.t - tMs);
+      if (dt < bestDt) {
+        bestDt = dt;
+        best = b;
+      }
+    }
+    return best;
   }
 
   applyTimeScaleSyncFromLayers(_layers: LayerSyncInput[], _pageId?: string): void {

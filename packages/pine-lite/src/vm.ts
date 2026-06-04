@@ -1,5 +1,6 @@
 import type { Bar } from '@coderyo/data';
-import { ema, rsi, sma } from '@coderyo/indicators';
+import { boll, ema, macd, rsi, sma } from '@coderyo/indicators';
+import type { IndicatorBuiltin } from './builtins.js';
 import type { IrOp, PineIrProgram } from './ir.js';
 
 export interface PinePlotSeries {
@@ -92,8 +93,122 @@ function crossAt(
   return a1 >= b1 && a0 < b0 ? 1 : 0;
 }
 
+function wmaAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let sum = 0;
+  let wSum = 0;
+  for (let i = 0; i < p; i++) {
+    const w = i + 1;
+    const v = seriesAt(bars, series, index - p + 1 + i);
+    sum += v * w;
+    wSum += w;
+  }
+  return wSum > 0 ? sum / wSum : null;
+}
+
+function stdevAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let sum = 0;
+  for (let i = index - p + 1; i <= index; i++) sum += seriesAt(bars, series, i);
+  const mean = sum / p;
+  let sq = 0;
+  for (let i = index - p + 1; i <= index; i++) {
+    const d = seriesAt(bars, series, i) - mean;
+    sq += d * d;
+  }
+  return Math.sqrt(sq / p);
+}
+
+function changeAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p) return null;
+  return seriesAt(bars, series, index) - seriesAt(bars, series, index - p);
+}
+
+function rocAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p) return null;
+  const prev = seriesAt(bars, series, index - p);
+  if (prev === 0) return null;
+  return ((seriesAt(bars, series, index) - prev) / prev) * 100;
+}
+
+function trueRangeAt(bars: Bar[], index: number): number {
+  const b = bars[index]!;
+  if (index === 0) return b.h - b.l;
+  const prev = bars[index - 1]!;
+  return Math.max(b.h - b.l, Math.abs(b.h - prev.c), Math.abs(b.l - prev.c));
+}
+
+function atrAt(bars: Bar[], index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let sum = 0;
+  for (let i = index - p + 1; i <= index; i++) sum += trueRangeAt(bars, i);
+  return sum / p;
+}
+
+function cciAt(bars: Bar[], index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  const tps: number[] = [];
+  for (let i = index - p + 1; i <= index; i++) {
+    const b = bars[i]!;
+    tps.push((b.h + b.l + b.c) / 3);
+  }
+  const tp = tps[tps.length - 1]!;
+  const mean = tps.reduce((a, v) => a + v, 0) / p;
+  const dev =
+    tps.reduce((a, v) => a + Math.abs(v - mean), 0) / p || Number.EPSILON;
+  return (tp - mean) / (0.015 * dev);
+}
+
+function mfiAt(bars: Bar[], index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p) return null;
+  let pos = 0;
+  let neg = 0;
+  for (let i = index - p + 1; i <= index; i++) {
+    const b = bars[i]!;
+    const tp = (b.h + b.l + b.c) / 3;
+    const raw = (b.v ?? 0) * tp;
+    const prev = bars[i - 1];
+    if (!prev) continue;
+    const prevTp = (prev.h + prev.l + prev.c) / 3;
+    if (tp > prevTp) pos += raw;
+    else if (tp < prevTp) neg += raw;
+  }
+  if (pos + neg === 0) return 50;
+  const ratio = pos / (pos + neg);
+  return 100 - 100 / (1 + ratio);
+}
+
+function stochAt(bars: Bar[], index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = index - p + 1; i <= index; i++) {
+    lo = Math.min(lo, bars[i]!.l);
+    hi = Math.max(hi, bars[i]!.h);
+  }
+  const span = hi - lo;
+  if (span === 0) return 50;
+  return ((bars[index]!.c - lo) / span) * 100;
+}
+
+function sumAt(bars: Bar[], series: string, index: number, period: number): number | null {
+  const p = Math.max(1, Math.floor(period));
+  if (index < p - 1) return null;
+  let sum = 0;
+  for (let i = index - p + 1; i <= index; i++) sum += seriesAt(bars, series, i);
+  return sum;
+}
+
 function indicatorAt(
-  fn: 'sma' | 'ema' | 'rsi' | 'highest' | 'lowest' | 'crossover' | 'crossunder',
+  fn: IndicatorBuiltin,
   bars: Bar[],
   series: string,
   index: number,
@@ -111,7 +226,24 @@ function indicatorAt(
   const slice = src.slice(0, index + 1);
   if (fn === 'sma') return sma(slice, p)[index] ?? null;
   if (fn === 'ema') return ema(slice, p)[index] ?? null;
-  return rsi(slice, p)[index] ?? null;
+  if (fn === 'rsi') return rsi(slice, p)[index] ?? null;
+  if (fn === 'wma') return wmaAt(bars, series, index, p);
+  if (fn === 'stdev') return stdevAt(bars, series, index, p);
+  if (fn === 'change') return changeAt(bars, series, index, p);
+  if (fn === 'roc') return rocAt(bars, series, index, p);
+  if (fn === 'atr') return atrAt(bars, index, p);
+  if (fn === 'cci') return cciAt(bars, index, p);
+  if (fn === 'mfi') return mfiAt(bars, index, p);
+  if (fn === 'stoch') return stochAt(bars, index, p);
+  if (fn === 'sum') return sumAt(bars, series, index, p);
+  if (fn === 'bb') return boll(src, p).middle[index] ?? null;
+  if (fn === 'macd') {
+    const fast = Math.max(2, Math.floor(p));
+    const slow = fast * 2;
+    const sig = Math.max(2, Math.floor(fast / 2));
+    return macd(src, fast, slow, sig).macd[index] ?? null;
+  }
+  return null;
 }
 
 function truthy(v: number): boolean {
