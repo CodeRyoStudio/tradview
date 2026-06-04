@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **V2-R9–R11 (`@coderyo/renderer-webgl`, `phase_gamma`)**: `chart-coordinates` mapper (`createChartCoordinateMapper`, `barIndexForTimeMs`); `WebGLDrawingLayer` + `drawings.enabled` on `WebGLPaneOrchestrator` (`setDrawingTool`, `setDrawingsLayerVisible`); playground `webgl-demo` drawing toolbar; `check:webgl-size` cap **170 KB** (R11 +50 KB); depends on `@coderyo/drawings`
 - **V2-R6–R8 (`@coderyo/renderer-webgl`, `phase_beta`)**: main-chart MA/EMA/BOLL overlays (`main-chart-overlays.ts`, shared price scale); `lodDecimateBars` in `setBars` (`maxRenderPoints`); `getLodStats` / `getRenderPerfStats` / `runRenderBenchmark`; `pnpm bench:webgl`; playground `webgl-demo` overlay toggles + LOD/perf HUD + `?bench=1`; `check:webgl-size` cap **120 KB** (R8)
 - **V2-R5 (`@coderyo/renderer-webgl`, `phase_beta`)**: `LineSeriesRenderer`, `WebGLIndicatorPane` / `WebGLIndicatorStack` (MACD/RSI/KDJ via `@coderyo/indicators`), `ViewportSyncBus` + `ChartViewport.syncFrom`; `WebGLPaneOrchestrator` layout (~60% / ~15% / ~25%) + `indicatorConfig` / `setIndicatorConfig`; playground `webgl-demo` indicator toggles; `indicator-values.test.ts`, `viewport-sync-bus.test.ts`
 - **V2-R5 fix**: `setBarCount` no longer runs `fitLatest` on followers; `syncBus.propagate()` after indicator `setBars`; orchestrator `lastBars` + `setIndicatorConfig` re-applies series; `webgl-pane-orchestrator.test.ts`

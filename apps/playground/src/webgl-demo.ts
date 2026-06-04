@@ -1,3 +1,4 @@
+import type { DrawingTool } from '@coderyo/drawings';
 import {
   DEFAULT_INDICATOR_CONFIG,
   type IndicatorConfig,
@@ -57,6 +58,30 @@ function updateHud(orch: WebGLPaneOrchestrator, barCount: number): void {
     const parts = [`render: ${perf.lastRenderMs.toFixed(2)}ms`];
     if (perf.benchAvgMs != null) parts.push(`bench avg: ${perf.benchAvgMs.toFixed(2)}ms`);
     perfEl.textContent = parts.join(' · ');
+  }
+}
+
+const DRAWING_TOOLS: Array<{ tool: DrawingTool; label: string }> = [
+  { tool: 'cursor', label: 'Cursor' },
+  { tool: 'trendline', label: 'Trend' },
+  { tool: 'hline', label: 'H-line' },
+  { tool: 'vline', label: 'V-line' },
+  { tool: 'rectangle', label: 'Rect' },
+  { tool: 'fibonacci', label: 'Fib' },
+  { tool: 'text', label: 'Text' },
+];
+
+function buildDrawingTools(onSelect: (tool: DrawingTool) => void): void {
+  const host = document.getElementById('drawing-tools');
+  if (!host) return;
+  for (const { tool, label } of DRAWING_TOOLS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.style.cssText =
+      'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#e6edf3;cursor:pointer;';
+    btn.onclick = () => onSelect(tool);
+    host.appendChild(btn);
   }
 }
 
@@ -123,6 +148,12 @@ function main(): void {
       barSpacing: 7,
       maxRenderPoints: 4000,
       indicatorConfig,
+      drawings: {
+        enabled: true,
+        chartId: 'webgl-demo',
+        symbol: SYMBOL,
+        interval: INTERVAL,
+      },
       onIndicatorConfigChange: (cfg) => {
         indicatorConfig = cfg;
         updateHud(orch, bars.length);
@@ -140,6 +171,8 @@ function main(): void {
     indicatorConfig = cfg;
     orch.setIndicatorConfig(cfg);
   });
+
+  buildDrawingTools((tool) => orch.setDrawingTool(tool));
 
   updateHud(orch, bars.length);
   const hudTimer = window.setInterval(() => updateHud(orch, bars.length), 200);

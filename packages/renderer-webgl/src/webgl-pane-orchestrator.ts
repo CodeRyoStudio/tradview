@@ -8,6 +8,8 @@ import { lodDecimateBars } from '@coderyo/series';
 import { WebGLChartPane, type WebGLChartPaneOptions } from './webgl-chart-pane.js';
 import { WebGLIndicatorStack } from './webgl-indicator-stack.js';
 import { ViewportSyncBus } from './viewport-sync-bus.js';
+import { WebGLDrawingLayer } from './webgl-drawing-layer.js';
+import type { DrawingTool } from '@coderyo/drawings';
 
 /** Layout: main candles ~60%, volume ~15%, indicators ~25% when indicator panes visible. */
 const CHART_SECTION_RATIO_WITH_INDICATORS = 0.75;
@@ -24,6 +26,14 @@ export interface RenderPerfStats {
   benchAvgMs?: number;
 }
 
+export interface WebGLDrawingsOptions {
+  /** Enable 2D drawing overlay (default false). */
+  enabled?: boolean;
+  chartId?: string;
+  symbol?: string;
+  interval?: string;
+}
+
 export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
   /** Initial CSS size when mount container has zero layout. */
   initialWidth?: number;
@@ -32,6 +42,8 @@ export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
   onIndicatorConfigChange?: (config: IndicatorConfig) => void;
   /** Max bars sent to GPU after LOD decimation (V2-R8, §11.5). */
   maxRenderPoints?: number;
+  /** Drawing overlay (V2-R9–R11, phase_gamma). */
+  drawings?: WebGLDrawingsOptions;
 }
 
 /**
@@ -52,6 +64,7 @@ export class WebGLPaneOrchestrator {
   private lodStats: LodStats = { inputCount: 0, outputCount: 0 };
   private perfStats: RenderPerfStats = { lastRenderMs: 0 };
   private readonly onIndicatorConfigChange?: (config: IndicatorConfig) => void;
+  private drawingLayer: WebGLDrawingLayer | null = null;
 
   constructor(private readonly options: WebGLPaneOrchestratorOptions = {}) {
     this.maxRenderPoints = options.maxRenderPoints ?? 4000;
@@ -84,6 +97,19 @@ export class WebGLPaneOrchestrator {
     this.syncBus = new ViewportSyncBus(this.pane.viewport);
     this.pane.attachSyncBus(this.syncBus);
 
+    if (this.options.drawings?.enabled) {
+      this.drawingLayer = new WebGLDrawingLayer({
+        parent: this.chartHost,
+        interactionHost: this.pane.getChartCanvas(),
+        chartId: this.options.drawings.chartId ?? 'webgl-demo',
+        symbol: this.options.drawings.symbol ?? 'DEMO',
+        interval: this.options.drawings.interval ?? '1h',
+        getViewport: () => this.pane?.viewport ?? null,
+        getBars: () => this.lastBars,
+        getLayout: () => this.pane?.getLayoutMetrics() ?? null,
+      });
+    }
+
     this.applyIndicatorLayout();
     this.observeResize();
     this.syncSize();
@@ -95,6 +121,7 @@ export class WebGLPaneOrchestrator {
     this.lodStats = { inputCount, outputCount: renderBars.length };
     this.lastBars = renderBars;
     this.pane?.setData(this.lastBars);
+    this.drawingLayer?.redraw();
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.setBars(this.lastBars);
       this.syncBus?.propagate();
@@ -153,6 +180,7 @@ export class WebGLPaneOrchestrator {
     this.indicatorRoot.style.height = indicatorsVisible ? `${indH}px` : '0';
 
     this.pane?.resize(width, chartH);
+    this.drawingLayer?.syncOverlaySize(width, chartH);
     this.pane?.render();
     if (indicatorsVisible) {
       this.indicators?.resize();
@@ -165,12 +193,27 @@ export class WebGLPaneOrchestrator {
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.resize();
     }
+    this.drawingLayer?.redraw();
     this.perfStats = { ...this.perfStats, lastRenderMs: performance.now() - t0 };
+  }
+
+  setDrawingTool(tool: DrawingTool): void {
+    this.drawingLayer?.setTool(tool);
+  }
+
+  getDrawingTool(): DrawingTool {
+    return this.drawingLayer?.getTool() ?? 'cursor';
+  }
+
+  setDrawingsLayerVisible(visible: boolean): void {
+    this.drawingLayer?.setLayerVisible(visible);
   }
 
   destroy(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.drawingLayer?.destroy();
+    this.drawingLayer = null;
     this.indicators?.destroy();
     this.indicators = null;
     this.pane?.destroy();

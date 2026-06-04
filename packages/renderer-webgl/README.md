@@ -7,7 +7,15 @@ WebGL2 chart renderer for TradView V2.
 - `WebGLPaneOrchestrator` — main + volume + MACD/RSI/KDJ + **MA/EMA/BOLL overlays** (V2-R6)
 - **LOD** via `lodDecimateBars` + `maxRenderPoints` (V2-R8)
 - **Perf**: `getRenderPerfStats()`, `runRenderBenchmark()`; `pnpm bench:webgl`; demo `?bench=1`
-- Demo: `apps/playground/webgl-demo.html` (not wired to `@coderyo/core` until V2-R12)
+
+## Phase gamma (V2-R9–R11)
+
+- `createChartCoordinateMapper` — time/price ↔ overlay pixels on the main pane
+- `WebGLDrawingLayer` + `drawings: { enabled: true }` on the orchestrator (`setDrawingTool`)
+- Demo drawing toolbar on `apps/playground/webgl-demo.html`
+- `check:webgl-size` cap **170 KB** raw (R11 +50 KB)
+
+Not wired to `@coderyo/core` until V2-R12.
 
 ## Usage
 
@@ -24,7 +32,7 @@ chart.setBars(bars);
 
 ```bash
 pnpm --filter @coderyo/renderer-webgl test
-pnpm check:webgl-size   # V2-R2: dist/index.js ≤ 40 KB raw (after build)
+pnpm check:webgl-size   # dist/index.js ≤ 170 KB raw (after build)
 ```
 
 **CI policy (`phase_alpha`)**: Viewport, price-scale, interaction, and export allowlist run under happy-dom on every `pnpm test`. WebGL GPU paths (`webgl-integration.test.ts`) require a browser with WebGL2 — they are skipped in default CI; validate locally or in a future browser job before rc cuts.

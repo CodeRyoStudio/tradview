@@ -13,6 +13,7 @@ import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import type { ViewportSyncBus } from './viewport-sync-bus.js';
 import { LineSeriesRenderer } from './line-series-renderer.js';
 import { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
+import type { MainPaneLayout } from './chart-coordinates.js';
 import { priceRangeForBars } from './price-scale.js';
 
 export interface WebGLChartPaneOptions {
@@ -116,6 +117,26 @@ export class WebGLChartPane {
 
   getIndicatorConfig(): IndicatorConfig {
     return this.indicatorConfig;
+  }
+
+  /** WebGL chart surface (pan/zoom + drawing hit-test host). */
+  getChartCanvas(): HTMLCanvasElement {
+    return this.context.canvas;
+  }
+
+  /** Layout metrics for drawing overlay coordinate mapping (V2-R9). */
+  getLayoutMetrics(): MainPaneLayout | null {
+    const size = this.context.canvas;
+    const w = size.width;
+    const h = size.height;
+    if (w <= 0 || h <= 0) return null;
+    const mainH = Math.floor(h * (1 - this.volumeRatio) - PANE_GAP_PX);
+    return {
+      canvasWidth: w,
+      canvasHeight: h,
+      mainPaneHeight: Math.max(1, mainH),
+      cssWidth: this.width || w,
+    };
   }
 
   resize(cssWidth: number, cssHeight: number): void {

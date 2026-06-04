@@ -365,6 +365,9 @@ importers:
       '@coderyo/data':
         specifier: workspace:*
         version: link:../data
+      '@coderyo/drawings':
+        specifier: workspace:*
+        version: link:../drawings
       '@coderyo/indicators':
         specifier: workspace:*
         version: link:../indicators

@@ -25,6 +25,10 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'maxVolumeForBars',
   'priceToY',
   'buildMainOverlayLineSpecs',
+  'WebGLDrawingLayer',
+  'barIndexForTimeMs',
+  'createChartCoordinateMapper',
+  'timeMsAtBarIndex',
 ] as const;
 
 describe('@coderyo/renderer-webgl public exports', () => {

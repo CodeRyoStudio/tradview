@@ -33,7 +33,7 @@ pnpm check:rc
 |------|------|
 | `test` | 含 `@coderyo/core` 的 **`arch-boundary.test.ts`**（禁止 core → ui-shell）；**勿**在 `check:rc` 重複跑 `arch:boundary` |
 | `test:scripts` | `scripts/check-rc.test.mjs` — RC 步驟與 LWC skip 邏輯 |
-| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **120 KB**（R2 40 + R5–R7 **≤40** + R8 **≤40**）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
+| `check:webgl-size` | `@coderyo/renderer-webgl` `dist/index.js` raw ≤ **170 KB**（R2 40 + R5–R8 **≤40** + R11 **≤50**）；`TRADVIEW_WEBGL_MAX_KB` 可覆寫 |
 | `bench:webgl` | 列印 bundle 大小；GPU 幀時請用 `webgl-demo.html?bench=1` |
 | `check:lwc-size` | **僅**當 `VERSION` **不**匹配 `2.0.0` / `2.0.0-rc.N` 時執行（V2 WebGL 線跳過 LWC gate）。@ **`2.0.0-rc.2`**，`pnpm check:rc` → `test:scripts` 驗證此 skip 邏輯 |
 

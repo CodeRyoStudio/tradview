@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@coderyo/data": "workspace:*",
+    "@coderyo/drawings": "workspace:*",
     "@coderyo/indicators": "workspace:*",
     "@coderyo/series": "workspace:*"
   },
