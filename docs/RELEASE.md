@@ -32,13 +32,46 @@ git push origin v1.0.0-rc.1
 
 ---
 
-## 3. 發布 npm（可選）
+## 3. 發布 npm（建議：CI + 網頁授權，無本機 OTP）
 
-需已登入 npm（`npm login`）且對 `@coderyo` scope 有發布權。
+本機 `pnpm publish` 若帳號開啟 2FA，會要求 OTP。建議改用 [`.github/workflows/release.yml`](../.github/workflows/release.yml) 的 **`publish-npm`** job（推送 `v*` 標籤或手動 **Run workflow**），在 **npm 網站** 完成一次性授權即可。
+
+### 方式 A — Trusted Publishing（推薦，不需 GitHub Secret）
+
+對 **每一個** 要發布的套件，在 [npmjs.com](https://www.npmjs.com) → 套件 → **Settings** → **Trusted publishing** → **GitHub Actions**，填：
+
+| 欄位 | 值 |
+|------|-----|
+| Organization or user | `CodeRyoStudio` |
+| Repository | `tradview` |
+| Workflow filename | `release.yml` |
+| Allowed actions | `npm publish` |
+
+需設定的套件（與 monorepo 一致）：
+
+`@coderyo/bridge`（2.x 獨立版本）、`@coderyo/core`、`@coderyo/data`、`@coderyo/series`、`@coderyo/virtual-window`、`@coderyo/renderer-lite`、`@coderyo/renderer-webgl`、`@coderyo/interaction`、`@coderyo/pine-lite`、`@coderyo/indicators`、`@coderyo/i18n`、`@coderyo/drawings`、`@coderyo/ui-shell`
+
+設定完成後：
+
+1. GitHub → **Actions** → **Release** → **Run workflow**（可重跑 **1.1.0**，無需重打標籤）
+2. 或推送新標籤 `v*`，會自動執行 `publish-npm`
+
+說明：[npm Trusted publishing](https://docs.npmjs.com/trusted-publishers)
+
+### 方式 B — 網頁建立 Automation Token（適合懶得逐包設 Trusted Publisher）
+
+1. [npmjs.com](https://www.npmjs.com) → 頭像 → **Access Tokens** → **Generate New Token** → **Granular Access Token**
+2. 權限：`@coderyo/*` **Read and write**；勾選 **Bypass 2FA for automation**（僅限 CI）
+3. GitHub repo → **Settings** → **Secrets** → **Actions** → 新增 `NPM_TOKEN`
+4. 再跑 **Release** workflow（同上）
+
+CI 會優先使用 OIDC；若未設 Trusted Publisher 則使用 `NPM_TOKEN`。
+
+### 本機發布（需 OTP，一般不建議）
 
 ```bash
 pnpm check:rc
-pnpm -r publish --access public --tag rc --no-git-checks
+pnpm -r publish --access public --tag latest --no-git-checks --otp=******
 ```
 
 - **MIT 包**：`@coderyo/core`, `data`, `bridge`, `series`, …
@@ -47,7 +80,7 @@ pnpm -r publish --access public --tag rc --no-git-checks
 安裝範例：
 
 ```bash
-npm install @coderyo/core@1.0.0-rc.1
+npm install @coderyo/core@1.1.0 @coderyo/bridge@2.0.0
 ```
 
 ---
