@@ -81,7 +81,9 @@ RC 之後至 `1.0.0` 正式版：僅允許 **bugfix** 與 **向後相容** 的�
 
 ### 凍結：`@coderyo/ui-shell` 圖層公開面（Tier 3）
 
-`mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `LayerCompositorHandle`, `LayoutPreset`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `loadPreset`, `savePreset`, `listPresets`, `presetStorageKey`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `layoutSchemaToPreset`, `handleDrawingSelection`（layout 回傳）, `syncCompositorShellVisibility`, `layerCompositorManaged`（layout 選項）
+`mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `LayerCompositorHandle`, `LayoutPreset`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `loadPreset`, `savePreset`, `listPresets`, `presetStorageKey`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `handleDrawingSelection`（layout 回傳）, `syncCompositorShellVisibility`, `layerCompositorManaged: true`（layout 選項，**必填** @ `2.0.0-rc.2+`）
+
+**遷移子路徑** `@coderyo/ui-shell/migrate`（非主入口凍結面，但穩定 @ rc.2）：`layoutSchemaToPreset`, `MigrateLayoutSchema`, `cloneLayoutSchema`, `loadLayoutSchema`, `saveLayoutSchema`, … — 見 `migrate-exports.test.ts`。
 
 | `syncTimeScaleGroupId`（`LayerNode`） | 圖層 preset：同組同步時間軸；空/省略 = 該 pane 獨立 |
 | `bindLayerTimeScaleSync(chart, controller, opts?)` | 一次綁定 chart ↔ controller；preset / 分頁 / sync 組變更時自動 `applyTimeScaleSyncFromLayers` |

@@ -230,7 +230,7 @@ When `layerCompositorManaged: true`:
 
 `CHART_PANE_LAYER_TYPES`: `chart.main`, `chart.volume`, `chart.indicator`.
 
-Helpers in `chart-pane-mount.ts` build default pane layers for a preset. Integrators normally use `VENDOR_DEFAULT_PRESET` or `layoutSchemaToPreset()` migration from v1 grid.
+Helpers in `chart-pane-mount.ts` build default pane layers for a preset. Integrators normally use `VENDOR_DEFAULT_PRESET`. One-time v1 grid migration: `layoutSchemaToPreset()` from **`@coderyo/ui-shell/migrate`**.
 
 ---
 
@@ -243,7 +243,13 @@ Helpers in `chart-pane-mount.ts` build default pane layers for a preset. Integra
 | `layoutPersist` + `layoutId` | `savePreset` / `loadPreset` |
 | `getLayoutSchema()` | `controller.getPreset()` |
 
-`layoutSchemaToPreset(schema)` converts a v1 schema to v2 for one-time migration.
+```typescript
+import { layoutSchemaToPreset, loadLayoutSchema } from '@coderyo/ui-shell/migrate';
+
+const preset = layoutSchemaToPreset(loadLayoutSchema('default') ?? undefined);
+```
+
+`layoutSchemaToPreset(schema)` converts a v1 schema to v2 for one-time migration (not on the main `@coderyo/ui-shell` export).
 
 ---
 
@@ -294,7 +300,7 @@ Examples: [examples/bridge-layer-sync.md](../examples/bridge-layer-sync.md) · M
 
 See `packages/ui-shell/tests/public-exports.test.ts` for the full frozen export set. Primary symbols:
 
-`bindLayerTimeScaleSync`, `createLayerBridgeRegistration`, `wrapLayerController`, `mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `mountPageNavigator`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `presetStorageKey`, `loadPreset`, `savePreset`, `listPresets`, `layoutSchemaToPreset`, `syncOverlayLayersToMain`, `syncAllOverlayLayersToMain`, `syncCompositorShellVisibilityFromFeatures`, `getDrawingOverlayVisible`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `LAYER_PRESET_VERSION` — full runtime allowlist: `packages/ui-shell/tests/public-exports.test.ts`.
+`bindLayerTimeScaleSync`, `createLayerBridgeRegistration`, `wrapLayerController`, `mountLayerCompositor`, `LayerController`, `mountLayerPanel`, `mountPageNavigator`, `forkPreset`, `resolvePreset`, `deleteUserPreset`, `presetStorageKey`, `loadPreset`, `savePreset`, `listPresets`, `syncOverlayLayersToMain`, `syncAllOverlayLayersToMain`, `syncCompositorShellVisibilityFromFeatures`, `getDrawingOverlayVisible`, `BUILTIN_PRESETS`, `VENDOR_DEFAULT_PRESET`, `cloneLayoutPreset`, `normalizeLayoutPreset`, `LAYER_PRESET_VERSION` — main entry allowlist: `packages/ui-shell/tests/public-exports.test.ts`. Migration (`layoutSchemaToPreset`, v1 schema helpers): `packages/ui-shell/tests/migrate-exports.test.ts`.
 
 ---
 

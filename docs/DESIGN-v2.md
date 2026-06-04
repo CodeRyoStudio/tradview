@@ -110,7 +110,7 @@ PR-19 CDN 授權；§10.4 pixel-perfect E2E；**第二原生平台**（若 tripw
 |------|-------------|------|
 | 主圖 + 量 + 指標 | `renderer-lite` → `PaneOrchestrator` | N×LWC + `TimeScaleBusRegistry`（~970 LOC） |
 | 圖層 Compositor | `ui-shell/layer/*` | Playground **`layerCompositorManaged: true`**（`apps/playground/src/main.ts`） |
-| v1 grid | `layout-schema.ts`、`chart-layout.ts` | **仍公開**；`mountChartLayout` 在 `layerCompositorManaged !== true` 時仍走 `createLayoutGrid` |
+| v1 grid | `layout-schema.ts`、`layout-engine.ts`（內部） | **主入口已移除** @ **`2.0.0-rc.2`**（PR-L7b）；遷移 `@coderyo/ui-shell/migrate`；`mountChartLayout` **要求** `layerCompositorManaged: true` |
 | WebGL | `renderer-webgl` | **`phase_alpha` landed**（V2-R1–R4b）：主圖+量；`webgl-demo.html`；core 未接線 |
 | 協議 | `@coderyo/data` | JSON + **`proto/tradview.proto`**（PR-02b-1）；WS codec 未接 |
 | Bridge | `bridge@2.0.0` | `BRIDGE_SCHEMA_VERSION = 2` |
@@ -118,7 +118,7 @@ PR-19 CDN 授權；§10.4 pixel-perfect E2E；**第二原生平台**（若 tripw
 | CDN / LWC gate | `check-cdn-size.mjs` / `check-lwc-size.mjs` | 400 KB / 180 KB |
 | `core` 依賴 | `packages/core/package.json` | **`renderer-lite` only**；無 `renderer-webgl`、**無** `ui-shell` |
 
-> **Playground** 為 compositor-only；**npm 整合方**仍可使用 grid 路徑直至 PR-L7 rc.2。
+> **Playground** 為 compositor-only；**npm 整合方** @ **`2.0.0-rc.2+`** 須 compositor + `/migrate` 遷移舊 schema。
 
 ### 2.2 為何 V2 現在啟動
 
@@ -210,9 +210,9 @@ interface ChartFeatures {
 | **1.1.x 末** | `1.1.2` deprecation | `createLayoutGrid` 等標 `@deprecated`；runtime **`console.warn`**（PR-L7a） |
 | **rc.1** | `2.0.0-rc.1` | 文件 + warn；Playground 已 compositor-only |
 | **rc.2** | PR-L7b | 公開 API 刪除；`layoutSchemaToPreset` → **`@coderyo/ui-shell/migrate`** |
-| **GA** | `2.0.0` | `mountChartLayout` **要求** `layerCompositorManaged: true`（否則 throw 或 warn+空殼） |
+| **GA** | `2.0.0` | `mountChartLayout` **要求** `layerCompositorManaged: true`（與 rc.2 相同；L7c = 文件凍結對齊） |
 
-`mountChartLayout` grid 分支（`chart-layout.ts`）在 rc.2 移除或改為呼叫 migrate 助手。
+`mountChartLayout` grid 分支（`chart-layout.ts`）已在 **rc.2** 移除；`layoutSchemaToPreset` 僅 `@coderyo/ui-shell/migrate`。
 
 ### 4.4 協議：PR-02b（W1–W4 合併，對齊 rc.2）
 

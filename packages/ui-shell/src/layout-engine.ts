@@ -15,7 +15,7 @@ export type LayoutWidgetElements = Partial<Record<LayoutWidgetId, HTMLElement>>;
 
 /**
  * Handle for a mounted v1 12×12 CSS grid shell.
- * @deprecated v1 grid layout API — use layer compositor (`layerCompositorManaged: true`). Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ * @internal v1 grid layout API — removed from `@coderyo/ui-shell` public export @ 2.0.0-rc.2. Use compositor + `@coderyo/ui-shell/migrate`. See docs/MIGRATION-2.0.md §5.
  */
 export interface LayoutGridHandle {
   root: HTMLElement;
@@ -29,7 +29,7 @@ export interface LayoutGridHandle {
 }
 
 /**
- * @deprecated v1 grid layout API — use layer compositor. Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ * @internal v1 grid layout API — removed from public export @ 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
  */
 export interface CreateLayoutGridOptions {
   schema: LayoutSchema;
@@ -46,7 +46,7 @@ export interface CreateLayoutGridOptions {
 
 /**
  * Mount the legacy 12×12 CSS grid layout shell.
- * @deprecated v1 grid layout API — use `createCompositorShell` / `mountChartLayout({ layerCompositorManaged: true })`. Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ * @internal v1 grid layout API — removed from public export @ 2.0.0-rc.2. Use `createCompositorShell` + `mountChartLayout({ layerCompositorManaged: true })`. See docs/MIGRATION-2.0.md §5.
  */
 export function createLayoutGrid(opts: CreateLayoutGridOptions): LayoutGridHandle {
   if (!opts.suppressDeprecationWarn) {

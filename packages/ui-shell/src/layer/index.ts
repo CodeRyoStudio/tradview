@@ -1,6 +1,5 @@
 export * from './types.js';
 export * from './normalize.js';
-export * from './grid-to-preset.js';
 export * from './default-presets.js';
 export * from './preset-store.js';
 export * from './layer-controller.js';

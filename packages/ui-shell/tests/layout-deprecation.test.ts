@@ -2,11 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountChartLayout } from '../src/chart-layout.js';
 import { createLayoutGrid } from '../src/layout-engine.js';
 import {
-  LEGACY_LAYOUT_WARN_KEYS,
+  ERR_MSG_MOUNT_REQUIRES_COMPOSITOR,
   MIGRATION_LAYOUT_URL,
   resetLegacyLayoutWarningsForTests,
   WARN_MSG_CREATE_LAYOUT_GRID,
-  WARN_MSG_MOUNT_LEGACY_GRID,
   warnLegacyLayoutOnce,
 } from '../src/layout-deprecation.js';
 import { DEFAULT_LAYOUT_FEATURES } from '../src/layout-features.js';
@@ -22,10 +21,11 @@ describe('layout deprecation (PR-L7a)', () => {
     vi.restoreAllMocks();
   });
 
-  it('warn message constants cite stable migration URL and rc.2', () => {
-    for (const msg of [WARN_MSG_CREATE_LAYOUT_GRID, WARN_MSG_MOUNT_LEGACY_GRID]) {
+  it('warn/error message constants cite stable migration URL, rc.2, and /migrate', () => {
+    for (const msg of [WARN_MSG_CREATE_LAYOUT_GRID, ERR_MSG_MOUNT_REQUIRES_COMPOSITOR]) {
       expect(msg).toContain(MIGRATION_LAYOUT_URL);
       expect(msg).toContain('2.0.0-rc.2');
+      expect(msg).toContain('@coderyo/ui-shell/migrate');
     }
   });
 
@@ -84,26 +84,24 @@ describe('layout deprecation (PR-L7a)', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('mountChartLayout legacy path warns only mount message (nested grid warn suppressed)', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('mountChartLayout without layerCompositorManaged throws with migration URL', () => {
+    const mountLegacy = () =>
+      mountChartLayout(document.createElement('div'), {
+        layerCompositorManaged: false,
+        showTopBar: false,
+        symbolInput: 'none',
+      });
 
-    mountChartLayout(document.createElement('div'), {
-      layerCompositorManaged: false,
-      showTopBar: false,
-      symbolInput: 'none',
-    });
-    mountChartLayout(document.createElement('div'), {
-      showTopBar: false,
-      symbolInput: 'none',
-    });
+    expect(mountLegacy).toThrow(ERR_MSG_MOUNT_REQUIRES_COMPOSITOR);
+    expect(mountLegacy).toThrow(MIGRATION_LAYOUT_URL);
 
-    expect(warn.mock.calls.map((c) => c[0])).toEqual([WARN_MSG_MOUNT_LEGACY_GRID]);
-    expect(
-      warn.mock.calls.filter((c) => c[0] === WARN_MSG_CREATE_LAYOUT_GRID),
-    ).toHaveLength(0);
-    expect(LEGACY_LAYOUT_WARN_KEYS.mountChartLayoutLegacyGrid).toBe(
-      'mountChartLayout:legacyGrid',
-    );
+    const mountOmitted = () =>
+      mountChartLayout(document.createElement('div'), {
+        showTopBar: false,
+        symbolInput: 'none',
+      });
+
+    expect(mountOmitted).toThrow(ERR_MSG_MOUNT_REQUIRES_COMPOSITOR);
   });
 
   it('mountChartLayout compositor path does not warn', () => {

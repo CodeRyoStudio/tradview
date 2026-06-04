@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Draft** (V2-00b — rc.1 gate; expand before PR-L7b / GA) |
+| Status | **Active @ 2.0.0-rc.2** (V2-00b + **§5 layout gate satisfied** — PR-L7b landed; expand before GA) |
 | From | `@coderyo/*@1.1.x`, `TRADVIEW_API_VERSION=1`, Bridge schema **2** |
 | To | `@coderyo/*@2.0.0`, `TRADVIEW_API_VERSION=2`, `@coderyo/bridge@3.0.0` schema **3** |
 | Authoritative plan | [DESIGN-v2.md](./DESIGN-v2.md) |
@@ -122,14 +122,14 @@ Compositor v2 (`LayoutPreset`, `mountLayerCompositor`, `layerCompositorManaged: 
 | Phase | PR | Version line | Public API |
 |-------|-----|--------------|------------|
 | **a — deprecate** | PR-L7a | `1.1.2+` | `@deprecated` on grid exports; one-time `console.warn` at legacy **mount** entry points (`createLayoutGrid()` direct call; `mountChartLayout` when `layerCompositorManaged !== true`) |
-| **b — remove** | PR-L7b | **`2.0.0-rc.2`** | Delete public grid API; ship `@coderyo/ui-shell/migrate` (`layoutSchemaToPreset`) |
-| **c — enforce** | PR-L7c | **`2.0.0` GA** | `mountChartLayout` requires `layerCompositorManaged: true` |
+| **b — remove** | PR-L7b | **`2.0.0-rc.2`** ✓ | Delete public grid API; ship `@coderyo/ui-shell/migrate` (`layoutSchemaToPreset`) |
+| **c — enforce** | PR-L7c | **`2.0.0` GA** | `mountChartLayout` requires `layerCompositorManaged: true` (**enforced @ rc.2**; GA = freeze/docs) |
 
 ### 5.1 Migration checklist (layout)
 
 - [ ] Set `layerCompositorManaged: true` on chart mount options
 - [ ] Replace `createLayoutGrid` / `DEFAULT_LAYOUT_SCHEMA` with `LayoutPreset` + compositor
-- [ ] Run `layoutSchemaToPreset` once if persisting legacy 12×12 grid JSON (available @ rc.2)
+- [ ] Run `layoutSchemaToPreset` once if persisting legacy 12×12 grid JSON — `import { … } from '@coderyo/ui-shell/migrate'`
 - [ ] Register Bridge layer API via `createLayerBridgeRegistration` (unchanged pattern from 1.1.x)
 
 See [LAYER-COMPOSITOR-PLAN.md](./LAYER-COMPOSITOR-PLAN.md), [ADR-v2-layout-pr-l7.md](./ADR-v2-layout-pr-l7.md).

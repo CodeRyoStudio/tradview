@@ -12,7 +12,7 @@
 - **桌面**：自由編輯 + 圖層列表面板。
 - **手機（P4）**：多 Page 導航，每頁一組圖層（類手機桌面分頁），不強制自由拖移。
 
-**取代** Playground / compositor 整合路徑上的 `layout-schema` v1 定位；v1 grid **仍保留**供非 compositor 整合方與 `layoutSchemaToPreset()` 一次性遷移（P5 不刪除公開 v1 API）。
+**取代** Playground / compositor 整合路徑上的 `layout-schema` v1 定位。v1 grid **內部模組保留**；公開 API @ **`2.0.0-rc.2`**（PR-L7b）僅 **`@coderyo/ui-shell/migrate`**（`layoutSchemaToPreset` 等）。
 
 ---
 
@@ -59,16 +59,17 @@ LayerType = shell.* | chart.* | overlay.* | group
 | **P2** | chart pane 圖層化 + 焦點 pane + TimeScaleBus | 主圖/量/指標可重疊調整 |
 | **P3** | overlay.drawing / crosshairLegend 納入圖層樹 | 範圍 C 完整 |
 | **P4** | 手機 Page 導航、新增頁 | 窄螢幕分頁體驗 |
-| **P5** | Playground / `layerCompositorManaged` 改用 compositor shell；v1 grid 僅遷移 | Playground 無 12×12 定位；非 compositor 路徑仍可用 v1 |
+| **P5** | Playground / `layerCompositorManaged` 改用 compositor shell；v1 grid 僅遷移 | Playground 無 12×12 定位；**rc.2+** 須 compositor + `/migrate` |
 
 ---
 
 ## 5. 架構
 
 ```
-mountChartLayout
-  ├─ legacy: createLayoutGrid (v1)     … 非 compositor 整合方；遷移用
-  └─ layer: mountLayerCompositor (v2)  … Playground / layerCompositorManaged
+mountChartLayout({ layerCompositorManaged: true })  … compositor shell（rc.2+ 必填）
+  └─ mountLayerCompositor (v2)         … Playground / 整合方 preset
+
+@coderyo/ui-shell/migrate              … v1 LayoutSchema → preset（一次性）
 
 LayerCompositor
   ├─ applyPreset() → 絕對定位各 widget 根節點
@@ -135,13 +136,13 @@ ChartController / PaneOrchestrator
 - [x] 新增/刪除/重新命名頁
 - [x] 每頁獨立 `pageId` 圖層子集
 
-### P5 — Compositor 預設路徑（遷移，非刪除 v1）
+### P5 — Compositor 預設路徑（PR-L7b @ rc.2）
 
 - [x] Playground / `layerCompositorManaged` 使用 `createCompositorShell`（無 12×12 定位）
-- [x] `layoutEditor` / `setLayoutSchema` 在 compositor 模式下為 no-op
-- [x] `layoutSchemaToPreset()` 保留；v1 `LayoutSchema` 仍自 `@coderyo/ui-shell` 匯出
+- [x] **PR-L7b**：v1 grid **自主入口移除**；`@coderyo/ui-shell/migrate` 匯出 `layoutSchemaToPreset` + schema 助手
+- [x] `mountChartLayout` **要求** `layerCompositorManaged: true`（否則 throw）
 - [x] Playground 僅 v2 compositor
-- [ ] 可選後續：內部化 v1（非 Playground 路徑）— **不在本輪範圍**
+- [x] v1 `layout-engine` / `layout-schema` **內部保留**（migrate / builtins / tests）
 
 ---
 
@@ -155,7 +156,7 @@ ChartController / PaneOrchestrator
 | PR-L4 | feat(ui-shell): shell layer drag/resize + groups | P1 |
 | PR-L5 | feat(renderer): chart pane as layers | P2 |
 | PR-L6 | feat(ui-shell): mobile page navigator | P4 |
-| PR-L7 | chore (deferred): optional v1 internalization — out of P5 scope; v1 retained for non-compositor embeds | P5+ |
+| PR-L7 | **L7b @ 2.0.0-rc.2**: public grid removal + `/migrate`; compositor required @ mount | P5 ✓ |
 
 ---
 

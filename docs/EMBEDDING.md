@@ -51,7 +51,7 @@ const demo = createChart(layout.chartMain, createDemoChartOptions({
   symbol: 'BINANCE:BTCUSDT',
   interval: '1h',
 }));
-// Legacy v1：createChart(layout.chartHost, …) — 已棄用
+// chartHost 為 chartMain 別名；勿在未設 layerCompositorManaged: true 時 mount（rc.2+ 會 throw）
 ```
 
 ## Feature 矩陣（`ChartFeatures`）
@@ -74,7 +74,11 @@ const demo = createChart(layout.chartMain, createDemoChartOptions({
 
 ## 版面：v2 Compositor 為主（建議）
 
-新整合請用 **`mountLayerCompositor` + `LayoutPreset` v2**（[API-LAYER.md](./API-LAYER.md)）。Playground 與 `layerCompositorManaged: true` 使用 **`createCompositorShell`**（無 12×12 grid 定位）。v1 `layout` / `layoutEditor` **已棄用**，僅 `layoutSchemaToPreset` 遷移用。
+新整合請用 **`mountLayerCompositor` + `LayoutPreset` v2**（[API-LAYER.md](./API-LAYER.md)）。Playground 與 `layerCompositorManaged: true` 使用 **`createCompositorShell`**（無 12×12 grid 定位）。v1 grid **已自主入口移除** @ `2.0.0-rc.2`；遷移舊 localStorage schema：
+
+```typescript
+import { layoutSchemaToPreset, loadLayoutSchema } from '@coderyo/ui-shell/migrate';
+```
 
 ### v2 掛載順序
 
@@ -86,9 +90,9 @@ const demo = createChart(layout.chartMain, createDemoChartOptions({
 
 `volumeMount` 須為**空容器**；勿對 legacy `chartHost` 掛 `createChart`（用 `chartMain`）。
 
-### v1 Grid（已棄用）
+### v1 grid 遷移（`/migrate`）
 
-`layout` / `layoutEditor` / `layoutPersist` 僅限未啟用 compositor 的舊專案；新專案請 `layerCompositorManaged: true` + preset store。範例見 [API.md §6](./API.md#6-mountchartlayout)。
+`layout` / `layoutEditor` / `layoutPersist` **已移除** @ `2.0.0-rc.2`。新專案：`layerCompositorManaged: true` + preset store；舊 persisted JSON → `layoutSchemaToPreset` via **`@coderyo/ui-shell/migrate`**。範例見 [API.md §6](./API.md#6-mountchartlayout)。
 
 也可只用 `createChart` + 自建 DOM，**完全不使用** `mountChartLayout`。
 
@@ -113,7 +117,7 @@ const demo = createChart(layout.chartMain, createDemoChartOptions({
 
 `mountChartLayout` **不會**自動綁定 `IChart`。只開 `showTopBar` / `showLeftToolbar` 而不接 callback 時，工具列會亮但**畫不了線**、換週期也**沒反應**。完整範例見 `apps/playground/src/main.ts`。
 
-**建立順序：** 先 `mountChartLayout` 取得 `chartMain`（legacy 別名 `chartHost`），再 `createChart`；callback 裡還沒有 `chart` 實例，請用 ref holder。Playground 使用 **Layer Compositor v2**（`layerCompositorManaged: true`）；v1 grid 僅供遷移，見 [API-LAYER.md](./API-LAYER.md)。
+**建立順序：** 先 `mountChartLayout({ layerCompositorManaged: true, … })` 取得 `chartMain`（legacy 別名 `chartHost`），再 `createChart`；callback 裡還沒有 `chart` 實例，請用 ref holder。Playground 使用 **Layer Compositor v2**；v1 schema 遷移見 `@coderyo/ui-shell/migrate` 與 [API-LAYER.md](./API-LAYER.md)。
 
 ```typescript
 import { createChart } from '@coderyo/core';

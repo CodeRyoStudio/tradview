@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.0-rc.2] - 2026-06-04
+
+### `@coderyo/ui-shell` — PR-L7b (grid public API removal)
+
+- **Version** monorepo sync → **`2.0.0-rc.2`** (`VERSION` + `pnpm version:sync`; `@coderyo/bridge` stays `2.0.0`)
+- **Removed** v1 12×12 grid symbols from main `@coderyo/ui-shell` export: `createLayoutGrid`, `LayoutSchema` helpers, `layoutSchemaToPreset`, etc. (internal `layout-engine.ts` / `layout-schema.ts` retained)
+- **Added** `@coderyo/ui-shell/migrate` subpath — `layoutSchemaToPreset`, `MigrateLayoutSchema`, `cloneLayoutSchema`, persistence helpers for integrator migration
+- **`mountChartLayout`** requires `layerCompositorManaged: true` @ rc.2 (throws with [MIGRATION-2.0.md §5](https://github.com/CodeRyoStudio/tradview/blob/main/docs/MIGRATION-2.0.md#5-layout--pr-l7-three-phase-timeline) link); legacy grid mount branch removed
+- **Tests**: `migrate-exports.test.ts`, updated `public-exports.test.ts`, `layout-deprecation.test.ts`, `top-bar.layout.test.ts`
+
 ### Added
 
 - **PR-02b-2 (`@coderyo/data`, `@coderyo/core`)**: WS protobuf codec (`protobufjs`, `encodeWsProtobufEnvelope` / `decodeWsProtobufEnvelope`, `PROTO_WS_ENVELOPE_BODY_TYPE_MAP`); golden tests (`proto-golden.test.ts`, subscribe byte length 62); mock gateway `tradview-protobuf` subprotocol; `TradViewWsClient` `encoding: 'json' \| 'protobuf'` + `tradview-json` / `tradview-protobuf`; mock `capabilities.encoding: ['json','protobuf']`; `ChartFeatures.protobuf` enables WS protobuf when provider advertises it (JSON default unchanged); **`@coderyo/data/client`** subpath for gateway/WS (main entry browser-safe); `protobuf-ws-encoding.test.ts` + `ws-protobuf-codec.test.ts`.

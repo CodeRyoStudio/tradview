@@ -55,12 +55,13 @@
 | `getVisibleRange` / `setVisibleRange` | `core` | Retained from 1.x |
 | Link sync | `core` | Via workspace + bridge events |
 
-### Removed / deprecated (planned)
+### Removed @ 2.0.0-rc.2 (PR-L7b landed)
 
-| Symbol | When |
-|--------|------|
-| `createLayoutGrid` | **Removed** @ 2.0.0-rc.2 (PR-L7b) |
-| `DEFAULT_LAYOUT_SCHEMA` | **Removed** @ 2.0.0-rc.2 |
+| Symbol | When / where |
+|--------|----------------|
+| `createLayoutGrid`, `LayoutSchema` helpers (main entry) | **Removed** @ 2.0.0-rc.2 — use compositor |
+| `layoutSchemaToPreset`, v1 schema persistence | **`@coderyo/ui-shell/migrate`** @ 2.0.0-rc.2 |
+| `DEFAULT_LAYOUT_SCHEMA` | **Removed** from main entry @ 2.0.0-rc.2 |
 | Bridge schema 2 inbound | **Rejected** @ GA |
 
 ---

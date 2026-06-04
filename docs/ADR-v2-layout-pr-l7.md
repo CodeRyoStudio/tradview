@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Accepted (L7a @ 1.1.2)**; L7b pending 2.0.0-rc.2 gate |
+| Status | **Accepted (L7a @ 1.1.2; L7b @ 2.0.0-rc.2)**; L7c @ GA |
 | Date | 2026-06-04 |
 | Decision | Remove v1 **12×12 `createLayoutGrid`** public API; **compositor v2** is the sole layout model @ GA |
 | Related | [LAYER-COMPOSITOR-PLAN.md](./LAYER-COMPOSITOR-PLAN.md), [MIGRATION-2.0.md](./MIGRATION-2.0.md) §5 |
@@ -48,4 +48,4 @@ TradView 1.x exposed `createLayoutGrid`, `LayoutSchema`, and `DEFAULT_LAYOUT_SCH
 
 ## 6. Status
 
-**Accepted (L7a @ 1.1.2)** — shipped in `@coderyo/ui-shell@1.1.2`. **L7b** remains pending **2.0.0-rc.2** when migration doc gate satisfied (V2-00b ✓).
+**Accepted (L7a @ 1.1.2; L7b @ 2.0.0-rc.2)** — grid public API removed; `@coderyo/ui-shell/migrate` ships `layoutSchemaToPreset`. **`mountChartLayout` compositor enforcement** landed @ rc.2 (DESIGN L7c throw; GA retains same requirement). **L7c** @ GA is documentation/freeze alignment only if behavior unchanged.

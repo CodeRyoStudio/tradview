@@ -1,12 +1,16 @@
 {
   "name": "@coderyo/ui-shell",
-  "version": "1.1.2",
+  "version": "2.0.0-rc.2",
   "license": "UNLICENSED",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./migrate": {
+      "types": "./dist/migrate.d.ts",
+      "import": "./dist/migrate.js"
     }
   },
   "types": "./dist/index.d.ts",

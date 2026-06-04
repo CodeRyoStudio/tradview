@@ -16,9 +16,7 @@ describe('mountChartLayout compositor mode (P5)', () => {
     expect(root.querySelector('.tv-compositor-shell-grid')).toBeTruthy();
     expect(root.querySelector('.tv-layout-grid')).toBeFalsy();
     expect(layout.syncCompositorShellVisibility).toBeTypeOf('function');
-    layout.enableLayoutEditor(true);
-    layout.setLayoutSchema({ version: 1, columns: 12, rows: 12, widgets: [] });
-    layout.saveLayout();
+    expect(layout.bindLayerCompositorController).toBeTypeOf('function');
   });
 
   it('setLayoutFeatures syncs compositor shell when controller is bound', () => {

@@ -3,27 +3,15 @@ import { attachChartContextMenu, type ContextMenuAction } from './context-menu.j
 import { mountCrosshairLegend } from './crosshair-legend.js';
 import { mountDrawingPropertiesPanel } from './drawing-properties-panel.js';
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
-import {
-  LEGACY_LAYOUT_WARN_KEYS,
-  WARN_MSG_MOUNT_LEGACY_GRID,
-  warnLegacyLayoutOnce,
-} from './layout-deprecation.js';
-import { createLayoutGrid, type LayoutGridHandle } from './layout-engine.js';
+import { ERR_MSG_MOUNT_REQUIRES_COMPOSITOR } from './layout-deprecation.js';
 import { createCompositorShell } from './layer/compositor-shell.js';
 import { syncCompositorShellVisibilityFromFeatures } from './layer/compositor-shell-sync.js';
-import { getWidgetPlacement } from './layout-schema.js';
 import {
   mergeLayoutFeatures,
   resolveLayoutFeatures,
   type LayoutFeatures,
   type ResolvedLayoutFeatures,
 } from './layout-features.js';
-import {
-  loadLayoutSchema,
-  resolveLayoutSchema,
-  saveLayoutSchema,
-  type LayoutSchema,
-} from './layout-schema.js';
 import { mountStatusBar, type StatusBarOptions } from './status-bar.js';
 import { mountTopBar, type TopBarOptions } from './top-bar.js';
 import type { SettingsPanelOptions } from './settings-panel.js';
@@ -33,14 +21,6 @@ import { createThemeProvider, type ThemeProvider } from './theme-provider.js';
 
 export type { LayoutFeatures, ResolvedLayoutFeatures } from './layout-features.js';
 export { resolveLayoutFeatures, DEFAULT_LAYOUT_FEATURES, createDemoLayoutOptions } from './layout-features.js';
-export type { LayoutSchema, LayoutWidgetId } from './layout-schema.js';
-export {
-  DEFAULT_LAYOUT_SCHEMA,
-  resolveLayoutSchema,
-  loadLayoutSchema,
-  saveLayoutSchema,
-  layoutStorageKey,
-} from './layout-schema.js';
 
 export type DrawingToolId =
   | 'cursor'
@@ -70,30 +50,6 @@ export interface ChartLayoutOptions extends TopBarOptions {
   autoThemeProvider?: boolean;
   /** When false, do not auto-create i18n provider (default true). */
   autoI18n?: boolean;
-  /**
-   * Grid layout schema; omit to use {@link DEFAULT_LAYOUT_SCHEMA}.
-   * @deprecated v1 12×12 grid — use compositor `LayoutPreset` when `layerCompositorManaged: true`. See docs/MIGRATION-2.0.md §5.
-   */
-  layout?: LayoutSchema | null;
-  /**
-   * Key for layout persistence (`layoutPersist`). Default `default`.
-   * @deprecated v1 grid persistence — use compositor preset store. See docs/MIGRATION-2.0.md §5.
-   */
-  layoutId?: string;
-  /**
-   * Persist layout schema to localStorage on change / saveLayout().
-   * @deprecated v1 grid persistence — use compositor preset store. See docs/MIGRATION-2.0.md §5.
-   */
-  layoutPersist?: boolean;
-  /**
-   * Enable drag/resize layout editor on mount.
-   * @deprecated Ignored when `layerCompositorManaged` — use `mountLayerCompositor` + `enableLayerEditor`.
-   */
-  layoutEditor?: boolean;
-  /**
-   * @deprecated v1 grid callback — use compositor preset / layer events. See docs/MIGRATION-2.0.md §5.
-   */
-  onLayoutChange?: (schema: LayoutSchema) => void;
   showTopBar?: boolean;
   showLeftToolbar?: boolean;
   showBottomToolbar?: boolean;
@@ -112,9 +68,8 @@ export interface ChartLayoutOptions extends TopBarOptions {
   onDrawingStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;
   onDrawingSelectionBind?: (bind: (drawing: import('@coderyo/drawings').DrawingRecord | null) => void) => void;
   /**
-   * When true, uses compositor v2 shell (recommended for new integrators @ 1.1.2+).
-   * When false or omitted, mounts the deprecated v1 12×12 grid path (one-time console.warn).
-   * @remarks Prefer `true` + `mountLayerCompositor`; legacy grid API is removed in 2.0.0-rc.2.
+   * Must be `true` @ 2.0.0-rc.2+ (v1 12×12 grid removed). Use `mountLayerCompositor` + `LayoutPreset`.
+   * @see docs/MIGRATION-2.0.md §5
    */
   layerCompositorManaged?: boolean;
 }
@@ -154,6 +109,7 @@ function mountToolButtons(
 
 export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {}): {
   layoutRoot: HTMLElement;
+  /** Compositor shell grid element (legacy property name `layoutGrid`; not v1 12×12 grid). */
   layoutGrid: HTMLElement;
   /** @deprecated Alias of chartMain — use chartMain for LWC mount. */
   chartHost: HTMLElement;
@@ -184,16 +140,12 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   ) => void;
   setLayoutFeatures: (patch: LayoutFeatures) => void;
   getLayoutFeatures: () => ResolvedLayoutFeatures;
-  /** @deprecated v1 grid schema — use compositor `LayerController` / preset APIs. */
-  getLayoutSchema: () => LayoutSchema;
-  /** @deprecated v1 grid schema — use compositor preset APIs. */
-  setLayoutSchema: (schema: LayoutSchema) => void;
-  enableLayoutEditor: (enabled: boolean) => void;
-  /** @deprecated v1 grid localStorage persist — use compositor preset store. */
-  saveLayout: () => void;
 } {
+  if (opts.layerCompositorManaged !== true) {
+    throw new Error(ERR_MSG_MOUNT_REQUIRES_COMPOSITOR);
+  }
+
   let layoutFeatures = resolveLayoutFeatures(opts);
-  const layoutId = opts.layoutId ?? 'default';
 
   root.replaceChildren();
   root.style.display = 'flex';
@@ -273,72 +225,25 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     onStyleChange: opts.onDrawingStyleChange,
   });
 
-  const layerCompositorManaged = opts.layerCompositorManaged === true;
   const drawingOverlay = chartMain;
 
-  let loaded: LayoutSchema | null = null;
-  let layoutSchema = resolveLayoutSchema(null);
-  if (!layerCompositorManaged) {
-    loaded =
-      opts.layout !== undefined && opts.layout !== null
-        ? resolveLayoutSchema(opts.layout)
-        : opts.layoutPersist
-          ? loadLayoutSchema(layoutId)
-          : null;
-    layoutSchema = resolveLayoutSchema(loaded);
-  }
-
-  const persistLayout = (schema: LayoutSchema) => {
-    if (layerCompositorManaged) return;
-    layoutSchema = resolveLayoutSchema(schema);
-    if (opts.layoutPersist) saveLayoutSchema(layoutId, layoutSchema);
-    opts.onLayoutChange?.(layoutSchema);
-  };
-
-  let layoutShell: LayoutGridHandle | ReturnType<typeof createCompositorShell>;
-  if (layerCompositorManaged) {
-    layoutShell = createCompositorShell({
-      widgets: {
-        topBar: topBarHost,
-        leftToolbar,
-        bottomToolbar,
-        chartHost,
-        indicatorHost: indicatorMount,
-        statusBar: statusMount,
-        propertiesPanel: propertiesMount,
-      },
-    });
-  } else {
-    warnLegacyLayoutOnce(
-      LEGACY_LAYOUT_WARN_KEYS.mountChartLayoutLegacyGrid,
-      WARN_MSG_MOUNT_LEGACY_GRID,
-    );
-    layoutShell = createLayoutGrid({
-      schema: layoutSchema,
-      features: layoutFeatures,
-      editor: opts.layoutEditor ?? false,
-      onSchemaChange: persistLayout,
-      suppressDeprecationWarn: true,
-      widgets: {
-        topBar: topBarHost,
-        leftToolbar,
-        bottomToolbar,
-        chartHost,
-        indicatorHost: indicatorMount,
-        statusBar: statusMount,
-        propertiesPanel: propertiesMount,
-      },
-    });
-  }
+  const layoutShell = createCompositorShell({
+    widgets: {
+      topBar: topBarHost,
+      leftToolbar,
+      bottomToolbar,
+      chartHost,
+      indicatorHost: indicatorMount,
+      statusBar: statusMount,
+      propertiesPanel: propertiesMount,
+    },
+  });
 
   root.appendChild(layoutShell.root);
 
   let topBar: HTMLElement = topBarHost;
   let setActiveInterval: (interval: import('@coderyo/data').Interval) => void = () => {};
-  const crosshairLegend = mountCrosshairLegend(
-    layerCompositorManaged ? undefined : chartMain,
-    { symbol: opts.initialSymbol },
-  );
+  const crosshairLegend = mountCrosshairLegend(undefined, { symbol: opts.initialSymbol });
 
   let detachContextMenu = () => {};
   let shortcutsBound = false;
@@ -386,54 +291,9 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     mountToolbarActions(bottomToolbar, false);
   };
 
-  const chartAreaColStart = () => (layoutFeatures.showLeftToolbar ? 2 : 1);
-
   const applyPropertiesPanelLayout = (drawing: import('@coderyo/drawings').DrawingRecord | null) => {
     const showPanel = layoutFeatures.showPropertiesPanel && drawing != null;
     propertiesPanel.el.style.display = showPanel ? 'block' : 'none';
-    if (layerCompositorManaged) return;
-
-    const propsCell = layoutShell.cells.get('propertiesPanel');
-    const chartCell = layoutShell.cells.get('chartHost');
-    const indCell = layoutShell.cells.get('indicatorHost');
-    const statusCell = layoutShell.cells.get('statusBar');
-    if (!propsCell || !chartCell) return;
-
-    const cw = getWidgetPlacement(layoutSchema, 'chartHost');
-    const iw = getWidgetPlacement(layoutSchema, 'indicatorHost');
-    const sw = getWidgetPlacement(layoutSchema, 'statusBar');
-    const pw = getWidgetPlacement(layoutSchema, 'propertiesPanel');
-
-    const applyPlacement = (cell: HTMLElement, p: { col: number; row: number; colSpan: number; rowSpan: number }) => {
-      cell.style.gridColumn = `${p.col + 1} / span ${p.colSpan}`;
-      cell.style.gridRow = `${p.row + 1} / span ${p.rowSpan}`;
-    };
-
-    if (showPanel) {
-      propsCell.style.display = '';
-      if (pw) applyPlacement(propsCell, pw);
-      if (cw) applyPlacement(chartCell, cw);
-      if (indCell && iw) {
-        indCell.style.display = '';
-        applyPlacement(indCell, iw);
-      }
-      if (statusCell && sw) applyPlacement(statusCell, sw);
-    } else {
-      propsCell.style.display = 'none';
-      const end = layoutSchema.columns + 1;
-      const start = chartAreaColStart();
-      chartCell.style.gridColumn = `${start} / ${end}`;
-      if (cw) chartCell.style.gridRow = `${cw.row + 1} / span ${cw.rowSpan}`;
-      if (indCell && iw) {
-        indCell.style.display = '';
-        indCell.style.gridColumn = `${start} / ${end}`;
-        indCell.style.gridRow = `${iw.row + 1} / span ${iw.rowSpan}`;
-      }
-      if (statusCell && sw) {
-        statusCell.style.gridColumn = `${start} / ${end}`;
-        statusCell.style.gridRow = `${sw.row + 1} / span ${sw.rowSpan}`;
-      }
-    }
   };
 
   const applyLayoutFeatures = () => {
@@ -469,10 +329,6 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       setActiveMobile = null;
     }
 
-    if (!layerCompositorManaged) {
-      (layoutShell as LayoutGridHandle).applySchema(layoutSchema, f);
-    }
-
     disposeMobileMq?.();
     const mq = window.matchMedia(MOBILE_MQ);
     const applyMobileTools = () => {
@@ -492,10 +348,6 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     mq.addEventListener('change', applyMobileTools);
     disposeMobileMq = () => mq.removeEventListener('change', applyMobileTools);
     applyMobileTools();
-
-    if (!layerCompositorManaged) {
-      crosshairLegend.el.style.display = f.showCrosshairLegend ? '' : 'none';
-    }
 
     detachContextMenu();
     if (f.showContextMenu) {
@@ -525,11 +377,11 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   let boundCompositorController: import('./layer/layer-controller.js').LayerController | null =
     null;
 
-  const syncCompositorShellVisibility = layerCompositorManaged
-    ? (controller: import('./layer/layer-controller.js').LayerController) => {
-        syncCompositorShellVisibilityFromFeatures(controller, layoutFeatures);
-      }
-    : undefined;
+  const syncCompositorShellVisibility = (
+    controller: import('./layer/layer-controller.js').LayerController,
+  ) => {
+    syncCompositorShellVisibilityFromFeatures(controller, layoutFeatures);
+  };
 
   const syncCompositorShellVisibilityIfBound = () => {
     if (boundCompositorController) {
@@ -537,12 +389,12 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
     }
   };
 
-  const bindLayerCompositorController = layerCompositorManaged
-    ? (controller: import('./layer/layer-controller.js').LayerController) => {
-        boundCompositorController = controller;
-        syncCompositorShellVisibilityFromFeatures(controller, layoutFeatures);
-      }
-    : undefined;
+  const bindLayerCompositorController = (
+    controller: import('./layer/layer-controller.js').LayerController,
+  ) => {
+    boundCompositorController = controller;
+    syncCompositorShellVisibilityFromFeatures(controller, layoutFeatures);
+  };
 
   return {
     layoutRoot: layoutShell.root,
@@ -568,25 +420,5 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       syncCompositorShellVisibilityIfBound();
     },
     getLayoutFeatures: () => ({ ...layoutFeatures }),
-    getLayoutSchema: () =>
-      layerCompositorManaged
-        ? layoutSchema
-        : (layoutShell as LayoutGridHandle).getSchema(),
-    setLayoutSchema: (schema) => {
-      if (layerCompositorManaged) return;
-      layoutSchema = resolveLayoutSchema(schema);
-      const grid = layoutShell as LayoutGridHandle;
-      grid.setSchema(layoutSchema);
-      grid.applySchema(layoutSchema, layoutFeatures);
-      persistLayout(layoutSchema);
-    },
-    enableLayoutEditor: (enabled) => {
-      if (layerCompositorManaged) return;
-      (layoutShell as LayoutGridHandle).enableEditor(enabled);
-    },
-    saveLayout: () => {
-      if (layerCompositorManaged) return;
-      persistLayout((layoutShell as LayoutGridHandle).getSchema());
-    },
   };
 }

@@ -7,7 +7,7 @@
 
 **三層 API**：圖表核心（本文 §3）→ 殼層 §6 → 圖層／Compositor [API-LAYER.md](./API-LAYER.md)。正式化計畫見 [API-FRAMEWORK-PLAN.md](./API-FRAMEWORK-PLAN.md)。
 
-> **版面 v2 為主**：新整合請用 `mountLayerCompositor` + `LayoutPreset` v2。v1 12×12 `layout` / `layoutEditor` 仍可用但**已棄用**（見 §6）。
+> **版面 v2 為主**：新整合請用 `mountLayerCompositor` + `LayoutPreset` v2。v1 12×12 grid **已自 `@coderyo/ui-shell` 主入口移除**（`2.0.0-rc.2`）；遷移用 `@coderyo/ui-shell/migrate`（見 §6、[MIGRATION-2.0.md §5](./MIGRATION-2.0.md#5-layout--pr-l7-three-phase-timeline)）。
 
 ---
 
@@ -106,7 +106,7 @@ const chart = createChart(layout.chartMain, createDemoChartOptions({
 }));
 ```
 
-**Legacy v1 grid（已棄用）**：`createChart(layout.chartHost, …)` 僅用於未遷移的 grid 整合。
+`layerCompositorManaged: true` 為 **必填**（省略或 `false` 會 throw）。`chartHost` 為 `chartMain` 別名，請用 `chartMain` 掛載 `createChart`。
 
 ---
 
@@ -291,18 +291,27 @@ Playground 使用 **Layer Compositor**（`LayoutPreset` v2）而非 v1 grid。�
 - `handleDrawingSelection` / `bindLayerCompositorController` / `syncCompositorShellVisibility` — 繪圖屬性與 shell / legend 圖層同步
 - `chartMain` + `chartVolume` + `indicatorHost` → `createChart({ volumeMount, indicatorHost })`（勿用 legacy `chartHost` 別名掛載 LWC）
 
-### v1 12×12 Grid（deprecated，仍匯出）
+### v1 12×12 grid 遷移（`@coderyo/ui-shell/migrate`）
 
-`layout` / `layoutEditor` / `LayoutSchema` v1 仍可用於**非 compositor**整合方與 `layoutSchemaToPreset()` 遷移。Playground 與 `layerCompositorManaged: true` 使用 compositor shell（P5 不刪除 v1 公開 API，見 [LAYER-COMPOSITOR-PLAN.md](./LAYER-COMPOSITOR-PLAN.md)）。
-
-### 基本接線
-
-先 `mountChartLayout` 再 `createChart`；callback 使用 `chartRef`：
+v1 `LayoutSchema` / `layoutSchemaToPreset` / `loadLayoutSchema` 等 **僅**自子路徑匯出：
 
 ```typescript
+import { layoutSchemaToPreset, loadLayoutSchema } from '@coderyo/ui-shell/migrate';
+```
+
+主入口 **不再** 提供 `createLayoutGrid`、`layout`、`layoutEditor`。詳見 [MIGRATION-2.0.md §5](./MIGRATION-2.0.md#5-layout--pr-l7-three-phase-timeline)。
+
+### 基本接線（compositor 必填）
+
+先 `mountChartLayout`（**必須** `layerCompositorManaged: true`）再 `createChart`；callback 使用 `chartRef`：
+
+```typescript
+import { layoutSchemaToPreset } from '@coderyo/ui-shell/migrate'; // 僅遷移舊 localStorage 時
+
 const chartRef: { current: IChart | null } = { current: null };
 
 const layout = mountChartLayout(root, {
+  layerCompositorManaged: true,
   showTopBar: true,
   showLeftToolbar: true,
   onSymbolSelect: (s) => chartRef.current?.setSymbol(s),
@@ -313,10 +322,12 @@ const layout = mountChartLayout(root, {
 
 const chart = createChart(layout.chartMain, {
   dataProvider: provider,
+  volumeMount: layout.chartVolume,
   indicatorHost: layout.indicatorHost,
   features: { drawings: { layer: true } },
 });
 chartRef.current = chart;
+// 全功能：再接 mountLayerCompositor — 見上方 v2 範例與 API-LAYER.md
 ```
 
 ### 回傳值
@@ -353,9 +364,7 @@ chartRef.current = chart;
 | `activeDrawingTool` | `'cursor'` | 初始工具 |
 | `contextMenuActions` | — | 自訂右鍵項目 |
 | `settings` | — | 網格、指標、畫完回游標 |
-| `layerCompositorManaged` | `false` | `true` 時十字線圖例由 compositor 驅動（見 [API-LAYER.md](./API-LAYER.md)） |
-| `layout` | 預設 schema | **已棄用** — 請用 `mountLayerCompositor` |
-| `layoutEditor` | `false` | **已棄用** — 請用 compositor `enableLayerEditor` |
+| `layerCompositorManaged` | — | **`true` 必填** @ `2.0.0-rc.2+`；十字線圖例等由 compositor 驅動（見 [API-LAYER.md](./API-LAYER.md)） |
 
 `Interval` 清單：`1s` `5s` `15s` `30s`（`SUB_SECOND_INTERVALS`）+ `1m` … `1W`（`DEFAULT_INTERVALS`）；Playground 用 `EXTENDED_INTERVALS`。
 
