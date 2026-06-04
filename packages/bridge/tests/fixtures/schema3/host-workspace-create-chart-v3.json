@@ -1,0 +1,7 @@
+{
+  "type": "host.workspace.createChart",
+  "payload": {
+    "chartId": "secondary",
+    "containerId": "chart-slot-2"
+  }
+}

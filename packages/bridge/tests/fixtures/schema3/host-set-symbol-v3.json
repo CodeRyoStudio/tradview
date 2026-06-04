@@ -1,0 +1,7 @@
+{
+  "type": "host.setSymbol",
+  "payload": {
+    "chartId": "main",
+    "symbol": "BINANCE:ETHUSDT"
+  }
+}

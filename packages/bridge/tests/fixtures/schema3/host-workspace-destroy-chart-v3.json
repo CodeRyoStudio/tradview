@@ -1,0 +1,6 @@
+{
+  "type": "host.workspace.destroyChart",
+  "payload": {
+    "chartId": "secondary"
+  }
+}

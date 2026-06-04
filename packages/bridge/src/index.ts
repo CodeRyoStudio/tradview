@@ -1,4 +1,5 @@
 export * from './events.js';
+export * from './schema3-types.js';
 
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'failed';
 

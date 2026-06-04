@@ -1,0 +1,8 @@
+{
+  "type": "host.workspace.setLinkGroup",
+  "payload": {
+    "groupId": "crypto",
+    "chartIds": ["main", "secondary"],
+    "sync": { "symbol": true, "interval": true }
+  }
+}

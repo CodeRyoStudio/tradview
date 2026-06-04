@@ -1,0 +1,8 @@
+{
+  "type": "chart.linkStateChanged",
+  "payload": {
+    "groupId": "crypto",
+    "chartIds": ["main", "secondary"],
+    "sync": { "symbol": true, "interval": true, "visibleRange": false, "crosshair": true }
+  }
+}

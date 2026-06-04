@@ -1,0 +1,7 @@
+{
+  "type": "host.setInterval",
+  "payload": {
+    "chartId": "main",
+    "interval": "15m"
+  }
+}

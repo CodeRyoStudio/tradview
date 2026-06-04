@@ -1,0 +1,6 @@
+{
+  "type": "host.workspace.setActiveChart",
+  "payload": {
+    "chartId": "secondary"
+  }
+}

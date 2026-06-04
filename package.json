@@ -18,6 +18,8 @@
     "check:cdn-size": "node scripts/check-cdn-size.mjs",
     "check:lwc-size": "node scripts/check-lwc-size.mjs",
     "version:sync": "node scripts/sync-versions.mjs",
+    "arch:boundary": "pnpm --filter @coderyo/core exec vitest run tests/arch-boundary.test.ts",
+    "test:scripts": "vitest run scripts/check-rc.test.mjs",
     "check:rc": "node scripts/check-rc.mjs",
     "publish:rc": "pnpm check:rc && pnpm -r publish --access public --tag rc --no-git-checks"
   },

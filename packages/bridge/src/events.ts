@@ -15,6 +15,31 @@ export const LAYER_HOST_EVENTS = [
 
 export type BridgeLayerInboundType = (typeof LAYER_HOST_EVENTS)[number];
 
+/** Exhaustive schema-2 inbound `host.*` list (single source for contract + schema 3 chart-scoped events). */
+export const BRIDGE_INBOUND_EVENTS = [
+  'host.setSymbol',
+  'host.setInterval',
+  'host.setTheme',
+  'host.setShowGrid',
+  'host.fitContent',
+  'host.scrollToRealtime',
+  'host.setLogScale',
+  'host.setBarSpace',
+  'host.setVisibleRange',
+  'host.scrollToTimestamp',
+  'host.reloadHistory',
+  'host.setLocale',
+  'host.setFeatures',
+  'host.setIndicatorConfig',
+  'host.clearAllIndicators',
+  'host.clearAllDrawings',
+  'host.setDrawingTool',
+  'host.setChartPaneResizeFocus',
+  'host.resize',
+  'host.destroy',
+  ...LAYER_HOST_EVENTS,
+] as const;
+
 export const LAYER_OUTBOUND_EVENTS = [
   'chart.layerSyncGroupChanged',
   'chart.layerPageChanged',
@@ -43,28 +68,7 @@ export type BridgeOutboundType =
   | 'chart.error'
   | BridgeLayerOutboundType;
 
-export type BridgeInboundType =
-  | 'host.setSymbol'
-  | 'host.setInterval'
-  | 'host.setTheme'
-  | 'host.setShowGrid'
-  | 'host.fitContent'
-  | 'host.scrollToRealtime'
-  | 'host.setLogScale'
-  | 'host.setBarSpace'
-  | 'host.setVisibleRange'
-  | 'host.scrollToTimestamp'
-  | 'host.reloadHistory'
-  | 'host.setLocale'
-  | 'host.setFeatures'
-  | 'host.setIndicatorConfig'
-  | 'host.clearAllIndicators'
-  | 'host.clearAllDrawings'
-  | 'host.setDrawingTool'
-  | 'host.setChartPaneResizeFocus'
-  | 'host.resize'
-  | 'host.destroy'
-  | BridgeLayerInboundType;
+export type BridgeInboundType = (typeof BRIDGE_INBOUND_EVENTS)[number];
 
 export interface BridgeOutboundEvent {
   type: BridgeOutboundType;

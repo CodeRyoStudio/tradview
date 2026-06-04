@@ -1,0 +1,10 @@
+{
+  "type": "chart.workspaceReady",
+  "payload": {
+    "workspaceId": "default",
+    "charts": [
+      { "chartId": "main", "symbol": "BINANCE:BTCUSDT", "interval": "1h", "active": true },
+      { "chartId": "secondary", "active": false }
+    ]
+  }
+}

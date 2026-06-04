@@ -4,10 +4,12 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getCheckRcSteps, shouldSkipLwcSizeGate } from './rc-version-gates.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const version = readFileSync(resolve(root, 'VERSION'), 'utf8').trim();
+const skipLwcSize = shouldSkipLwcSizeGate(version);
 
 function run(cmd, args) {
   console.log(`\n[check-rc] ${cmd} ${args.join(' ')}`);
@@ -22,13 +24,14 @@ if (!existsSync(resolve(root, 'packages/core/src/version.ts'))) {
   process.exit(1);
 }
 
-run('pnpm', ['version:sync']);
-run('pnpm', ['build']);
-run('pnpm', ['test']);
-run('pnpm', ['typecheck']);
-run('pnpm', ['lint']);
-run('pnpm', ['build:cdn']);
-run('pnpm', ['check:cdn-size']);
-run('pnpm', ['check:lwc-size']);
+for (const step of getCheckRcSteps(version)) {
+  if (step === 'check:lwc-size' && skipLwcSize) {
+    console.log(
+      `\n[check-rc] Skipping check:lwc-size (VERSION=${version} matches 2.0.0 / 2.0.0-rc.N per DESIGN-v2 §10)`,
+    );
+    continue;
+  }
+  run('pnpm', [step]);
+}
 
 console.log('\n[check-rc] All gates passed.');

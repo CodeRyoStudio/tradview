@@ -1,0 +1,7 @@
+{
+  "type": "chart.focusChanged",
+  "payload": {
+    "chartId": "secondary",
+    "previousChartId": "main"
+  }
+}

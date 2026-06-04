@@ -1,0 +1,32 @@
+{
+  "type": "chart.ready",
+  "payload": {
+    "chartId": "main",
+    "apiVersion": 2,
+    "bridgeSchemaVersion": 3,
+    "workspaceId": "default",
+    "charts": [
+      {
+        "chartId": "main",
+        "symbol": "BINANCE:BTCUSDT",
+        "interval": "1h",
+        "active": true
+      }
+    ],
+    "layerApi": {
+      "presetVersion": 2,
+      "hostEvents": [
+        "host.layer.setSyncGroup",
+        "host.layer.setVisible",
+        "host.layer.setActivePage",
+        "host.layer.setPreset",
+        "host.layer.applyTimeScaleSync"
+      ],
+      "outboundLayerEvents": [
+        "chart.layerSyncGroupChanged",
+        "chart.layerPageChanged",
+        "chart.layerVisibleChanged"
+      ]
+    }
+  }
+}

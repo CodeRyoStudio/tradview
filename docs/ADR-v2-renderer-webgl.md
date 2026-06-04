@@ -1,0 +1,52 @@
+# ADR: V2 Renderer — WebGL `phase_full`
+
+| Field | Value |
+|-------|-------|
+| Status | **Proposed** |
+| Date | 2026-06-04 |
+| Decision | `@coderyo/renderer-webgl` becomes the **primary** chart backend @ TradView **2.0.0 GA** |
+| Related | [DESIGN-v2.md](./DESIGN-v2.md) §4.2, [MIGRATION-2.0.md](./MIGRATION-2.0.md) §4 |
+
+---
+
+## 1. Context
+
+v1.1.x renders via `@coderyo/renderer-lite` (N× Lightweight Charts + `PaneOrchestrator`). `renderer-webgl` exists as a **stub**. V2 delivers **`phase_full`**: main + volume + indicators + drawing overlay on WebGL.
+
+---
+
+## 2. Decision
+
+| Topic | Choice |
+|-------|--------|
+| GA default | `ChartFeatures.renderer` defaults to **`'webgl'`** |
+| LWC path | `@coderyo/renderer-lite` remains as **optional peer**; `features.renderer: 'lite'` **RC-only** through rc.4, explicit opt-in @ GA |
+| Core dependency | `@coderyo/core` **hard-depends** on `renderer-webgl@2` @ GA (not in 1.1.1) |
+| Playground rc.1 | **Standalone** `webgl-demo.html` — **no** `createChart` + webgl requirement |
+| CI | `check:lwc-size` **skipped** for `VERSION` matching `2.0.0` / `2.0.0-rc.N` (V2-00) |
+| CDN | LWC-primary bundle removed from GA CDN path after V2-R14 |
+
+---
+
+## 3. Phases
+
+| Phase | PR range | Deliverable |
+|-------|----------|-------------|
+| `phase_alpha` | V2-R1–R4b | Independent WebGL demo |
+| `phase_beta` | V2-R5–R8 | Indicator panes + LOD |
+| `phase_gamma` | V2-R9–R11 | Drawing overlay |
+| `phase_full` | V2-R12–R14 | `WebGLPaneOrchestrator` wired in core |
+
+---
+
+## 4. Consequences
+
+- Integrators must add `@coderyo/renderer-webgl` to dependencies @ 2.0.0
+- Bundle budget shifts from LWC gate to CDN 400 KB gate + WebGL asset policy
+- Porting checklist in DESIGN-v2 **Appendix A** (`PaneOrchestrator` → `WebGLPaneOrchestrator`)
+
+---
+
+## 5. Status
+
+**Proposed** — accept @ rc.4 when Playground defaults to webgl and API-FREEZE-2.0 is candidate.
