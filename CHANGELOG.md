@@ -12,7 +12,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **V2-MC2–MC4 (`@coderyo/core`)**: link `crosshair` fan-out (`scrollToTimestamp`); `workspace-smoke.test.ts`
 - **V2-MC3 (`apps/playground`)**: `multi-chart.html` + `multi-chart-demo.ts` (`ChartWorkspace` + linked slots)
 - **V2-PINE2 (`@coderyo/pine-lite`)**: indicator builtins **18** (`wma`, `stdev`, `change`, `roc`, `atr`, `cci`, `mfi`, `stoch`, `sum`, `bb`, `macd`); `builtins-count.test.ts`
-- **V2-R13 skeleton (`@coderyo/renderer-webgl`)**: `port-parity.test.ts` harness (Appendix A checklist)
+- **V2-R13 (`@coderyo/renderer-webgl`)**: `port-parity.test.ts` — WebGL vs lite fixture parity (bar count after `setBars`, visible range `fromMs`/`toMs`, crosshair `null` clear); deferred Appendix A items remain `it.todo`
+- **V2-MC3 smoke (`@coderyo/core`)**: `multi-chart-demo.smoke.test.ts` static analysis for `ChartWorkspace` playground demo
 - **V2-C**: `examples/adapters/csv-rest` reference `createCsvRestDataProvider`
 - **V2-PROD stub**: `apps/sample-android/README.md` (CI compile placeholder)
 - **V2-R12 follow-up**: WebGL `subscribeCrosshair` via pointer move on `WebGLChartRenderBackend`
