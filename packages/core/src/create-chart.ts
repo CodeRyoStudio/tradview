@@ -1,5 +1,4 @@
-import type { BridgeAdapter } from '@coderyo/bridge';
-import type { BridgeOutboundType } from '@coderyo/bridge';
+import type { BridgeAdapter, BridgeOutboundType, ChartSummaryV3 } from '@coderyo/bridge';
 import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
 import type { IndicatorConfig } from '@coderyo/indicators';
 import type { DataProvider } from '@coderyo/data';
@@ -25,6 +24,11 @@ export interface CreateChartOptions extends Omit<ChartOptions, 'dataProvider'> {
   bridgeCrosshairThrottleMs?: number;
   /** Schema 2: remote layer control (`host.layer.*`). */
   layerBridge?: ChartLayerBridgeRegistration;
+  /** Schema 3: workspace chart list for `chart.ready` (V2-B5). */
+  workspaceContext?: {
+    workspaceId: string;
+    getChartSummaries: () => ChartSummaryV3[];
+  };
 }
 
 /** @public Chart instance API for integrators (apiVersion 1). */
@@ -231,6 +235,7 @@ export function createChart(
       outboundEvents: options.bridgeOutboundEvents,
       crosshairThrottleMs: options.bridgeCrosshairThrottleMs,
       layerBridge: options.layerBridge,
+      workspaceContext: options.workspaceContext,
     });
   }
   return chart;

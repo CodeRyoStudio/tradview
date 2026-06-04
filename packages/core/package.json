@@ -21,6 +21,7 @@
     "@coderyo/series": "workspace:*",
     "@coderyo/virtual-window": "workspace:*",
     "@coderyo/renderer-lite": "workspace:*",
+    "@coderyo/renderer-webgl": "workspace:*",
     "@coderyo/bridge": "workspace:*",
     "@coderyo/drawings": "workspace:*",
     "@coderyo/indicators": "workspace:*",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@coderyo/eslint-config": "workspace:*",
     "@coderyo/tsconfig": "workspace:*",
+    "happy-dom": "^20.9.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

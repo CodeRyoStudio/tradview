@@ -64,6 +64,11 @@ export interface WireChartBridgeOptions {
   crosshairThrottleMs?: number;
   /** Schema 2 layer bridge (register via `registerChartLayerBridge` or pass here). */
   layerBridge?: ChartLayerBridgeRegistration;
+  /** Schema 3 workspace scope for multi-chart `chart.ready` (V2-B5). */
+  workspaceContext?: {
+    workspaceId: string;
+    getChartSummaries: () => ChartSummaryV3[];
+  };
 }
 
 /** @public Wire host bridge messages to chart + controller events. */
@@ -80,21 +85,22 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     bridge.post({ type, payload });
   };
 
-  const workspaceId = opts.workspaceId ?? 'default';
+  const workspaceId = opts.workspaceContext?.workspaceId ?? 'default';
   const symbol =
     typeof controller.getSymbol === 'function' ? controller.getSymbol() || undefined : undefined;
   const interval =
     typeof controller.getInterval === 'function'
       ? controller.getInterval() || undefined
       : undefined;
-  const charts: ChartSummaryV3[] = opts.charts ?? [
-    {
-      chartId,
-      symbol,
-      interval,
-      active: true,
-    },
-  ];
+  const charts: ChartSummaryV3[] = opts.workspaceContext?.getChartSummaries() ??
+    opts.charts ?? [
+      {
+        chartId,
+        symbol,
+        interval,
+        active: true,
+      },
+    ];
 
   post('chart.ready', {
     chartId,
@@ -106,7 +112,8 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     layerApi: LAYER_API_READY_V3,
   });
 
-  if (shouldPost('chart.workspaceReady')) {
+  // Workspace host posts `chart.workspaceReady` via wireWorkspaceBridge (V2-B4).
+  if (shouldPost('chart.workspaceReady') && !opts.workspaceContext) {
     post('chart.workspaceReady', { workspaceId, charts });
   }
 
@@ -228,6 +235,8 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     }
 
     if (isWorkspaceHostEvent(msg.type)) {
+      // ChartWorkspace owns all host.workspace.* when workspaceContext is wired (V2-B4–B6).
+      if (opts.workspaceContext) return;
       switch (msg.type) {
         case 'host.workspace.setActiveChart': {
           const id = readPayloadChartId(p);
@@ -268,7 +277,7 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
           rejectInbound(
             id,
             'CHART_NOT_FOUND',
-            'Multi-chart workspace is not available until V2-MC1',
+            'Use ChartWorkspace for host.workspace.createChart / destroyChart',
           );
           break;
         }

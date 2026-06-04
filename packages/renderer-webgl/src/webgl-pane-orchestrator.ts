@@ -205,6 +205,14 @@ export class WebGLPaneOrchestrator {
     return this.drawingLayer?.getTool() ?? 'cursor';
   }
 
+  getDrawingOverlayCanvas(): HTMLCanvasElement | null {
+    return this.drawingLayer?.overlayCanvas ?? null;
+  }
+
+  getMainPaneLayoutMetrics() {
+    return this.pane?.getLayoutMetrics() ?? null;
+  }
+
   setDrawingsLayerVisible(visible: boolean): void {
     this.drawingLayer?.setLayerVisible(visible);
   }

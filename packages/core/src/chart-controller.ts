@@ -36,6 +36,7 @@ import {
   type ChartPaneId,
   type ChartVisibleRange,
 } from '@coderyo/renderer-lite';
+import { WebGLChartRenderBackend } from './chart-renderer-webgl.js';
 import {
   resolvePaneSyncGroupsFromLayers,
   type LayerSyncInput,
@@ -106,7 +107,7 @@ export class ChartController {
   private fetchPolicy: FetchPolicy;
   /** Per sync-group viewport for loadMore / render slicing (active bus drives IChart APIs). */
   private readonly virtualWindows = new Map<string, VirtualWindow>();
-  private readonly orchestrator: PaneOrchestrator;
+  private readonly orchestrator: PaneOrchestrator | WebGLChartRenderBackend;
   private readonly handlers = new Map<ChartEvent, Set<EventHandler>>();
   private subscriptionId: string | null = null;
   private destroyed = false;
@@ -155,22 +156,30 @@ export class ChartController {
       : this.features.fetchPolicy;
 
     this.store = new BarStore(symbol || PENDING_SYMBOL, interval);
-    this.orchestrator = new PaneOrchestrator({
-      container,
-      volumeMount: options.volumeMount,
-      listenPaneResizeEvents: false,
-      indicatorRoot: options.indicatorHost,
-      theme: options.theme ?? 'dark',
-      scaleMode: options.scaleMode ?? 'linear',
-      showGrid: options.showGrid ?? false,
-      indicatorConfig: this.features.indicators,
-      smoothPriceUpdate: this.features.smoothPriceUpdate,
-      smoothPriceDurationMs: this.features.smoothPriceDurationMs,
-      onIndicatorConfigChange: (config) => this.setIndicatorConfig(config),
-      autoBarSpacingOnInterval: this.features.autoBarSpacingOnInterval,
-      barSpacingByInterval: this.features.barSpacingByInterval,
-    });
-    this.orchestrator.setIntervalContext(interval);
+    if (this.features.renderer === 'webgl') {
+      this.orchestrator = new WebGLChartRenderBackend(container, {
+        chartId: options.chartId,
+        drawingsLayer: this.features.drawings.layer,
+        indicatorConfig: this.features.indicators ?? undefined,
+      });
+    } else {
+      this.orchestrator = new PaneOrchestrator({
+        container,
+        volumeMount: options.volumeMount,
+        listenPaneResizeEvents: false,
+        indicatorRoot: options.indicatorHost,
+        theme: options.theme ?? 'dark',
+        scaleMode: options.scaleMode ?? 'linear',
+        showGrid: options.showGrid ?? false,
+        indicatorConfig: this.features.indicators,
+        smoothPriceUpdate: this.features.smoothPriceUpdate,
+        smoothPriceDurationMs: this.features.smoothPriceDurationMs,
+        onIndicatorConfigChange: (config) => this.setIndicatorConfig(config),
+        autoBarSpacingOnInterval: this.features.autoBarSpacingOnInterval,
+        barSpacingByInterval: this.features.barSpacingByInterval,
+      });
+      this.orchestrator.setIntervalContext(interval);
+    }
 
     if (options.width) container.style.width = `${options.width}px`;
     if (options.height) container.style.height = `${options.height}px`;
@@ -488,7 +497,11 @@ export class ChartController {
   }
 
   setDrawingTool(tool: import('@coderyo/drawings').DrawingTool): this {
-    this.drawingManager?.setTool(tool);
+    if (this.features.renderer === 'webgl') {
+      (this.orchestrator as WebGLChartRenderBackend).setDrawingTool(tool);
+    } else {
+      this.drawingManager?.setTool(tool);
+    }
     this.syncOverlayPointerEvents();
     return this;
   }

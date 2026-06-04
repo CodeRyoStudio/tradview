@@ -14,7 +14,11 @@ export interface ChartDrawingsFeatures {
   persist?: boolean;
 }
 
+export type ChartRendererBackend = 'lite' | 'webgl';
+
 export interface ChartFeatures {
+  /** Chart render backend (default `lite` @ rc; `webgl` @ GA via V2-R12). */
+  renderer?: ChartRendererBackend;
   fetchPolicy?: FetchPolicy;
   streamMode?: RealtimeStreamMode;
   gaps?: ChartGapsFeatures;
@@ -45,6 +49,7 @@ export interface ChartFeatures {
 }
 
 export interface ResolvedChartFeatures {
+  renderer: ChartRendererBackend;
   fetchPolicy: FetchPolicy;
   streamMode: RealtimeStreamMode;
   gaps: Required<ChartGapsFeatures>;
@@ -64,6 +69,7 @@ export interface ResolvedChartFeatures {
 }
 
 export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
+  renderer: 'lite',
   fetchPolicy: 'lazy-left-only',
   streamMode: 'bar',
   gaps: { whitespace: false, fillVisibleHoles: false },
@@ -85,6 +91,7 @@ export const DEFAULT_CHART_FEATURES: ResolvedChartFeatures = {
 export function resolveChartFeatures(partial?: ChartFeatures): ResolvedChartFeatures {
   const d = DEFAULT_CHART_FEATURES;
   return {
+    renderer: partial?.renderer ?? d.renderer,
     fetchPolicy: partial?.fetchPolicy ?? d.fetchPolicy,
     streamMode: partial?.streamMode ?? d.streamMode,
     gaps: {
@@ -115,6 +122,7 @@ export function mergeChartFeatures(
   patch: ChartFeatures,
 ): ResolvedChartFeatures {
   return resolveChartFeatures({
+    renderer: patch.renderer ?? current.renderer,
     fetchPolicy: patch.fetchPolicy ?? current.fetchPolicy,
     streamMode: patch.streamMode ?? current.streamMode,
     gaps: { ...current.gaps, ...patch.gaps },

@@ -1,4 +1,12 @@
 export {
+  ChartWorkspace,
+  type ChartWorkspaceOptions,
+  type LinkGroup,
+  type LinkSyncFlags,
+  type LinkEvent,
+} from './chart-workspace.js';
+export { wireWorkspaceBridge, type WireWorkspaceBridgeOptions } from './workspace-bridge.js';
+export {
   createChart,
   type IChart,
   type CreateChartOptions,

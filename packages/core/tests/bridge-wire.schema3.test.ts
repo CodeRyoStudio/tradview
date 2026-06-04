@@ -124,6 +124,32 @@ describe('wireChartBridge schema 3 (V2-B3)', () => {
     expect(err?.payload?.code).toBe('UNSUPPORTED_BRIDGE_SCHEMA');
   });
 
+  it('defers host.workspace.* when workspaceContext is set (V2-B4)', () => {
+    const { adapter, posted, dispatch } = createMockBridge();
+    wireChartBridge({
+      controller: mockController(),
+      chart: { on: vi.fn(), off: vi.fn() } as unknown as IChart,
+      bridge: adapter,
+      chartId: 'main',
+      outboundEvents: ['chart.error', 'chart.focusChanged'],
+      workspaceContext: {
+        workspaceId: 'ws-1',
+        getChartSummaries: () => [{ chartId: 'main', active: true }],
+      },
+    });
+
+    dispatch({
+      type: 'host.workspace.createChart',
+      payload: { chartId: 'other', containerId: 'slot' },
+    });
+    dispatch({
+      type: 'host.workspace.setActiveChart',
+      payload: { chartId: 'main' },
+    });
+    expect(posted.find((p) => p.type === 'chart.error')).toBeUndefined();
+    expect(posted.find((p) => p.type === 'chart.focusChanged')).toBeUndefined();
+  });
+
   it('handles host.workspace.setActiveChart with focusChanged', () => {
     const { adapter, posted, dispatch } = createMockBridge();
     wireChartBridge({
