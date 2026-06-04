@@ -1,7 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountChartLayout } from './chart-layout.js';
+import { resetLegacyLayoutWarningsForTests } from './layout-deprecation.js';
 
 describe('TopBar interval layout (issue #4)', () => {
+  beforeEach(() => {
+    resetLegacyLayoutWarningsForTests();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    resetLegacyLayoutWarningsForTests();
+    vi.restoreAllMocks();
+  });
+
   it('keeps first interval label intact inside a dedicated header above the body', () => {
     const root = document.createElement('div');
     root.style.cssText =

@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **V2 foundation (V2-00 / V2-00b)**: `scripts/rc-version-gates.mjs` + `check-rc` skips `check:lwc-size` when `VERSION` is `2.0.0` or `2.0.0-rc.N`; `scripts/check-rc.test.mjs`; `pnpm arch:boundary` (`packages/core/tests/arch-boundary.test.ts`)
+
+## [1.1.2] - 2026-06-04
+
+### `@coderyo/ui-shell` — PR-L7a (layout deprecation)
+
+- **`@deprecated` JSDoc** on v1 12×12 grid public exports (`createLayoutGrid`, `LayoutSchema`, schema helpers, `layoutSchemaToPreset`) and grid-related `ChartLayoutOptions` / return helpers
+- **One-time `console.warn` per session** at legacy mount entry points: direct `createLayoutGrid()`; `mountChartLayout` when `layerCompositorManaged !== true` (nested grid warn suppressed — single mount message)
+- **Migration link** in warn strings: [MIGRATION-2.0.md §5](https://github.com/CodeRyoStudio/tradview/blob/main/docs/MIGRATION-2.0.md#5-layout--pr-l7-three-phase-timeline)
+- **Tests**: `packages/ui-shell/tests/layout-deprecation.test.ts`, `vitest.setup.ts` (session warn reset)
+
+### Added (monorepo / V2 foundation)
+
 - **Bridge schema 3 skeleton**: `packages/bridge/src/schema3-types.ts`, `schema3-contract.test.ts`, JSON fixtures under `packages/bridge/tests/fixtures/schema3/`
 - **Docs**: expanded [MIGRATION-2.0.md](./docs/MIGRATION-2.0.md), [MIGRATION-bridge-3.md](./docs/MIGRATION-bridge-3.md), [bridge-schema-3.md](./docs/bridge-schema-3.md); draft [API-FREEZE-2.0.md](./docs/API-FREEZE-2.0.md)
 - **ADR stubs (Proposed)**: [ADR-v2-renderer-webgl.md](./docs/ADR-v2-renderer-webgl.md), [ADR-v2-bridge-schema-3.md](./docs/ADR-v2-bridge-schema-3.md), [ADR-v2-layout-pr-l7.md](./docs/ADR-v2-layout-pr-l7.md), [ADR-v2-protobuf-parallel.md](./docs/ADR-v2-protobuf-parallel.md)

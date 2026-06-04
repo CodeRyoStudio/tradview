@@ -64,7 +64,10 @@ function chartHostLayers(
   ];
 }
 
-/** Convert legacy 12×12 grid schema to normalized layer preset (single page). */
+/**
+ * Convert legacy 12×12 grid schema to normalized layer preset (single page).
+ * @deprecated Public export moves to `@coderyo/ui-shell/migrate` @ 2.0.0-rc.2; prefer compositor builtins / presets. See docs/MIGRATION-2.0.md §5.
+ */
 export function layoutSchemaToPreset(
   schema: LayoutSchema = DEFAULT_LAYOUT_SCHEMA,
   opts: { id?: string; name?: string } = {},

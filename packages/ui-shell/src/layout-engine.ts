@@ -1,5 +1,10 @@
 import type { ResolvedLayoutFeatures } from './layout-features.js';
 import {
+  LEGACY_LAYOUT_WARN_KEYS,
+  WARN_MSG_CREATE_LAYOUT_GRID,
+  warnLegacyLayoutOnce,
+} from './layout-deprecation.js';
+import {
   cloneLayoutSchema,
   type LayoutSchema,
   type LayoutWidgetId,
@@ -8,6 +13,10 @@ import {
 
 export type LayoutWidgetElements = Partial<Record<LayoutWidgetId, HTMLElement>>;
 
+/**
+ * Handle for a mounted v1 12×12 CSS grid shell.
+ * @deprecated v1 grid layout API — use layer compositor (`layerCompositorManaged: true`). Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ */
 export interface LayoutGridHandle {
   root: HTMLElement;
   grid: HTMLElement;
@@ -19,15 +28,30 @@ export interface LayoutGridHandle {
   destroyEditor: () => void;
 }
 
+/**
+ * @deprecated v1 grid layout API — use layer compositor. Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ */
 export interface CreateLayoutGridOptions {
   schema: LayoutSchema;
   widgets: LayoutWidgetElements;
   features: ResolvedLayoutFeatures;
   editor?: boolean;
   onSchemaChange?: (schema: LayoutSchema) => void;
+  /**
+   * @internal Suppresses the L7a deprecation warn when `createLayoutGrid` is only used from
+   * `mountChartLayout` legacy branch (mount-level warn already emitted).
+   */
+  suppressDeprecationWarn?: boolean;
 }
 
+/**
+ * Mount the legacy 12×12 CSS grid layout shell.
+ * @deprecated v1 grid layout API — use `createCompositorShell` / `mountChartLayout({ layerCompositorManaged: true })`. Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ */
 export function createLayoutGrid(opts: CreateLayoutGridOptions): LayoutGridHandle {
+  if (!opts.suppressDeprecationWarn) {
+    warnLegacyLayoutOnce(LEGACY_LAYOUT_WARN_KEYS.createLayoutGrid, WARN_MSG_CREATE_LAYOUT_GRID);
+  }
   let schema = cloneLayoutSchema(opts.schema);
   const cells = new Map<LayoutWidgetId, HTMLElement>();
 

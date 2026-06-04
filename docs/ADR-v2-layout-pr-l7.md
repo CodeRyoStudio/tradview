@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | **Proposed** |
+| Status | **Accepted (L7a @ 1.1.2)**; L7b pending 2.0.0-rc.2 gate |
 | Date | 2026-06-04 |
 | Decision | Remove v1 **12×12 `createLayoutGrid`** public API; **compositor v2** is the sole layout model @ GA |
 | Related | [LAYER-COMPOSITOR-PLAN.md](./LAYER-COMPOSITOR-PLAN.md), [MIGRATION-2.0.md](./MIGRATION-2.0.md) §5 |
@@ -19,7 +19,7 @@ TradView 1.x exposed `createLayoutGrid`, `LayoutSchema`, and `DEFAULT_LAYOUT_SCH
 
 | Phase | PR | Version | Behavior |
 |-------|-----|---------|----------|
-| **L7a** | PR-L7a | `1.1.2+` | `@deprecated` JSDoc + **one-time** `console.warn` per session on grid exports |
+| **L7a** | PR-L7a | `1.1.2+` | `@deprecated` JSDoc + **one-time** `console.warn` at legacy mount entry points (direct `createLayoutGrid`; legacy `mountChartLayout`) |
 | **L7b** | PR-L7b | **`2.0.0-rc.2`** | **Delete** public grid exports; ship `@coderyo/ui-shell/migrate` with `layoutSchemaToPreset` |
 | **L7c** | PR-L7c | **`2.0.0` GA** | `mountChartLayout` **requires** `layerCompositorManaged: true` |
 
@@ -48,4 +48,4 @@ TradView 1.x exposed `createLayoutGrid`, `LayoutSchema`, and `DEFAULT_LAYOUT_SCH
 
 ## 6. Status
 
-**Proposed** — L7a accept @ 1.1.2; L7b accept @ 2.0.0-rc.2 when migration doc gate satisfied (V2-00b ✓).
+**Accepted (L7a @ 1.1.2)** — shipped in `@coderyo/ui-shell@1.1.2`. **L7b** remains pending **2.0.0-rc.2** when migration doc gate satisfied (V2-00b ✓).

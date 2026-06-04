@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLayoutGrid } from '../src/layout-engine.js';
+import { resetLegacyLayoutWarningsForTests } from '../src/layout-deprecation.js';
 import { DEFAULT_LAYOUT_SCHEMA } from '../src/layout-schema.js';
 import { DEFAULT_LAYOUT_FEATURES } from '../src/layout-features.js';
 
 describe('createLayoutGrid', () => {
+  beforeEach(() => {
+    resetLegacyLayoutWarningsForTests();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    resetLegacyLayoutWarningsForTests();
+    vi.restoreAllMocks();
+  });
+
   it('mounts widgets into grid cells with default schema', () => {
     const chartHost = document.createElement('div');
     chartHost.id = 'chart';

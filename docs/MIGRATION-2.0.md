@@ -121,7 +121,7 @@ Compositor v2 (`LayoutPreset`, `mountLayerCompositor`, `layerCompositorManaged: 
 
 | Phase | PR | Version line | Public API |
 |-------|-----|--------------|------------|
-| **a — deprecate** | PR-L7a | `1.1.2+` | `@deprecated` + one-time `console.warn` on `createLayoutGrid`, `LayoutSchema`, grid exports |
+| **a — deprecate** | PR-L7a | `1.1.2+` | `@deprecated` on grid exports; one-time `console.warn` at legacy **mount** entry points (`createLayoutGrid()` direct call; `mountChartLayout` when `layerCompositorManaged !== true`) |
 | **b — remove** | PR-L7b | **`2.0.0-rc.2`** | Delete public grid API; ship `@coderyo/ui-shell/migrate` (`layoutSchemaToPreset`) |
 | **c — enforce** | PR-L7c | **`2.0.0` GA** | `mountChartLayout` requires `layerCompositorManaged: true` |
 

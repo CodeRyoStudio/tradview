@@ -1,5 +1,9 @@
-/** Visual layout schema (grid-based composable shell). */
+/**
+ * Visual layout schema (v1 12×12 grid-based composable shell).
+ * @deprecated v1 grid layout API — use `LayoutPreset` / layer compositor. Removed in 2.0.0-rc.2. See docs/MIGRATION-2.0.md §5.
+ */
 
+/** @deprecated v1 grid widget id — use layer compositor `widgetKey` / `LayerType`. */
 export type LayoutWidgetId =
   | 'topBar'
   | 'leftToolbar'
@@ -9,6 +13,7 @@ export type LayoutWidgetId =
   | 'statusBar'
   | 'propertiesPanel';
 
+/** @deprecated v1 grid placement — use `LayerFrame` in compositor presets. */
 export interface LayoutWidgetPlacement {
   id: LayoutWidgetId;
   col: number;
@@ -17,6 +22,7 @@ export interface LayoutWidgetPlacement {
   rowSpan: number;
 }
 
+/** @deprecated v1 12×12 grid schema — use `LayoutPreset` (compositor v2). */
 export interface LayoutSchema {
   version: 1;
   columns: number;
@@ -24,9 +30,13 @@ export interface LayoutSchema {
   widgets: LayoutWidgetPlacement[];
 }
 
+/** @deprecated v1 grid schema version constant. */
 export const LAYOUT_SCHEMA_VERSION = 1 as const;
 
-/** TV-style default when integrator omits `layout` (matches legacy mountChartLayout proportions). */
+/**
+ * TV-style default when integrator omits `layout` (matches legacy mountChartLayout proportions).
+ * @deprecated v1 default grid — use `VENDOR_DEFAULT_PRESET` / compositor builtins.
+ */
 export const DEFAULT_LAYOUT_SCHEMA: LayoutSchema = {
   version: 1,
   columns: 12,
@@ -42,10 +52,12 @@ export const DEFAULT_LAYOUT_SCHEMA: LayoutSchema = {
   ],
 };
 
+/** @deprecated v1 grid localStorage key — migrate persisted JSON via `layoutSchemaToPreset` @ 2.0.0-rc.2. */
 export function layoutStorageKey(layoutId: string): string {
   return `tradview:layout:v${LAYOUT_SCHEMA_VERSION}:${layoutId}`;
 }
 
+/** @deprecated v1 grid schema resolver — use compositor `normalizeLayoutPreset`. */
 export function resolveLayoutSchema(
   partial?: LayoutSchema | null,
 ): LayoutSchema {
@@ -53,6 +65,7 @@ export function resolveLayoutSchema(
   return normalizeLayoutSchema(partial);
 }
 
+/** @deprecated v1 grid clone — use `cloneLayoutPreset`. */
 export function cloneLayoutSchema(schema: LayoutSchema): LayoutSchema {
   return {
     version: 1,
@@ -62,6 +75,7 @@ export function cloneLayoutSchema(schema: LayoutSchema): LayoutSchema {
   };
 }
 
+/** @deprecated v1 grid normalizer — use `normalizeLayoutPreset`. */
 export function normalizeLayoutSchema(input: LayoutSchema): LayoutSchema {
   const columns = Math.max(4, Math.min(24, input.columns || 12));
   const rows = Math.max(4, Math.min(24, input.rows || 12));
@@ -102,6 +116,7 @@ function isLayoutWidgetId(id: string): id is LayoutWidgetId {
   );
 }
 
+/** @deprecated v1 grid persistence load — migrate to compositor preset store. */
 export function loadLayoutSchema(layoutId: string): LayoutSchema | null {
   try {
     const raw = localStorage.getItem(layoutStorageKey(layoutId));
@@ -112,6 +127,7 @@ export function loadLayoutSchema(layoutId: string): LayoutSchema | null {
   }
 }
 
+/** @deprecated v1 grid persistence save — migrate to compositor preset store. */
 export function saveLayoutSchema(layoutId: string, schema: LayoutSchema): void {
   try {
     localStorage.setItem(layoutStorageKey(layoutId), JSON.stringify(normalizeLayoutSchema(schema)));
@@ -120,6 +136,7 @@ export function saveLayoutSchema(layoutId: string, schema: LayoutSchema): void {
   }
 }
 
+/** @deprecated v1 grid placement lookup — use layer compositor layer list. */
 export function getWidgetPlacement(
   schema: LayoutSchema,
   id: LayoutWidgetId,

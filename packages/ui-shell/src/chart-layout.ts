@@ -3,6 +3,11 @@ import { attachChartContextMenu, type ContextMenuAction } from './context-menu.j
 import { mountCrosshairLegend } from './crosshair-legend.js';
 import { mountDrawingPropertiesPanel } from './drawing-properties-panel.js';
 import { mountIndicatorPaneHost } from './indicator-pane-host.js';
+import {
+  LEGACY_LAYOUT_WARN_KEYS,
+  WARN_MSG_MOUNT_LEGACY_GRID,
+  warnLegacyLayoutOnce,
+} from './layout-deprecation.js';
 import { createLayoutGrid, type LayoutGridHandle } from './layout-engine.js';
 import { createCompositorShell } from './layer/compositor-shell.js';
 import { syncCompositorShellVisibilityFromFeatures } from './layer/compositor-shell-sync.js';
@@ -65,17 +70,29 @@ export interface ChartLayoutOptions extends TopBarOptions {
   autoThemeProvider?: boolean;
   /** When false, do not auto-create i18n provider (default true). */
   autoI18n?: boolean;
-  /** Grid layout schema; omit to use {@link DEFAULT_LAYOUT_SCHEMA}. */
+  /**
+   * Grid layout schema; omit to use {@link DEFAULT_LAYOUT_SCHEMA}.
+   * @deprecated v1 12×12 grid — use compositor `LayoutPreset` when `layerCompositorManaged: true`. See docs/MIGRATION-2.0.md §5.
+   */
   layout?: LayoutSchema | null;
-  /** Key for layout persistence (`layoutPersist`). Default `default`. */
+  /**
+   * Key for layout persistence (`layoutPersist`). Default `default`.
+   * @deprecated v1 grid persistence — use compositor preset store. See docs/MIGRATION-2.0.md §5.
+   */
   layoutId?: string;
-  /** Persist layout schema to localStorage on change / saveLayout(). */
+  /**
+   * Persist layout schema to localStorage on change / saveLayout().
+   * @deprecated v1 grid persistence — use compositor preset store. See docs/MIGRATION-2.0.md §5.
+   */
   layoutPersist?: boolean;
   /**
    * Enable drag/resize layout editor on mount.
    * @deprecated Ignored when `layerCompositorManaged` — use `mountLayerCompositor` + `enableLayerEditor`.
    */
   layoutEditor?: boolean;
+  /**
+   * @deprecated v1 grid callback — use compositor preset / layer events. See docs/MIGRATION-2.0.md §5.
+   */
   onLayoutChange?: (schema: LayoutSchema) => void;
   showTopBar?: boolean;
   showLeftToolbar?: boolean;
@@ -95,8 +112,9 @@ export interface ChartLayoutOptions extends TopBarOptions {
   onDrawingStyleChange?: (patch: { color?: string; lineWidth?: number; text?: string }) => void;
   onDrawingSelectionBind?: (bind: (drawing: import('@coderyo/drawings').DrawingRecord | null) => void) => void;
   /**
-   * When true, crosshair legend is not mounted under chartMain and visibility is driven by
-   * LayerCompositor (not grid CSS / el.style.display here).
+   * When true, uses compositor v2 shell (recommended for new integrators @ 1.1.2+).
+   * When false or omitted, mounts the deprecated v1 12×12 grid path (one-time console.warn).
+   * @remarks Prefer `true` + `mountLayerCompositor`; legacy grid API is removed in 2.0.0-rc.2.
    */
   layerCompositorManaged?: boolean;
 }
@@ -166,9 +184,12 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
   ) => void;
   setLayoutFeatures: (patch: LayoutFeatures) => void;
   getLayoutFeatures: () => ResolvedLayoutFeatures;
+  /** @deprecated v1 grid schema — use compositor `LayerController` / preset APIs. */
   getLayoutSchema: () => LayoutSchema;
+  /** @deprecated v1 grid schema — use compositor preset APIs. */
   setLayoutSchema: (schema: LayoutSchema) => void;
   enableLayoutEditor: (enabled: boolean) => void;
+  /** @deprecated v1 grid localStorage persist — use compositor preset store. */
   saveLayout: () => void;
 } {
   let layoutFeatures = resolveLayoutFeatures(opts);
@@ -288,11 +309,16 @@ export function mountChartLayout(root: HTMLElement, opts: ChartLayoutOptions = {
       },
     });
   } else {
+    warnLegacyLayoutOnce(
+      LEGACY_LAYOUT_WARN_KEYS.mountChartLayoutLegacyGrid,
+      WARN_MSG_MOUNT_LEGACY_GRID,
+    );
     layoutShell = createLayoutGrid({
       schema: layoutSchema,
       features: layoutFeatures,
       editor: opts.layoutEditor ?? false,
       onSchemaChange: persistLayout,
+      suppressDeprecationWarn: true,
       widgets: {
         topBar: topBarHost,
         leftToolbar,
