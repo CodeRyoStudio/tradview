@@ -75,4 +75,4 @@ jobs:
         run: pnpm check:rc
 
       - name: Publish packages to npm (OIDC trusted publishing)
-        run: pnpm -r publish --access public --tag latest --no-git-checks
+        run: node scripts/publish-ordered.mjs

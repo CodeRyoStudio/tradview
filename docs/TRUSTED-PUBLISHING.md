@@ -23,6 +23,11 @@
 
 或推送新標籤 `v*`（會同時建 GitHub Release 與跑 `publish-npm`）。
 
+## 常見錯誤
+
+- **`404 Not Found` on PUT `@coderyo/...`**：該套件尚未設定 Trusted Publisher，或 GitHub 欄位填錯（必須是 `CodeRyoStudio` / `tradview` / `release.yml`）。
+- 設定時請用 **擁有 @coderyo 套件發布權** 的 npm 帳號登入 [npmjs.com](https://www.npmjs.com)。
+
 ## 3. 驗證
 
 ```bash
