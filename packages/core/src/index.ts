@@ -60,6 +60,7 @@ export {
   clearedIndicatorConfig,
   hasVisibleIndicatorPanes,
   hasMainChartOverlays,
+  hasVolumePaneOverlays,
   hasAnyActiveIndicators,
   indicatorConfigStorageKey,
   listActiveIndicatorLayers,

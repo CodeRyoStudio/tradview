@@ -4,7 +4,10 @@ import {
   DEFAULT_INDICATOR_CONFIG,
   disableIndicatorLayer,
   hasAnyActiveIndicators,
+  hasMainChartOverlays,
+  hasVolumePaneOverlays,
   hasVisibleIndicatorPanes,
+  isVolumePaneVisible,
   listActiveIndicatorLayers,
 } from '../src/config.js';
 
@@ -30,10 +33,36 @@ describe('clearedIndicatorConfig', () => {
   });
 });
 
+describe('isVolumePaneVisible', () => {
+  it('defaults to true in DEFAULT_INDICATOR_CONFIG', () => {
+    expect(isVolumePaneVisible(DEFAULT_INDICATOR_CONFIG)).toBe(true);
+    expect(isVolumePaneVisible(clearedIndicatorConfig())).toBe(false);
+  });
+});
+
+describe('overlay visibility helpers', () => {
+  it('vol MA is volume-pane overlay, not main', () => {
+    const volOnly = {
+      ...clearedIndicatorConfig(),
+      showVolMa: true,
+      showVolume: true,
+    };
+    expect(hasMainChartOverlays(volOnly)).toBe(false);
+    expect(hasVolumePaneOverlays(volOnly)).toBe(true);
+    expect(hasAnyActiveIndicators(volOnly)).toBe(true);
+  });
+
+  it('vol MA hidden when volume pane off', () => {
+    const cfg = { ...DEFAULT_INDICATOR_CONFIG, showVolume: false, showVolMa: true };
+    expect(hasVolumePaneOverlays(cfg)).toBe(false);
+  });
+});
+
 describe('indicator layers', () => {
   it('lists active main and pane layers', () => {
     const layers = listActiveIndicatorLayers(DEFAULT_INDICATOR_CONFIG);
     expect(layers.some((l) => l.id === 'ma' && l.target === 'main')).toBe(true);
+    expect(layers.some((l) => l.id === 'volMa' && l.target === 'pane')).toBe(true);
     expect(layers.some((l) => l.id === 'macd' && l.target === 'pane')).toBe(true);
     expect(layers.some((l) => l.id === 'volume' && l.target === 'pane')).toBe(true);
   });

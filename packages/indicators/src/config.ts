@@ -53,13 +53,28 @@ export function hasVisibleIndicatorPanes(config: IndicatorConfig): boolean {
   return config.showMacd || config.showRsi || config.showKdj;
 }
 
-export function hasMainChartOverlays(config: IndicatorConfig): boolean {
-  return config.showMa || config.showVolMa || config.showEma || config.showBoll;
+/** Volume histogram pane (main chart band or layered `volumeMount`). */
+export function isVolumePaneVisible(config: IndicatorConfig): boolean {
+  return config.showVolume ?? true;
 }
 
-/** Any built-in indicator pane or main-chart overlay enabled. */
+/** Main price pane overlays (MA / EMA / BOLL). Vol MA draws on the volume pane. */
+export function hasMainChartOverlays(config: IndicatorConfig): boolean {
+  return config.showMa || config.showEma || config.showBoll;
+}
+
+/** Volume histogram pane overlay (vol MA line). */
+export function hasVolumePaneOverlays(config: IndicatorConfig): boolean {
+  return config.showVolMa && isVolumePaneVisible(config);
+}
+
+/** Any built-in indicator pane or overlay enabled. */
 export function hasAnyActiveIndicators(config: IndicatorConfig): boolean {
-  return hasVisibleIndicatorPanes(config) || hasMainChartOverlays(config);
+  return (
+    hasVisibleIndicatorPanes(config) ||
+    hasMainChartOverlays(config) ||
+    hasVolumePaneOverlays(config)
+  );
 }
 
 /** Hide all indicator panes and main-chart overlays (MA / EMA / BOLL / vol MA). */
@@ -112,7 +127,7 @@ export function listActiveIndicatorLayers(config: IndicatorConfig): IndicatorLay
     layers.push({ id: 'boll', label: `BOLL (${config.bollPeriod})`, target: 'main' });
   }
   if (config.showVolMa) {
-    layers.push({ id: 'volMa', label: `Vol MA (${config.volMaPeriod})`, target: 'main' });
+    layers.push({ id: 'volMa', label: `Vol MA (${config.volMaPeriod})`, target: 'pane' });
   }
   if (config.showVolume) {
     layers.push({ id: 'volume', label: 'VOL', target: 'pane' });

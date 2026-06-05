@@ -26,6 +26,7 @@ const PUBLIC_CORE_VALUE_EXPORTS = [
   'disableIndicatorLayer',
   'hasAnyActiveIndicators',
   'hasMainChartOverlays',
+  'hasVolumePaneOverlays',
   'hasVisibleIndicatorPanes',
   'indicatorConfigStorageKey',
   'listActiveIndicatorLayers',
