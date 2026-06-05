@@ -424,8 +424,37 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
       case 'host.setDrawingTool':
         if (typeof p.tool === 'string' && DRAWING_TOOLS.has(p.tool as DrawingTool)) {
           chart.setDrawingTool(p.tool as DrawingTool);
+        } else {
+          post('chart.error', {
+            chartId,
+            code: 'INVALID_TOOL',
+            message: `Invalid drawing tool: ${String(p.tool ?? '')}`,
+          });
         }
         break;
+      case 'host.deleteSelectedDrawing':
+        chart.deleteSelectedDrawing();
+        break;
+      case 'host.setFullscreen':
+        if (typeof p.enabled === 'boolean') chart.setFullscreen(p.enabled);
+        break;
+      case 'host.exportImage': {
+        const pixelRatio = typeof p.pixelRatio === 'number' ? p.pixelRatio : 2;
+        void chart.exportImage({ pixelRatio }).then(
+          async (blob) => {
+            const dataUrl = await blobToDataUrl(blob);
+            post('chart.exportImage', { chartId, mimeType: blob.type, dataUrl });
+          },
+          (err: unknown) => {
+            post('chart.error', {
+              chartId,
+              code: 'EXPORT_FAILED',
+              message: err instanceof Error ? err.message : String(err),
+            });
+          },
+        );
+        break;
+      }
       case 'host.setChartPaneResizeFocus':
         if (
           p.pane === 'main' ||
@@ -456,4 +485,26 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     unregisterLayer?.();
     for (const [ev, fn] of handlers) chart.off(ev, fn);
   };
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  const buf = await blob.arrayBuffer();
+  const nodeBuffer = (globalThis as { Buffer?: { from: (b: ArrayBuffer) => { toString: (e: 'base64') => string } } })
+    .Buffer;
+  if (nodeBuffer) {
+    return `data:${blob.type || 'application/octet-stream'};base64,${nodeBuffer.from(buf).toString('base64')}`;
+  }
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+  const base64 = globalThis.btoa(binary);
+  return `data:${blob.type || 'application/octet-stream'};base64,${base64}`;
 }

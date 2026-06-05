@@ -6,23 +6,35 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
-const bundlePath = resolve(root, 'bundle/cdn/dist/tradview.min.js');
-const maxGzipKb = Number(process.env.TRADVIEW_CDN_MAX_KB ?? 400);
+const bundles = [
+  {
+    path: resolve(root, 'bundle/cdn/dist/tradview.min.js'),
+    label: 'tradview.min.js',
+    maxKb: Number(process.env.TRADVIEW_CDN_MAX_KB ?? 400),
+  },
+  {
+    path: resolve(root, 'bundle/cdn-webgl/dist/tradview-webgl.min.js'),
+    label: 'tradview-webgl.min.js',
+    maxKb: Number(process.env.TRADVIEW_CDN_WEBGL_MAX_KB ?? 400),
+  },
+];
 
-if (!existsSync(bundlePath)) {
-  console.error(`[cdn-size] missing bundle: ${bundlePath}\nRun: pnpm --filter @coderyo/cdn-bundle build`);
-  process.exit(1);
+let failed = false;
+
+for (const { path: bundlePath, label, maxKb } of bundles) {
+  if (!existsSync(bundlePath)) {
+    console.error(`[cdn-size] missing bundle: ${bundlePath}\nRun: pnpm build:cdn`);
+    failed = true;
+    continue;
+  }
+  const raw = readFileSync(bundlePath);
+  const gzipKb = gzipSync(raw).length / 1024;
+  console.log(`[cdn-size] ${label} gzip: ${gzipKb.toFixed(1)} KB (limit ${maxKb} KB)`);
+  if (gzipKb > maxKb) {
+    console.error(`[cdn-size] FAIL: ${label} exceeds ${maxKb} KB gzip budget`);
+    failed = true;
+  }
 }
 
-const raw = readFileSync(bundlePath);
-const gzipBytes = gzipSync(raw).length;
-const gzipKb = gzipBytes / 1024;
-
-console.log(`[cdn-size] tradview.min.js gzip: ${gzipKb.toFixed(1)} KB (limit ${maxGzipKb} KB)`);
-
-if (gzipKb > maxGzipKb) {
-  console.error(`[cdn-size] FAIL: exceeds ${maxGzipKb} KB gzip budget (DESIGN D17)`);
-  process.exit(1);
-}
-
+if (failed) process.exit(1);
 console.log('[cdn-size] OK');

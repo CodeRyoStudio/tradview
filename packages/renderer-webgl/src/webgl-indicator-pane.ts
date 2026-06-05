@@ -21,8 +21,22 @@ import {
   type TimeScaleOptions,
 } from './scale/scale-types.js';
 import type { PriceRange } from './price-scale.js';
+import { detectIndicatorBarMutation } from './indicator-bar-mutation.js';
 
 export type WebGLIndicatorPaneId = 'macd' | 'rsi' | 'kdj';
+
+type CachedIndicatorSeries = {
+  lines: Array<{
+    values: (number | null)[];
+    color: [number, number, number, number];
+    lineWidth?: number;
+  }>;
+  histogram?: {
+    values: (number | null)[];
+    positiveColor: [number, number, number, number];
+    negativeColor: [number, number, number, number];
+  };
+};
 
 export interface WebGLIndicatorPaneOptions {
   paneId: WebGLIndicatorPaneId;
@@ -74,7 +88,7 @@ export class WebGLIndicatorPane {
   private readonly theme: ChartThemeColors;
   private readonly debug: boolean;
   private readonly syncBus: ViewportSyncBus | undefined;
-  private readonly syncUnregister: (() => void) | null;
+  private syncUnregister: (() => void) | null = null;
   private readonly scaleHost: PaneScaleHost;
   private interaction: ChartInteraction | null = null;
 
@@ -87,6 +101,8 @@ export class WebGLIndicatorPane {
   private crosshairPrice: number | null = null;
   private crosshairTimeMs: number | null = null;
   private lastAutoRange: PriceRange = { min: 0, max: 1 };
+  private lastBarTimes: number[] = [];
+  private cachedSeries: CachedIndicatorSeries | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -99,7 +115,7 @@ export class WebGLIndicatorPane {
     this.context = new WebGL2Context(container, { debug: this.debug });
     this.lines = new LineSeriesRenderer(this.context.gl, this.debug);
     this.syncBus = opts.syncBus;
-    this.syncUnregister = opts.syncBus?.register(this.viewport) ?? null;
+    this.syncUnregister = null;
     const followsMaster = opts.syncBus != null;
 
     this.scaleHost = new PaneScaleHost(container, {
@@ -175,10 +191,34 @@ export class WebGLIndicatorPane {
   }
 
   setBars(bars: readonly Bar[], config: IndicatorConfig): void {
+    if (bars.length === 0) {
+      this.bars = [];
+      this.lastBarTimes = [];
+      this.cachedSeries = null;
+      this.viewport.setBarCount(0);
+      this.scheduleRender();
+      return;
+    }
+
+    const mutation = detectIndicatorBarMutation(this.lastBarTimes, bars);
     this.bars = bars.slice();
     this.config = config;
+    this.lastBarTimes = this.bars.map((b) => b.t);
     this.viewport.setBarCount(this.bars.length);
-    this.syncBus?.propagate();
+
+    if (this.syncBus) {
+      this.syncUnregister?.();
+      this.syncUnregister = this.syncBus.register(this.viewport, this.bars);
+    }
+
+    if (mutation === 'full') {
+      this.cachedSeries = this.buildSeries(this.bars, config);
+    } else if (this.cachedSeries) {
+      this.patchCachedSeries(mutation, this.bars, config);
+    } else {
+      this.cachedSeries = this.buildSeries(this.bars, config);
+    }
+
     this.scheduleRender();
   }
 
@@ -204,7 +244,7 @@ export class WebGLIndicatorPane {
     const resolution: [number, number] = [w, h];
 
     this.context.clear(this.theme.background);
-    const series = this.buildSeries(this.bars, this.config);
+    const series = this.cachedSeries ?? this.buildSeries(this.bars, this.config);
     if (!series) return;
 
     const { from, to } = this.viewport.visibleBarIndexRange();
@@ -272,42 +312,82 @@ export class WebGLIndicatorPane {
     return region === 'plot';
   }
 
-  private buildSeries(
+  private warmupLookback(config: IndicatorConfig): number {
+    return (
+      Math.max(
+        config.macdSlow + config.macdSignal,
+        config.rsiPeriod,
+        config.kdjPeriod + config.kdjKSmooth + config.kdjDSmooth,
+      ) + 5
+    );
+  }
+
+  private patchCachedSeries(
+    mutation: 'tail-append' | 'tail-update',
     bars: Bar[],
     config: IndicatorConfig,
-  ): Pick<
-    import('./line-series-renderer.js').LineSeriesRenderParams,
-    'lines' | 'histogram'
-  > | null {
+  ): void {
+    const from =
+      mutation === 'tail-update'
+        ? Math.max(0, bars.length - 1)
+        : Math.max(0, bars.length - this.warmupLookback(config));
+    const fresh = this.buildSeries(bars, config);
+    if (!fresh || !this.cachedSeries) {
+      this.cachedSeries = fresh;
+      return;
+    }
+    const patchLine = (
+      target: { values: (number | null)[] },
+      source: { values: readonly (number | null)[] },
+    ) => {
+      while (target.values.length < bars.length) target.values.push(null);
+      for (let i = from; i < bars.length; i++) {
+        target.values[i] = source.values[i] ?? null;
+      }
+    };
+    for (let i = 0; i < fresh.lines.length; i++) {
+      patchLine(this.cachedSeries.lines[i]!, fresh.lines[i]!);
+    }
+    if (fresh.histogram && this.cachedSeries.histogram) {
+      while (this.cachedSeries.histogram.values.length < bars.length) {
+        this.cachedSeries.histogram.values.push(null);
+      }
+      for (let i = from; i < bars.length; i++) {
+        this.cachedSeries.histogram.values[i] = fresh.histogram.values[i] ?? null;
+      }
+    }
+  }
+
+  private buildSeries(bars: Bar[], config: IndicatorConfig): CachedIndicatorSeries | null {
     const src = barsForSource(bars, config.source);
     switch (this.paneId) {
       case 'macd': {
         const m = macd(src, config.macdFast, config.macdSlow, config.macdSignal);
         return {
           histogram: {
-            values: m.histogram,
+            values: [...m.histogram],
             positiveColor: [0.15, 0.65, 0.6, 0.55],
             negativeColor: [0.94, 0.33, 0.31, 0.55],
           },
           lines: [
-            { values: m.macd, color: [0.16, 0.38, 1, 1], lineWidth: 1.5 },
-            { values: m.signal, color: [1, 0.6, 0, 1], lineWidth: 1.5 },
+            { values: [...m.macd], color: [0.16, 0.38, 1, 1], lineWidth: 1.5 },
+            { values: [...m.signal], color: [1, 0.6, 0, 1], lineWidth: 1.5 },
           ],
         };
       }
       case 'rsi': {
         const r = rsi(src, config.rsiPeriod);
         return {
-          lines: [{ values: r, color: [0.67, 0.28, 0.74, 1], lineWidth: 1.5 }],
+          lines: [{ values: [...r], color: [0.67, 0.28, 0.74, 1], lineWidth: 1.5 }],
         };
       }
       case 'kdj': {
         const k = kdj(src, config.kdjPeriod, config.kdjKSmooth, config.kdjDSmooth);
         return {
           lines: [
-            { values: k.k, color: [0.26, 0.65, 0.96, 1], lineWidth: 1.5 },
-            { values: k.d, color: [1, 0.65, 0.15, 1], lineWidth: 1.5 },
-            { values: k.j, color: [0.94, 0.33, 0.31, 1], lineWidth: 1.5 },
+            { values: [...k.k], color: [0.26, 0.65, 0.96, 1], lineWidth: 1.5 },
+            { values: [...k.d], color: [1, 0.65, 0.15, 1], lineWidth: 1.5 },
+            { values: [...k.j], color: [0.94, 0.33, 0.31, 1], lineWidth: 1.5 },
           ],
         };
       }

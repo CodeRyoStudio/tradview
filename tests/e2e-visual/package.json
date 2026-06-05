@@ -1,0 +1,13 @@
+{
+  "name": "@tradview/e2e-visual",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node -e \"console.log('[e2e-visual] skipped in turbo test; run pnpm test:e2e-visual from repo root')\"",
+    "test:update": "playwright test --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

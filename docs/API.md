@@ -625,26 +625,40 @@ chart.disableIndicatorLayer('rsi');
 ## 11. CDN 全域 `TradView`
 
 ```html
-<script src="https://github.com/CodeRyoStudio/tradview/releases/download/v1.0.0-rc.4/tradview.min.js"></script>
+<script src="https://github.com/CodeRyoStudio/tradview/releases/download/v2.1.0/tradview.min.js"></script>
+<!-- WebGL-primary (no LWC): -->
+<script src="https://github.com/CodeRyoStudio/tradview/releases/download/v2.1.0/tradview-webgl.min.js"></script>
 <script>
   const provider = TradView.createGatewayDataProvider({
     restBaseUrl: '/api',
-    wsUrl: 'wss://' + location.host + '/ws?v=1.0',
+    wsUrl: 'wss://' + location.host + '/ws?v=2',
   });
   const chart = TradView.createChart('#chart', { dataProvider: provider });
   chart.setSymbol('BINANCE:BTCUSDT').setInterval('1h');
 </script>
 ```
 
+| 檔案 | 說明 |
+|------|------|
+| `tradview.min.js` | 完整 UMD（lite fallback + ui-shell + `ChartWorkspace`） |
+| `tradview-webgl.min.js` | WebGL 主路徑 UMD（tree-shake LWC；2.1+） |
+
 | 全域屬性 | 說明 |
 |----------|------|
 | `TradView.createChart` | 同 npm |
+| `TradView.ChartWorkspace` | 同 npm 多圖 workspace |
+| `TradView.wireChartBridge` / `wireWorkspaceBridge` | 同 npm |
 | `TradView.createGatewayDataProvider` | 同 npm |
 | `TradView.createDefaultBridge` | 同 npm |
 | `TradView.mountChartLayout` | 同 npm |
-| `TradView.TRADVIEW_API_VERSION` | `1` |
-| `TradView.TRADVIEW_VERSION` | 例如 `'1.0.0-rc.4'` |
-| `TradView.BRIDGE_SCHEMA_VERSION` | `2` |
+| `TradView.TRADVIEW_API_VERSION` | `2` |
+| `TradView.TRADVIEW_VERSION` | 例如 `'2.1.0'` |
+| `TradView.BRIDGE_SCHEMA_VERSION` | `3` |
+| `TradView.cdnLicense` | 可選 PR-19 域名白名單（`enforce` + `allowedDomains`）；**warn-only**，不匹配時僅 `console.warn`，圖表仍載入 |
+
+**`tradview-webgl.min.js` 限制**：`smoothPriceUpdate: true` 在 WebGL CDN 使用 no-op `BarSmoothAnimator` stub（不拋錯，但無平滑動畫）。完整 lite/LWC 平滑請用 `tradview.min.js` 或 npm `@coderyo/core` + lite renderer。
+
+**Bridge `host.exportImage` / `chart.exportImage`**：原生殼需在 `outboundEvents` 加入 `chart.exportImage` 才會收到 data URL。PNG 以 `pixelRatio`（預設 `2`）放大，常見 1920×1080 圖約 **0.5–3 MB** base64 字串；超大圖或高 DPR 可能阻塞 WebView message 通道，建議限制 `pixelRatio` ≤ `2` 或改為檔案/blob 交接（非 bridge 預設）。
 
 ---
 

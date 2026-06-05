@@ -22,6 +22,7 @@
     "version:sync": "node scripts/sync-versions.mjs",
     "arch:boundary": "pnpm --filter @coderyo/core exec vitest run tests/arch-boundary.test.ts",
     "test:scripts": "vitest run scripts/check-rc.test.mjs",
+    "test:e2e-visual": "pnpm --filter @tradview/e2e-visual exec playwright test",
     "check:rc": "node scripts/check-rc.mjs",
     "publish:rc": "pnpm check:rc && pnpm -r publish --access public --tag rc --no-git-checks"
   },

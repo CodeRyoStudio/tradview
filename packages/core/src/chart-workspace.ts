@@ -4,6 +4,7 @@ import type { Interval } from '@coderyo/data';
 import type { ChartVisibleRange } from '@coderyo/renderer-lite';
 import { createChart, type CreateChartOptions, type IChart } from './create-chart.js';
 import { wireWorkspaceBridge } from './workspace-bridge.js';
+import { loadLinkChartsPreference } from './link-charts-preference.js';
 
 export interface ChartWorkspaceOptions {
   workspaceId?: string;
@@ -107,7 +108,7 @@ export class ChartWorkspace {
     if (this.options.linkChartsTimeScale === false) {
       return {};
     }
-    return {};
+    return loadLinkChartsPreference() ? { visibleRange: true } : {};
   }
 
   getWorkspaceId(): string {

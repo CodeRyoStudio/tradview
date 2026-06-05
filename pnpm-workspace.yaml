@@ -4,3 +4,4 @@ packages:
   - 'tools/*'
   - 'bundle/*'
   - 'examples/adapters/*'
+  - 'tests/e2e-visual'

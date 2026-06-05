@@ -1,0 +1,7 @@
+{
+  "type": "host.setDrawingTool",
+  "payload": {
+    "chartId": "main",
+    "tool": "trendline"
+  }
+}

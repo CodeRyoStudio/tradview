@@ -68,7 +68,7 @@ Use `mountChartLayout` with `layerCompositorManaged: true`. v1 12×12 grid API r
 ## Native samples
 
 - Android: `apps/sample-android` (WebView → `workspace.html` on emulator `10.0.2.2:5173`)
-- iOS: planned 2.0.1 tripwire
+- iOS: `apps/sample-ios` — SwiftUI `WKWebView` + URL allowlist; generate `TradViewSample.xcodeproj` via XcodeGen (`apps/sample-ios/project.yml`, see README)
 
 ## References
 

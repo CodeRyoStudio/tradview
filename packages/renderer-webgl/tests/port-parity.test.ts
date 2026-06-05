@@ -6,8 +6,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Bar } from '@coderyo/data';
 import { intervalMs } from '@coderyo/data';
 import { DEFAULT_INDICATOR_CONFIG, hasVisibleIndicatorPanes } from '@coderyo/indicators';
+import { lodDecimateBars } from '@coderyo/series';
 import { computePrependSliceDeltaForViewport } from '@coderyo/renderer-lite';
+import { buildLogicalBarLayout, remapGapTimesAfterDecimation } from '../src/logical-bar-layout.js';
 import { hasWebGL2 } from '../src/webgl2-context.js';
+import { WebGLPaneOrchestrator } from '../src/webgl-pane-orchestrator.js';
 import { WebGLChartRenderBackend } from '../../core/src/chart-renderer-webgl.js';
 import {
   decimatedFixture,
@@ -44,6 +47,42 @@ describe('renderer-webgl port parity vs lite contract (V2-R13)', () => {
       whitespace: false,
       fillVisibleHoles: false,
     });
+  });
+
+  it('gaps.whitespace increases logical bar count on WebGL pane', () => {
+    const bars = syntheticBars(12);
+    const gapTimes = [bars[6]!.t];
+    const el = document.createElement('div');
+    el.style.width = '400px';
+    el.style.height = '300px';
+    document.body.appendChild(el);
+    const orch = new WebGLPaneOrchestrator({ debug: false });
+    orch.mount(el);
+    orch.setBars(bars, gapTimes);
+    const layout = orch.getMainPane()?.getLogicalBarLayout();
+    expect(layout?.logicalCount).toBe(bars.length + 1);
+    orch.destroy();
+    el.remove();
+  });
+
+  it('LOD + gaps.whitespace remaps gap times before logical layout (P0)', () => {
+    const bars = syntheticBars(8000);
+    const maxPoints = 120;
+    const renderBars = lodDecimateBars(bars, maxPoints);
+    const gapTimes = [renderBars[5]!.t, renderBars[40]!.t, renderBars[100]!.t];
+    const effectiveGaps = remapGapTimesAfterDecimation(renderBars, gapTimes);
+    expect(effectiveGaps?.length).toBe(3);
+    const expectedLayout = buildLogicalBarLayout(renderBars, effectiveGaps);
+
+    const { root, orch } = mountWebGLOrchestrator({ maxRenderPoints: maxPoints });
+    orch.setBars(bars, gapTimes);
+    expect(orch.getLodStats().inputCount).toBe(8000);
+    expect(orch.getLodStats().outputCount).toBe(renderBars.length);
+    expect(orch.getMainPane()?.getLogicalBarLayout()?.logicalCount).toBe(
+      expectedLayout.logicalCount,
+    );
+    orch.destroy();
+    root.remove();
   });
 
 });

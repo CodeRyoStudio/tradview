@@ -48,6 +48,14 @@ export {
   createChartCoordinateMapper,
   timeMsAtBarIndex,
 } from './chart-coordinates.js';
+export {
+  buildLogicalBarLayout,
+  remapGapTimesAfterDecimation,
+  timeMsAtLogicalIndex,
+  barIndicesInLogicalRange,
+} from './logical-bar-layout.js';
+export type { LogicalBarLayout } from './logical-bar-layout.js';
+export { detectIndicatorBarMutation } from './indicator-bar-mutation.js';
 export type {
   ChartCoordinateMapper,
   ChartCoordinateMapperOptions,

@@ -21,6 +21,7 @@ import {
   barIndexForTimeMs,
   symbolFormatFromInfo,
   timeMsAtBarIndex,
+  timeMsAtLogicalIndex,
   type PriceScaleOptions,
   type TimeScaleOptions,
   type WebGLPaneOrchestratorOptions,
@@ -90,10 +91,10 @@ export class WebGLChartRenderBackend {
     /* mounted in constructor */
   }
 
-  setBars(bars: readonly Bar[], _gaps?: number[]): void {
+  setBars(bars: readonly Bar[], gaps?: number[]): void {
     const hadBars = this.bars.length > 0;
     this.bars = bars as Bar[];
-    this.orchestrator.setBars(this.bars);
+    this.orchestrator.setBars(this.bars, gaps);
     this.syncBusFromViewport();
     if (hadBars && this.bars.length === 0) {
       this.onBarsBecameEmpty();
@@ -275,8 +276,11 @@ export class WebGLChartRenderBackend {
   setVisibleRange(range: ChartVisibleRange): void {
     const vp = this.orchestrator.getViewport();
     if (!vp || this.bars.length === 0) return;
-    const fromIdx = barIndexForTimeMs(this.bars, range.fromMs);
-    const toIdx = barIndexForTimeMs(this.bars, range.toMs);
+    const layout = this.getMainLogicalLayout();
+    const fromBar = barIndexForTimeMs(this.bars, range.fromMs);
+    const toBar = barIndexForTimeMs(this.bars, range.toMs);
+    const fromIdx = layout ? layout.logicalIndexForBarIndex(fromBar) : fromBar;
+    const toIdx = layout ? layout.logicalIndexForBarIndex(toBar) : toBar;
     vp.setVisibleRange(fromIdx, Math.max(fromIdx + 1, toIdx));
     this.syncBusFromViewport();
     this.orchestrator.render();
@@ -285,7 +289,9 @@ export class WebGLChartRenderBackend {
   scrollToTimestamp(tsMs: number, _animationMs?: number): void {
     const vp = this.orchestrator.getViewport();
     if (!vp || this.bars.length === 0) return;
-    const idx = barIndexForTimeMs(this.bars, tsMs);
+    const layout = this.getMainLogicalLayout();
+    const barIdx = barIndexForTimeMs(this.bars, tsMs);
+    const idx = layout ? layout.logicalIndexForBarIndex(barIdx) : barIdx;
     const span = vp.visibleSpan;
     vp.setVisibleRange(Math.max(0, idx - span * 0.1), idx + span * 0.05);
     this.syncBusFromViewport();
@@ -341,7 +347,9 @@ export class WebGLChartRenderBackend {
     if (!vp || this.bars.length === 0) return null;
     const w = this.container.clientWidth || 800;
     const plotW = vp.plotWidthPx(w);
-    const idx = barIndexForTimeMs(this.bars, tMs);
+    const layout = this.getMainLogicalLayout();
+    const barIdx = barIndexForTimeMs(this.bars, tMs);
+    const idx = layout ? layout.logicalIndexForBarIndex(barIdx) : barIdx;
     return vp.plotXForBarIndex(idx, plotW) * (globalThis.devicePixelRatio ?? 1);
   }
 
@@ -352,7 +360,10 @@ export class WebGLChartRenderBackend {
     const plotW = vp.plotWidthPx(w);
     const dpr = globalThis.devicePixelRatio ?? 1;
     const idx = vp.barIndexAtPlotX(x / dpr, plotW);
-    return timeMsAtBarIndex(this.bars, idx);
+    const layout = this.getMainLogicalLayout();
+    return layout
+      ? timeMsAtLogicalIndex(this.bars, layout, idx)
+      : timeMsAtBarIndex(this.bars, idx);
   }
 
   yToPrice(y: number): number | null {
@@ -532,14 +543,25 @@ export class WebGLChartRenderBackend {
     this.setPaneSyncGroups(resolvePaneSyncGroupsFromLayers(layers, pageId));
   }
 
+  private getMainLogicalLayout(): import('@coderyo/renderer-webgl').LogicalBarLayout | null {
+    const orch = this.orchestrator as WebGLPaneOrchestrator;
+    if (typeof orch.getMainPane !== 'function') return null;
+    return orch.getMainPane()?.getLogicalBarLayout() ?? null;
+  }
+
   private syncBusFromViewport(): void {
     if (this.syncingBusFromViewport) return;
     const vp = this.orchestrator.getViewport();
     if (!vp || this.bars.length === 0) return;
+    const layout = this.getMainLogicalLayout();
     this.syncingBusFromViewport = true;
     try {
-      const fromMs = timeMsAtBarIndex(this.bars, vp.visibleFrom);
-      const toMs = timeMsAtBarIndex(this.bars, vp.visibleTo);
+      const fromMs = layout
+        ? timeMsAtLogicalIndex(this.bars, layout, vp.visibleFrom)
+        : timeMsAtBarIndex(this.bars, vp.visibleFrom);
+      const toMs = layout
+        ? timeMsAtLogicalIndex(this.bars, layout, vp.visibleTo)
+        : timeMsAtBarIndex(this.bars, vp.visibleTo);
       this.busRegistry.getOrCreateBus('main').setBarsTimeRange(fromMs, toMs);
       if (toMs > fromMs) {
         this.onVisibleRangeChange?.({ fromMs, toMs });

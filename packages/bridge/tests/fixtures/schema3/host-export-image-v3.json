@@ -1,0 +1,7 @@
+{
+  "type": "host.exportImage",
+  "payload": {
+    "chartId": "main",
+    "pixelRatio": 2
+  }
+}

@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-05
+
+### Added
+
+- **WebGL `gaps.whitespace`**: logical gap slots on main pane (DESIGN-v2 Appendix A); `ChartController` passes gap times to `WebGLChartRenderBackend`
+- **Bridge schema 3**: `host.setIndicatorConfig`, `host.clearAllIndicators`, `host.clearAllDrawings`, `host.setDrawingTool`, `host.deleteSelectedDrawing`, `host.setFullscreen`, `host.exportImage` → `chart.exportImage`
+- **WebGL indicator panes**: incremental tail `setBars` via `detectIndicatorBarMutation` (lite parity)
+- **CDN**: `tradview-webgl.min.js` (LWC tree-shaken) + `ChartWorkspace` on full `tradview.min.js`; PR-19 `assertCdnLicense` hook
+- **`postgres-ws` adapter**: `examples/adapters/postgres-ws` (REST `/bars` + WS subscribe)
+- **iOS sample**: `apps/sample-ios` WKWebView + URL allowlist smoke tests
+- **E2E visual**: `tests/e2e-visual` Playwright snapshots (DESIGN-v2 §10.4); CI job `e2e-visual`
+
+### Changed
+
+- **ChartWorkspace**: default link group reads `tradview:settings:linkCharts` when `linkChartsTimeScale` is unset
+
 ## [2.0.1] - 2026-06-05
 
 ### Added

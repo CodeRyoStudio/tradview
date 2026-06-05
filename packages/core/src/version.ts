@@ -1,2 +1,2 @@
 /** Synced by scripts/sync-versions.mjs from repo VERSION file */
-export const TRADVIEW_VERSION = '2.0.1' as const;
+export const TRADVIEW_VERSION = '2.1.0' as const;

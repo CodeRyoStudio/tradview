@@ -1,0 +1,38 @@
+# XcodeGen spec — generate TradViewSample.xcodeproj on macOS:
+#   brew install xcodegen && cd apps/sample-ios && xcodegen generate
+name: TradViewSample
+options:
+  bundleIdPrefix: com.coderyo.tradview
+  deploymentTarget:
+    iOS: '16.0'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '5.9'
+    TARGETED_DEVICE_FAMILY: '1,2'
+targets:
+  TradViewSample:
+    type: application
+    platform: iOS
+    sources:
+      - path: TradViewSample
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coderyo.tradview.sample
+        INFOPLIST_FILE: TradViewSample/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 2.1.0
+  TradViewSampleUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: TradViewSampleUITests
+    dependencies:
+      - target: TradViewSample
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coderyo.tradview.sample.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: TradViewSample

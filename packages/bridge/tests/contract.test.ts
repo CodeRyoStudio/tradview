@@ -22,11 +22,21 @@ describe('@coderyo/bridge contract', () => {
   it('BRIDGE_INBOUND_EVENTS is exhaustive for BridgeInboundType', () => {
     const _parity: Record<BridgeInboundType, true> = BRIDGE_INBOUND_CONTRACT;
     expect(Object.keys(_parity).sort()).toEqual([...EXPECTED_INBOUND].sort());
-    expect(BRIDGE_INBOUND_EVENTS).toHaveLength(25);
+    expect(BRIDGE_INBOUND_EVENTS).toHaveLength(28);
   });
 
   it('includes P2 host.setChartPaneResizeFocus', () => {
     expect(EXPECTED_INBOUND).toContain('host.setChartPaneResizeFocus');
+  });
+
+  it('includes 2.1 host indicator/drawing/export events', () => {
+    expect(EXPECTED_INBOUND).toContain('host.setIndicatorConfig');
+    expect(EXPECTED_INBOUND).toContain('host.clearAllIndicators');
+    expect(EXPECTED_INBOUND).toContain('host.clearAllDrawings');
+    expect(EXPECTED_INBOUND).toContain('host.setDrawingTool');
+    expect(EXPECTED_INBOUND).toContain('host.deleteSelectedDrawing');
+    expect(EXPECTED_INBOUND).toContain('host.setFullscreen');
+    expect(EXPECTED_INBOUND).toContain('host.exportImage');
   });
 
   it('layer host events match LAYER_HOST_EVENTS', () => {

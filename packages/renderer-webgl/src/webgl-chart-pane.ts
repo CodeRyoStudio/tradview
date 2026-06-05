@@ -17,6 +17,11 @@ import { buildMainOverlayLineSpecs } from './main-chart-overlays.js';
 import { buildVolMaLineSpec } from './volume-overlays.js';
 import type { MainPaneLayout } from './chart-coordinates.js';
 import {
+  barIndicesInLogicalRange,
+  buildLogicalBarLayout,
+  type LogicalBarLayout,
+} from './logical-bar-layout.js';
+import {
   maxVolumeForBars,
   priceRangeForBars,
   type PriceRange,
@@ -52,6 +57,7 @@ export class WebGLChartPane {
   readonly context: WebGL2Context;
 
   private bars: Bar[] = [];
+  private layout: LogicalBarLayout | null = null;
   private width = 0;
   private volumeRatio: number;
   private theme: ChartThemeColors;
@@ -186,13 +192,25 @@ export class WebGLChartPane {
     this.scheduleRender();
   }
 
-  setData(bars: readonly Bar[], options?: { fitViewport?: boolean }): void {
+  setData(
+    bars: readonly Bar[],
+    options?: { fitViewport?: boolean; gaps?: readonly number[] },
+  ): void {
     this.bars = bars.slice();
-    this.viewport.setBarCount(this.bars.length);
+    this.layout =
+      options?.gaps && options.gaps.length > 0
+        ? buildLogicalBarLayout(this.bars, options.gaps)
+        : null;
+    const logicalCount = this.layout?.logicalCount ?? this.bars.length;
+    this.viewport.setBarCount(logicalCount);
     if (options?.fitViewport) {
       this.applyInitialViewportFit();
     }
     this.afterViewportChange();
+  }
+
+  getLogicalBarLayout(): LogicalBarLayout | null {
+    return this.layout;
   }
 
   setIndicatorConfig(config: IndicatorConfig): void {
@@ -289,13 +307,20 @@ export class WebGLChartPane {
     const resolution: [number, number] = [w, h];
     const mainPane = { left: 0, top: 0, width: w, height: mainH };
     const { from, to } = this.viewport.visibleBarIndexRange();
-    const autoMainRange = priceRangeForBars(this.bars, from, to, this.priceScaleMode);
+    const mainBarSpan = this.layout
+      ? barIndicesInLogicalRange(this.layout, from, to)
+      : { from, to };
+    const autoMainRange =
+      mainBarSpan.to >= mainBarSpan.from
+        ? priceRangeForBars(this.bars, mainBarSpan.from, mainBarSpan.to, this.priceScaleMode)
+        : priceRangeForBars(this.bars, from, to, this.priceScaleMode);
     const mainRange = this.scaleHost.getEffectivePriceRange(autoMainRange, 'price');
     const lastBar = this.bars[this.bars.length - 1];
     const lastPrice = lastBar?.c ?? null;
 
     this.candles.render({
       bars: this.bars,
+      layout: this.layout,
       viewport: this.viewport,
       plotWidthPx: plotW,
       cssWidth,
@@ -321,6 +346,7 @@ export class WebGLChartPane {
         resolution,
         lines: overlayLines,
         priceRange: mainRange,
+        layout: this.layout,
       });
     }
 
@@ -338,6 +364,7 @@ export class WebGLChartPane {
       const volPane = { left: 0, top: volTop, width: w, height: volH };
       this.volume.render({
         bars: this.bars,
+        layout: this.layout,
         viewport: this.viewport,
         plotWidthPx: plotW,
         cssWidth,
@@ -358,6 +385,7 @@ export class WebGLChartPane {
           resolution,
           lines: [volMa],
           priceRange: volRange,
+          layout: this.layout,
         });
       }
     }
@@ -493,7 +521,13 @@ export class WebGLChartPane {
 
   private autoVolumePriceRange(): PriceRange {
     const { from, to } = this.viewport.visibleBarIndexRange();
-    const max = maxVolumeForBars(this.bars, from, to);
+    const barSpan = this.layout
+      ? barIndicesInLogicalRange(this.layout, from, to)
+      : { from, to };
+    const max =
+      barSpan.to >= barSpan.from
+        ? maxVolumeForBars(this.bars, barSpan.from, barSpan.to)
+        : maxVolumeForBars(this.bars, from, to);
     return { min: 0, max };
   }
 

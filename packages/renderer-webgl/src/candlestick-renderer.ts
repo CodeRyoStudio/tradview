@@ -8,6 +8,10 @@ import {
   type PriceScaleMode,
 } from './price-scale.js';
 import type { ChartThemeColors } from './theme.js';
+import {
+  barIndicesInLogicalRange,
+  type LogicalBarLayout,
+} from './logical-bar-layout.js';
 
 export interface PaneRect {
   left: number;
@@ -18,6 +22,7 @@ export interface PaneRect {
 
 export interface CandlestickRenderParams {
   bars: readonly Bar[];
+  layout?: LogicalBarLayout | null;
   viewport: ChartViewport;
   plotWidthPx: number;
   pane: PaneRect;
@@ -55,15 +60,21 @@ export class CandlestickRenderer {
   }
 
   render(params: CandlestickRenderParams): void {
-    const { bars, viewport, plotWidthPx, pane, resolution, theme } = params;
+    const { bars, viewport, plotWidthPx, pane, resolution, theme, layout } = params;
     const cssW = params.cssWidth ?? plotWidthPx;
     const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from || bars.length === 0) return;
 
     const mode = params.priceScaleMode ?? 'linear';
+    const barSpan = layout
+      ? barIndicesInLogicalRange(layout, from, to)
+      : { from, to };
     const range =
-      params.priceRange ?? priceRangeForBars(bars, from, to, mode);
+      params.priceRange ??
+      (barSpan.to >= barSpan.from
+        ? priceRangeForBars(bars, barSpan.from, barSpan.to, mode)
+        : priceRangeForBars(bars, from, to, mode));
     const spacing = viewport.barSpacing;
     const bodyWidth = Math.max(1, spacing * 0.72);
     const wickWidth = Math.max(1, Math.min(2, spacing * 0.12));
@@ -72,7 +83,9 @@ export class CandlestickRenderer {
     out.length = 0;
 
     for (let i = from; i <= to; i++) {
-      const bar = bars[i]!;
+      const barIdx = layout ? layout.barIndexAtLogical(i) : i;
+      if (barIdx < 0) continue;
+      const bar = bars[barIdx]!;
       const cx = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
       const bullish = bar.c >= bar.o;
       const color = bullish ? theme.bullish : theme.bearish;

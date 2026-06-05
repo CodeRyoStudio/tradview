@@ -34,7 +34,7 @@ describe('bridge schema 3 — contract vs docs/fixtures', () => {
 
   it('SCHEMA3_CHART_SCOPED_HOST_EVENTS equals BRIDGE_INBOUND_EVENTS (schema 2 parity)', () => {
     expect([...SCHEMA3_CHART_SCOPED_HOST_EVENTS].sort()).toEqual([...BRIDGE_INBOUND_EVENTS].sort());
-    expect(SCHEMA3_CHART_SCOPED_HOST_EVENTS).toHaveLength(25);
+    expect(SCHEMA3_CHART_SCOPED_HOST_EVENTS).toHaveLength(28);
   });
 
   it('workspace and chart-scoped host event sets are disjoint', () => {
@@ -134,5 +134,37 @@ describe('bridge schema 3 — contract vs docs/fixtures', () => {
     expect(WORKSPACE_OUTBOUND_EVENTS).toContain(ready.type);
     expect(WORKSPACE_OUTBOUND_EVENTS).toContain(focus.type);
     expect(WORKSPACE_OUTBOUND_EVENTS).toContain(link.type);
+  });
+
+  it('2.1 host fixtures are chart-scoped with chartId', () => {
+    const exportImg = loadFixture<{ type: string; payload: { chartId: string } }>(
+      'host-export-image-v3.json',
+    );
+    const fullscreen = loadFixture<{ type: string; payload: { chartId: string; enabled: boolean } }>(
+      'host-set-fullscreen-v3.json',
+    );
+    const deleteDrawing = loadFixture<{ type: string; payload: { chartId: string } }>(
+      'host-delete-selected-drawing-v3.json',
+    );
+    const drawingTool = loadFixture<{ type: string; payload: { chartId: string; tool: string } }>(
+      'host-set-drawing-tool-v3.json',
+    );
+    for (const msg of [exportImg, fullscreen, deleteDrawing, drawingTool]) {
+      expect(SCHEMA3_CHART_SCOPED_HOST_EVENTS).toContain(msg.type);
+      expect(msg.payload.chartId).toBe('main');
+    }
+    expect(fullscreen.payload.enabled).toBe(true);
+    expect(drawingTool.payload.tool).toBe('trendline');
+  });
+
+  it('chart.exportImage outbound fixture matches bridge outbound type', () => {
+    const msg = loadFixture<{
+      type: string;
+      payload: { chartId: string; mimeType: string; dataUrl: string };
+    }>('chart-export-image-v3.json');
+    expect(msg.type).toBe('chart.exportImage');
+    expect(msg.payload.chartId).toBe('main');
+    expect(msg.payload.mimeType).toBe('image/png');
+    expect(msg.payload.dataUrl).toMatch(/^data:image\/png;base64,/);
   });
 });

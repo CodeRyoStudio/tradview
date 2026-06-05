@@ -272,13 +272,13 @@ bridge → core (peer)
 | 商品、週期 | `setSymbol` / `setInterval` | `host.setSymbol` / `host.setInterval` | TopBar callback |
 | 主題、網格、對數軸 | `setTheme` / `setShowGrid` / `setLogScale` | `host.setTheme` / `host.setShowGrid` / `host.setLogScale` | TopBar、Settings |
 | 視窗、縮放 | `getVisibleRange` / `setBarSpace` / `setVisibleRange` / `scrollToTimestamp` | 對應 `host.*` | — |
-| 指標參數 | `setIndicatorConfig` / `setFeatures.indicators` | **未覆蓋** | Settings 表單 |
-| 清空指標、畫線 | `clearAllIndicators` / `clearAllDrawings` | **未覆蓋** | Settings 按鈕 |
-| 繪圖 | `setDrawingTool`、`deleteSelectedDrawing` 等 | **未覆蓋** | LeftToolbar、右鍵選單 |
-| 全螢幕、截圖 | `setFullscreen` / `exportImage` | **未覆蓋** | TopBar |
+| 指標參數 | `setIndicatorConfig` / `setFeatures.indicators` | `host.setIndicatorConfig` | Settings 表單 |
+| 清空指標、畫線 | `clearAllIndicators` / `clearAllDrawings` | `host.clearAllIndicators` / `host.clearAllDrawings` | Settings 按鈕 |
+| 繪圖 | `setDrawingTool`、`deleteSelectedDrawing` 等 | `host.setDrawingTool` / `host.deleteSelectedDrawing` | LeftToolbar、右鍵選單 |
+| 全螢幕、截圖 | `setFullscreen` / `exportImage` | `host.setFullscreen` / `host.exportImage` | TopBar |
 | Pine 腳本 | `setFeatures({ pineEnabled, pineScript })` | `host.setFeatures`（泛用 patch） | `mountPineEditorPanel`（Playground 掛載） |
 | 主題 / i18n DOM | —（圖表內 `setTheme` / `setLocale`） | `host.setLocale` | `createThemeProvider` / `createI18nProvider`（可選注入 layout） |
-| 指標窗格 × 關閉 | `setIndicatorConfig({ showMacd: false, … })` | **未覆蓋** | 窗格右上角按鈕 |
+| 指標窗格 × 關閉 | `setIndicatorConfig({ showMacd: false, … })` | `host.setIndicatorConfig` | 窗格右上角按鈕 |
 | 資料、認證 | `DataProvider` / `AuthHooks`（`@coderyo/data`） | — | — |
 
 ---

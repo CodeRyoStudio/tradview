@@ -1,0 +1,6 @@
+{
+  "type": "host.deleteSelectedDrawing",
+  "payload": {
+    "chartId": "main"
+  }
+}

@@ -34,6 +34,9 @@ export const BRIDGE_INBOUND_EVENTS = [
   'host.clearAllIndicators',
   'host.clearAllDrawings',
   'host.setDrawingTool',
+  'host.deleteSelectedDrawing',
+  'host.setFullscreen',
+  'host.exportImage',
   'host.setChartPaneResizeFocus',
   'host.resize',
   'host.destroy',
@@ -69,6 +72,7 @@ export type BridgeOutboundType =
   | 'chart.visibleRange'
   | 'chart.barUpdate'
   | 'chart.error'
+  | 'chart.exportImage'
   | BridgeLayerOutboundType;
 
 export type BridgeInboundType = (typeof BRIDGE_INBOUND_EVENTS)[number];

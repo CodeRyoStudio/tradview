@@ -11,3 +11,6 @@ coverage/
 mcps/
 agent-tools/
 terminals/
+tests/e2e-visual/test-results/
+.grok-impl-*
+.grok-review-*

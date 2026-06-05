@@ -1,5 +1,12 @@
+import { assertCdnLicense } from './license-gate.js';
+
+assertCdnLicense();
+
 export {
   createChart,
+  ChartWorkspace,
+  wireChartBridge,
+  wireWorkspaceBridge,
   TRADVIEW_API_VERSION,
   TRADVIEW_VERSION,
   type IChart,

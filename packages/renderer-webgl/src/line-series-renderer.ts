@@ -1,6 +1,10 @@
 import type { ChartViewport } from './chart-viewport.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import type { PaneRect } from './candlestick-renderer.js';
+import {
+  barIndicesInLogicalRange,
+  type LogicalBarLayout,
+} from './logical-bar-layout.js';
 import { priceToY, type PriceRange } from './price-scale.js';
 
 export interface LineSeriesSpec {
@@ -26,6 +30,7 @@ export interface LineSeriesRenderParams {
   priceRange?: PriceRange;
   cssWidth?: number;
   dpr?: number;
+  layout?: LogicalBarLayout | null;
 }
 
 function valueRange(
@@ -91,16 +96,21 @@ export class LineSeriesRenderer {
   }
 
   render(params: LineSeriesRenderParams): void {
-    const { viewport, plotWidthPx, pane, resolution, lines, histogram, priceRange } = params;
+    const { viewport, plotWidthPx, pane, resolution, lines, histogram, priceRange, layout } =
+      params;
     const cssW = params.cssWidth ?? plotWidthPx;
     const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from) return;
 
+    const barSpan = layout ? barIndicesInLogicalRange(layout, from, to) : { from, to };
     const seriesValues = lines.map((l) => l.values);
     if (histogram) seriesValues.push(histogram.values);
     const range =
-      priceRange ?? valueRange(seriesValues, from, to);
+      priceRange ??
+      (barSpan.to >= barSpan.from
+        ? valueRange(seriesValues, barSpan.from, barSpan.to)
+        : valueRange(seriesValues, from, to));
     const usePriceScale = priceRange != null;
 
     const out = this.scratch;
@@ -110,7 +120,9 @@ export class LineSeriesRenderer {
       const zeroY = yForValue(0, range, pane, usePriceScale);
       const barWidth = Math.max(1, viewport.barSpacing * 0.72);
       for (let i = from; i <= to; i++) {
-        const v = histogram.values[i];
+        const barIdx = layout ? layout.barIndexAtLogical(i) : i;
+        if (barIdx < 0) continue;
+        const v = histogram.values[barIdx];
         if (v == null) continue;
         const cx = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
         const yVal = yForValue(v, range, pane, usePriceScale);
@@ -127,7 +139,13 @@ export class LineSeriesRenderer {
       let prevX: number | null = null;
       let prevY: number | null = null;
       for (let i = from; i <= to; i++) {
-        const v = spec.values[i];
+        const barIdx = layout ? layout.barIndexAtLogical(i) : i;
+        if (barIdx < 0) {
+          prevX = null;
+          prevY = null;
+          continue;
+        }
+        const v = spec.values[barIdx];
         if (v == null) {
           prevX = null;
           prevY = null;

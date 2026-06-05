@@ -1,0 +1,7 @@
+{
+  "extends": "@coderyo/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src"]
+}

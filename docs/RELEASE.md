@@ -118,8 +118,20 @@ RC 建議優先使用 **GitHub Release 附件** `tradview.min.js`（由 CI 產�
 
 ```bash
 pnpm build:cdn
-# 產物：bundle/cdn/dist/tradview.min.js
+# 產物：
+#   bundle/cdn/dist/tradview.min.js
+#   bundle/cdn-webgl/dist/tradview-webgl.min.js
 pnpm check:cdn-size
+```
+
+### Pixel E2E（§10.4）
+
+```bash
+pnpm build
+pnpm --filter @coderyo/playground build
+pnpm --filter @tradview/e2e-visual exec playwright install chromium
+pnpm test:e2e-visual
+# 更新 baseline：pnpm --filter @tradview/e2e-visual test:update
 ```
 
 HTML：

@@ -36,6 +36,8 @@ jobs:
           mkdir -p release-assets
           cp bundle/cdn/dist/tradview.min.js "release-assets/tradview.min.js"
           gzip -c bundle/cdn/dist/tradview.min.js > "release-assets/tradview.min.js.gz"
+          cp bundle/cdn-webgl/dist/tradview-webgl.min.js "release-assets/tradview-webgl.min.js"
+          gzip -c bundle/cdn-webgl/dist/tradview-webgl.min.js > "release-assets/tradview-webgl.min.js.gz"
           echo "${VERSION}" > release-assets/VERSION.txt
 
       - name: GitHub Release
@@ -45,6 +47,8 @@ jobs:
           files: |
             release-assets/tradview.min.js
             release-assets/tradview.min.js.gz
+            release-assets/tradview-webgl.min.js
+            release-assets/tradview-webgl.min.js.gz
             release-assets/VERSION.txt
 
   publish-npm:

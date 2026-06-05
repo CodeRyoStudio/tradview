@@ -6,6 +6,7 @@ import {
   type IndicatorConfig,
 } from '@coderyo/indicators';
 import { lodDecimateBars } from '@coderyo/series';
+import { remapGapTimesAfterDecimation } from './logical-bar-layout.js';
 import { WebGLChartPane, type WebGLChartPaneOptions } from './webgl-chart-pane.js';
 import { WebGLVolumePane } from './webgl-volume-pane.js';
 import { WebGLIndicatorStack } from './webgl-indicator-stack.js';
@@ -171,14 +172,19 @@ export class WebGLPaneOrchestrator {
     this.syncSize();
   }
 
-  setBars(bars: readonly Bar[]): void {
+  setBars(bars: readonly Bar[], gaps?: readonly number[]): void {
     const inputCount = bars.length;
     const renderBars = lodDecimateBars(bars as Bar[], this.maxRenderPoints);
+    const effectiveGaps = remapGapTimesAfterDecimation(renderBars, gaps);
     this.lodStats = { inputCount, outputCount: renderBars.length };
     this.lastBars = renderBars;
     const fitViewport =
       this.lastBars.length > 0 && !this.didInitialFit && !this.skipNextInitialFit;
-    this.pane?.setData(this.lastBars, { fitViewport });
+    this.pane?.setData(this.lastBars, { fitViewport, gaps: effectiveGaps });
+    this.syncBus?.setMasterSeriesContext(
+      this.lastBars,
+      this.pane?.getLogicalBarLayout() ?? null,
+    );
     if (fitViewport) {
       this.didInitialFit = true;
     }
@@ -319,6 +325,10 @@ export class WebGLPaneOrchestrator {
   }
 
   /** Exposed for tests and demo HUD. */
+  getMainPane(): WebGLChartPane | null {
+    return this.pane;
+  }
+
   getViewport() {
     return this.pane?.viewport ?? null;
   }

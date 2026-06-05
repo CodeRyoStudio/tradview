@@ -1,0 +1,19 @@
+{
+  "name": "@tradview-example/postgres-ws-adapter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Postgres gateway REST + WebSocket reference adapter (G2-7)",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@coderyo/data": "workspace:*"
+  },
+  "devDependencies": {
+    "@coderyo/tsconfig": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

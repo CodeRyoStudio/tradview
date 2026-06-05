@@ -4,9 +4,14 @@ import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
 import { maxVolumeForBars, type PriceRange } from './price-scale.js';
 import type { ChartThemeColors } from './theme.js';
 import type { PaneRect } from './candlestick-renderer.js';
+import {
+  barIndicesInLogicalRange,
+  type LogicalBarLayout,
+} from './logical-bar-layout.js';
 
 export interface VolumeRenderParams {
   bars: readonly Bar[];
+  layout?: LogicalBarLayout | null;
   viewport: ChartViewport;
   plotWidthPx: number;
   pane: PaneRect;
@@ -41,13 +46,19 @@ export class VolumeRenderer {
   }
 
   render(params: VolumeRenderParams): void {
-    const { bars, viewport, plotWidthPx, pane, resolution, theme } = params;
+    const { bars, viewport, plotWidthPx, pane, resolution, theme, layout } = params;
     const cssW = params.cssWidth ?? plotWidthPx;
     const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from || bars.length === 0) return;
 
-    const autoMax = maxVolumeForBars(bars, from, to);
+    const barSpan = layout
+      ? barIndicesInLogicalRange(layout, from, to)
+      : { from, to };
+    const autoMax =
+      barSpan.to >= barSpan.from
+        ? maxVolumeForBars(bars, barSpan.from, barSpan.to)
+        : maxVolumeForBars(bars, from, to);
     const maxVol = params.volumeRange?.max ?? autoMax;
     if (maxVol <= 0) return;
     const spacing = viewport.barSpacing;
@@ -58,7 +69,9 @@ export class VolumeRenderer {
     out.length = 0;
 
     for (let i = from; i <= to; i++) {
-      const bar = bars[i]!;
+      const barIdx = layout ? layout.barIndexAtLogical(i) : i;
+      if (barIdx < 0) continue;
+      const bar = bars[barIdx]!;
       const vol = bar.v ?? 0;
       if (vol <= 0) continue;
 
