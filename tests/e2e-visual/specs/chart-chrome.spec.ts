@@ -3,18 +3,13 @@ import { test, expect } from '@playwright/test';
 /**
  * DESIGN-v2 §10.4 — pixel regression for critical chart chrome.
  * Run: pnpm test:e2e-visual
- * Update baselines: E2E_UPDATE_SNAPSHOTS=1 pnpm test:e2e-visual
+ * Update baselines: pnpm test:e2e-visual:update
  */
 
-/** Wait for Bridge workspace mount (avoids flaky fixed timeouts while WS loads). */
+/** Charts mounted: WebGL canvas visible in first workspace slot (mock + preview). */
 async function waitForWorkspaceReady(page: import('@playwright/test').Page): Promise<void> {
-  await page.waitForFunction(
-    () => {
-      const log = document.getElementById('log')?.textContent ?? '';
-      return log.includes('chart.workspaceReady') || log.includes('chart.ready');
-    },
-    { timeout: 45_000 },
-  );
+  const slot = page.locator('.tv-workspace-chart-slot').first();
+  await expect(slot.locator('canvas').first()).toBeVisible({ timeout: 90_000 });
 }
 
 test.describe('chart chrome (playground)', () => {
@@ -34,11 +29,6 @@ test.describe('chart chrome (playground)', () => {
   });
 
   test('workspace layout snapshot', async ({ page }) => {
-    // Baselines not committed yet — skip pixel compare in CI until E2E_UPDATE_SNAPSHOTS=1 run.
-    test.skip(
-      !!process.env.CI,
-      'Pixel baselines not in repo; run E2E_UPDATE_SNAPSHOTS=1 locally, then commit specs/**-snapshots/',
-    );
     await expect(page).toHaveScreenshot('workspace-layout.png', {
       fullPage: false,
       animations: 'disabled',

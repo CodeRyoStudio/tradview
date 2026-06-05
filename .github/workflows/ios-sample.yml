@@ -1,0 +1,43 @@
+name: iOS Sample
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'apps/sample-ios/**'
+      - '.github/workflows/ios-sample.yml'
+  pull_request:
+    paths:
+      - 'apps/sample-ios/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: apps/sample-ios
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        working-directory: apps/sample-ios
+        run: |
+          xcodebuild \
+            -project TradViewSample.xcodeproj \
+            -scheme TradViewSample \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -configuration Debug \
+            build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload generated xcodeproj (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradViewSample-xcodeproj
+          path: apps/sample-ios/TradViewSample.xcodeproj
+          if-no-files-found: error

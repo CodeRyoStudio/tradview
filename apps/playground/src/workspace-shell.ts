@@ -64,6 +64,8 @@ for (const slot of slots) {
 
 applyLink();
 
+logEl.textContent = `mounted charts: ${slots.map((s) => s.chartId).join(', ')}`;
+
 bridge.onMessage((msg) => {
   if (msg.type === 'chart.workspaceReady' || msg.type === 'chart.ready') {
     logEl.textContent = `${msg.type} charts=${JSON.stringify((msg.payload as { charts?: unknown })?.charts ?? [])}`;

@@ -6,6 +6,8 @@ WKWebView shell mirroring `apps/sample-android`: loads the Playground workspace 
 
 This repo ships Swift sources + an [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec (no checked-in `.xcodeproj`).
 
+**Windows / Linux:** use GitHub Actions **iOS Sample** (`.github/workflows/ios-sample.yml`) — it runs `xcodegen generate`, builds for Simulator, and uploads **`TradViewSample-xcodeproj`** as a downloadable artifact from the workflow run.
+
 ```bash
 brew install xcodegen   # or: mint install yonaskolb/XcodeGen
 cd apps/sample-ios

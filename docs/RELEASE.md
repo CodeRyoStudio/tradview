@@ -131,7 +131,8 @@ pnpm build
 pnpm --filter @coderyo/playground build
 pnpm --filter @tradview/e2e-visual exec playwright install chromium
 pnpm test:e2e-visual
-# 更新 baseline：pnpm --filter @tradview/e2e-visual test:update
+# 更新 baseline（mock + preview 由 Playwright webServer 啟動）：
+pnpm test:e2e-visual:update
 ```
 
 HTML：
