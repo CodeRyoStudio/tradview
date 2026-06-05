@@ -24,6 +24,8 @@ export interface LineSeriesRenderParams {
   histogram?: HistogramSeriesSpec;
   /** When set, line values are prices (main chart Y scale, V2-R6 overlays). */
   priceRange?: PriceRange;
+  cssWidth?: number;
+  dpr?: number;
 }
 
 function valueRange(
@@ -90,6 +92,8 @@ export class LineSeriesRenderer {
 
   render(params: LineSeriesRenderParams): void {
     const { viewport, plotWidthPx, pane, resolution, lines, histogram, priceRange } = params;
+    const cssW = params.cssWidth ?? plotWidthPx;
+    const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from) return;
 
@@ -108,7 +112,7 @@ export class LineSeriesRenderer {
       for (let i = from; i <= to; i++) {
         const v = histogram.values[i];
         if (v == null) continue;
-        const cx = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
+        const cx = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
         const yVal = yForValue(v, range, pane, usePriceScale);
         const top = Math.min(zeroY, yVal);
         const bottom = Math.max(zeroY, yVal);
@@ -129,7 +133,7 @@ export class LineSeriesRenderer {
           prevY = null;
           continue;
         }
-        const x = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
+        const x = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
         const y = yForValue(v, range, pane, usePriceScale);
         if (prevX != null && prevY != null) {
           pushLineSegment(out, prevX, prevY, x, y, w, spec.color);

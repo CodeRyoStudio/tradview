@@ -7,15 +7,23 @@ import {
 } from '@coderyo/indicators';
 import { t } from '@coderyo/i18n';
 import {
+  loadLinkChartsPreference,
   loadReturnToCursorPreference,
   loadShowGridPreference,
+  loadTimezonePreference,
+  saveLinkChartsPreference,
   saveReturnToCursorPreference,
   saveShowGridPreference,
+  saveTimezonePreference,
 } from './user-preferences.js';
 
 export interface SettingsPanelOptions {
   showGrid?: boolean;
   onShowGridChange?: (show: boolean) => void;
+  timeZone?: string;
+  onTimezoneChange?: (timeZone: string) => void;
+  linkCharts?: boolean;
+  onLinkChartsChange?: (link: boolean) => void;
   returnToCursorAfterDraw?: boolean;
   onReturnToCursorChange?: (v: boolean) => void;
   indicatorConfig?: IndicatorConfig;
@@ -28,6 +36,8 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
   let open = false;
   let tab: 'chart' | 'drawing' | 'indicator' = 'chart';
   let showGrid = opts.showGrid ?? loadShowGridPreference();
+  let timeZone = opts.timeZone ?? loadTimezonePreference();
+  let linkCharts = opts.linkCharts ?? loadLinkChartsPreference();
   let returnToCursor = opts.returnToCursorAfterDraw ?? loadReturnToCursorPreference();
   let indicatorConfig = { ...(opts.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG) };
 
@@ -192,6 +202,48 @@ export function mountSettingsPanel(parent: HTMLElement, opts: SettingsPanelOptio
           showGrid = v;
           saveShowGridPreference(v);
           opts.onShowGridChange?.(v);
+        }),
+      );
+      const tzRow = document.createElement('label');
+      tzRow.style.cssText =
+        'display:flex;flex-direction:column;gap:4px;margin-bottom:8px;color:#e6edf3;font-size:12px;';
+      tzRow.appendChild(document.createTextNode(t('settings.timezone', '時區')));
+      const tzSelect = document.createElement('select');
+      tzSelect.style.cssText =
+        'padding:4px 8px;border-radius:4px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;';
+      const zones = [
+        'UTC',
+        'America/New_York',
+        'America/Chicago',
+        'America/Los_Angeles',
+        'Europe/London',
+        'Europe/Berlin',
+        'Asia/Tokyo',
+        'Asia/Hong_Kong',
+        'Asia/Shanghai',
+        'Asia/Taipei',
+        'Australia/Sydney',
+      ];
+      if (!zones.includes(timeZone)) zones.unshift(timeZone);
+      for (const z of zones) {
+        const o = document.createElement('option');
+        o.value = z;
+        o.textContent = z;
+        tzSelect.appendChild(o);
+      }
+      tzSelect.value = timeZone;
+      tzSelect.onchange = () => {
+        timeZone = tzSelect.value;
+        saveTimezonePreference(timeZone);
+        opts.onTimezoneChange?.(timeZone);
+      };
+      tzRow.appendChild(tzSelect);
+      content.appendChild(tzRow);
+      content.appendChild(
+        checkbox(t('settings.linkCharts', '連結圖表時間軸'), linkCharts, (v) => {
+          linkCharts = v;
+          saveLinkChartsPreference(v);
+          opts.onLinkChartsChange?.(v);
         }),
       );
     } else if (tab === 'drawing') {

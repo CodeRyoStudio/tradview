@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Bar, DataProvider } from '@coderyo/data';
+import { DEFAULT_INDICATOR_CONFIG } from '@coderyo/indicators';
 import { ChartController } from '../src/chart-controller.js';
 import { hasWebGL2 } from '@coderyo/renderer-webgl';
 
@@ -59,6 +60,36 @@ describe.skipIf(!hasWebGL2())('ChartController webgl renderer (V2-R12)', () => {
 
     controller.destroy();
     el.remove();
+  });
+
+  it('passes volumeMount to WebGL orchestrator (layered volume)', async () => {
+    const el = document.createElement('div');
+    el.style.width = '400px';
+    el.style.height = '300px';
+    const volumeMount = document.createElement('div');
+    volumeMount.style.width = '400px';
+    volumeMount.style.height = '100px';
+    document.body.append(el, volumeMount);
+
+    stubProvider.getHistory = vi.fn(async () => ({
+      bars: sampleBars,
+      hasMore: false,
+    }));
+
+    const controller = new ChartController(el, {
+      dataProvider: stubProvider,
+      volumeMount,
+      features: { renderer: 'webgl', indicators: DEFAULT_INDICATOR_CONFIG },
+    });
+
+    await controller.setSymbol('BINANCE:BTCUSDT');
+
+    expect(volumeMount.querySelector('[data-webgl-volume-host]')).toBeTruthy();
+    expect(volumeMount.querySelector('canvas')).toBeTruthy();
+
+    controller.destroy();
+    el.remove();
+    volumeMount.remove();
   });
 
   it('emits crosshairChange from pointer move when bars loaded', async () => {

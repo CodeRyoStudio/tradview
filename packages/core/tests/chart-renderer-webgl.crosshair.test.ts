@@ -14,24 +14,32 @@ vi.mock('@coderyo/renderer-webgl', async (importOriginal) => {
       destroy: mockDestroy,
       setBars: mockSetBars,
       render: mockRender,
+      setShowGrid: vi.fn(),
       getViewport: () => ({
         visibleFrom: 0,
         visibleTo: 9,
         barSpacing: 8,
         rightPaddingPx: 56,
+        plotOffsetPx: () => 0,
         plotWidthPx: () => 300,
         plotXForBarIndex: () => 150,
+        canvasXForBarIndex: () => 150,
         barIndexAtPlotX: () => 0,
         visibleBarIndexRange: () => ({ from: 0, to: 9 }),
         setBarCount: vi.fn(),
         fitLatest: vi.fn(),
         setVisibleRange: vi.fn(),
       }),
+      getEffectiveMainPriceRange: () => ({ min: 0, max: 2 }),
       getMainPaneLayoutMetrics: () => ({
-        mainPaneHeight: 200,
+        canvasWidth: 800,
+        canvasHeight: 400,
+        cssWidth: 400,
+        mainPaneHeight: 400,
         volumePaneHeight: 40,
       }),
       getDrawingOverlayCanvas: () => null,
+      setCrosshairReadout: vi.fn(),
     })),
   };
 });
@@ -112,6 +120,26 @@ describe('WebGLChartRenderBackend crosshair (R3)', () => {
     backend.setBars([]);
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler).toHaveBeenCalledWith(null);
+
+    backend.destroy();
+    el.remove();
+  });
+
+  it('positions DOM crosshair in CSS pixels when layout metrics are device-scaled (DPR=2)', () => {
+    const el = document.createElement('div');
+    el.style.width = '400px';
+    el.style.height = '300px';
+    document.body.appendChild(el);
+
+    const backend = new WebGLChartRenderBackend(el);
+    backend.setBars([{ ...sampleBar, t: 1_000, c: 0 }]);
+    backend.setCrosshair({ timeMs: 1_000, price: 0 });
+
+    const overlay = el.querySelector('.tv-webgl-crosshair');
+    expect(overlay).not.toBeNull();
+    const hLine = overlay!.children[1] as HTMLElement;
+    expect(hLine.style.top).toBe('200px');
+    expect(hLine.style.width).toBe('400px');
 
     backend.destroy();
     el.remove();

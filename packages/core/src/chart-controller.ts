@@ -1,12 +1,18 @@
 import type { DrawingRecord, DrawingStyleMeta } from '@coderyo/drawings';
 import {
   clearedIndicatorConfig,
+  DEFAULT_INDICATOR_CONFIG,
   disableIndicatorLayer as applyDisableIndicatorLayer,
+  isVolumePaneVisible,
   listActiveIndicatorLayers,
   type IndicatorConfig,
   type IndicatorLayerId,
   type IndicatorLayerInfo,
 } from '@coderyo/indicators';
+import {
+  findVolumeBarDataIssue,
+  volumeDataWarningMessage,
+} from './validate-volume-bars.js';
 
 import type {
   Bar,
@@ -114,6 +120,7 @@ export class ChartController {
   private readonly resizeObserver: ResizeObserver;
   private loadingMore = false;
   private visibleRangeInitialized = false;
+  private lastVolumeDataWarnKey = '';
   /** Bumped on symbol/interval change to drop stale bootstrap / loadMore / WS merges. */
   private loadGeneration = 0;
   private drawingManager: DrawingManager | null = null;
@@ -159,8 +166,15 @@ export class ChartController {
     if (this.features.renderer === 'webgl') {
       this.orchestrator = new WebGLChartRenderBackend(container, {
         chartId: options.chartId,
+        volumeMount: options.volumeMount,
         drawingsLayer: this.features.drawings.layer,
         indicatorConfig: this.features.indicators ?? undefined,
+        showGrid: options.showGrid ?? false,
+        onVisibleRangeChange: (range) => {
+          if (range.toMs > range.fromMs) {
+            this.emit('visibleRangeChange', range);
+          }
+        },
       });
     } else {
       this.orchestrator = new PaneOrchestrator({
@@ -603,9 +617,12 @@ export class ChartController {
     await this.store.setSymbolInterval(trimmed, this.store.interval);
     this.drawingManager?.setContext(symbol, this.store.interval);
     this.applyPersistedIndicatorsForContext();
-    const info = await this.resolveSymbol(symbol);
+    const info = await this.resolveSymbol(trimmed);
+    if (this.features.renderer === 'webgl') {
+      (this.orchestrator as WebGLChartRenderBackend).setSymbolPriceFormat(info);
+    }
     await this.bootstrap(gen);
-    this.emit('symbolChange', info ?? { symbol });
+    this.emit('symbolChange', info ?? { symbol: trimmed });
   }
 
   async setInterval(interval: Interval): Promise<void> {
@@ -734,6 +751,31 @@ export class ChartController {
     return this;
   }
 
+  setTimezone(timeZone: string): this {
+    if (this.features.renderer === 'webgl') {
+      (this.orchestrator as WebGLChartRenderBackend).setTimezone(timeZone);
+    }
+    return this;
+  }
+
+  applyPriceScaleOptions(
+    opts: import('@coderyo/renderer-webgl').PriceScaleOptions,
+  ): this {
+    if (this.features.renderer === 'webgl') {
+      (this.orchestrator as WebGLChartRenderBackend).applyPriceScaleOptions(opts);
+    }
+    return this;
+  }
+
+  applyTimeScaleOptions(
+    opts: import('@coderyo/renderer-webgl').TimeScaleOptions,
+  ): this {
+    if (this.features.renderer === 'webgl') {
+      (this.orchestrator as WebGLChartRenderBackend).applyTimeScaleOptions(opts);
+    }
+    return this;
+  }
+
   setFullscreen(_enabled: boolean): this {
     if (_enabled && this.container.requestFullscreen) {
       void this.container.requestFullscreen();
@@ -744,15 +786,28 @@ export class ChartController {
   }
 
   async exportImage(opts?: { pixelRatio?: number }): Promise<Blob> {
-    const canvas = this.container.querySelector('canvas');
-    if (!canvas) throw new Error('No canvas to export');
     const scale = opts?.pixelRatio ?? 2;
+    const layers: HTMLCanvasElement[] = [];
+    for (const el of this.container.querySelectorAll('canvas')) {
+      layers.push(el);
+    }
+    if (this.features.renderer === 'webgl') {
+      const orch = this.orchestrator as import('./chart-renderer-webgl.js').WebGLChartRenderBackend;
+      const scaleCanvas = orch.getScaleOverlayCanvas?.();
+      if (scaleCanvas && !layers.includes(scaleCanvas)) {
+        layers.push(scaleCanvas);
+      }
+    }
+    if (layers.length === 0) throw new Error('No canvas to export');
+    const ref = layers[0]!;
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = canvas.width * scale;
-    exportCanvas.height = canvas.height * scale;
+    exportCanvas.width = ref.width * scale;
+    exportCanvas.height = ref.height * scale;
     const ctx = exportCanvas.getContext('2d')!;
     ctx.scale(scale, scale);
-    ctx.drawImage(canvas, 0, 0);
+    for (const layer of layers) {
+      ctx.drawImage(layer, 0, 0);
+    }
     return new Promise((resolve, reject) => {
       exportCanvas.toBlob((b) => (b ? resolve(b) : reject(new Error('export failed'))), 'image/png');
     });
@@ -1026,6 +1081,25 @@ export class ChartController {
     }
   }
 
+  private indicatorConfigSnapshot(): IndicatorConfig {
+    return this.features.indicators ?? DEFAULT_INDICATOR_CONFIG;
+  }
+
+  private warnIfVolumeDataIncomplete(bars: readonly Bar[]): void {
+    if (!isVolumePaneVisible(this.indicatorConfigSnapshot())) return;
+    const issue = findVolumeBarDataIssue(bars);
+    if (!issue) {
+      this.lastVolumeDataWarnKey = '';
+      return;
+    }
+    const key = `${issue.missingCount}/${issue.total}:${bars.length}:${bars[0]?.t ?? 0}:${bars[bars.length - 1]?.t ?? 0}`;
+    if (key === this.lastVolumeDataWarnKey) return;
+    this.lastVolumeDataWarnKey = key;
+    const message = volumeDataWarningMessage(issue);
+    console.warn(`[tradview] ${message}`);
+    this.emit('error', { kind: 'volume', code: 'VOLUME_DATA_MISSING', message });
+  }
+
   private refreshRender(loadGen = this.loadGeneration): void {
     if (!this.isLoadGenerationCurrent(loadGen)) return;
 
@@ -1044,6 +1118,8 @@ export class ChartController {
     const bars = this.activeVirtualWindow().getBarsForRender();
     if (bars.length === 0) return;
 
+    this.warnIfVolumeDataIncomplete(bars);
+
     const gaps = this.features.gaps.whitespace
       ? computeGapStartTimes(
           bars.map((b) => b.t),
@@ -1055,10 +1131,10 @@ export class ChartController {
     this.orchestrator.resizeAllPanes();
     this.applyPinePlots(bars);
     this.drawingManager?.redraw();
-    this.emit('visibleRangeChange', {
-      from: bars[0]!.t,
-      to: bars[bars.length - 1]!.t,
-    });
+    const range = this.getVisibleRange();
+    if (range) {
+      this.emit('visibleRangeChange', range);
+    }
   }
 
   private emit(event: ChartEvent, payload?: unknown): void {

@@ -8,6 +8,7 @@ import type { Bar } from '@coderyo/data';
 import type { ChartViewport } from './chart-viewport.js';
 import {
   createChartCoordinateMapper,
+  type ChartCoordinateMapperOptions,
   type MainPaneLayout,
 } from './chart-coordinates.js';
 
@@ -20,6 +21,7 @@ export interface WebGLDrawingLayerOptions {
   getViewport: () => ChartViewport | null;
   getBars: () => readonly Bar[];
   getLayout: () => MainPaneLayout | null;
+  getCoordinateContext?: () => ChartCoordinateMapperOptions | null;
 }
 
 /**
@@ -111,6 +113,7 @@ export class WebGLDrawingLayer {
     const vp = this.opts.getViewport();
     const layout = this.opts.getLayout();
     if (!vp || !layout) return null;
-    return createChartCoordinateMapper(vp, this.opts.getBars(), layout);
+    const ctx = this.opts.getCoordinateContext?.() ?? {};
+    return createChartCoordinateMapper(vp, this.opts.getBars(), layout, ctx);
   }
 }

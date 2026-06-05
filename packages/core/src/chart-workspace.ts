@@ -9,6 +9,8 @@ export interface ChartWorkspaceOptions {
   workspaceId?: string;
   dataProvider: CreateChartOptions['dataProvider'];
   defaultLinkGroupId?: string;
+  /** When true, linked charts sync visible range (overrides preference if set). */
+  linkChartsTimeScale?: boolean;
   bridge?: BridgeAdapter;
 }
 
@@ -68,10 +70,44 @@ export class ChartWorkspace {
       this.linkGroup = {
         id: options.defaultLinkGroupId,
         chartIds: [],
-        sync: {},
+        sync: this.defaultLinkSync(),
         generation: 0,
       };
     }
+  }
+
+  /** Toggle optional time-scale link across workspace charts. */
+  setLinkChartsTimeScale(enabled: boolean): void {
+    if (!this.linkGroup) {
+      this.linkGroup = {
+        id: 'workspace',
+        chartIds: [...this.charts.keys()],
+        sync: {},
+        generation: this.linkGeneration,
+      };
+    }
+    this.linkGroup = {
+      ...this.linkGroup,
+      sync: { ...this.linkGroup.sync, visibleRange: enabled },
+    };
+    this.options.bridge?.post({
+      type: 'chart.linkStateChanged',
+      payload: {
+        groupId: this.linkGroup.id,
+        chartIds: [...this.linkGroup.chartIds],
+        sync: this.linkGroup.sync as LinkSyncFlagsV3,
+      },
+    });
+  }
+
+  private defaultLinkSync(): LinkSyncFlags {
+    if (this.options.linkChartsTimeScale === true) {
+      return { visibleRange: true };
+    }
+    if (this.options.linkChartsTimeScale === false) {
+      return {};
+    }
+    return {};
   }
 
   getWorkspaceId(): string {

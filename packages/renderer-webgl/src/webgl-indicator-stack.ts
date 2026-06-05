@@ -7,6 +7,12 @@ import {
 import { WebGLIndicatorPane, type WebGLIndicatorPaneId } from './webgl-indicator-pane.js';
 import type { ViewportSyncBus } from './viewport-sync-bus.js';
 import type { ChartThemeColors } from './theme.js';
+import {
+  DEFAULT_INDICATOR_PRICE_FORMAT,
+  type PriceScaleOptions,
+  type SymbolPriceFormat,
+  type TimeScaleOptions,
+} from './scale/scale-types.js';
 
 export interface WebGLIndicatorStackOptions {
   theme?: Partial<ChartThemeColors>;
@@ -14,6 +20,8 @@ export interface WebGLIndicatorStackOptions {
   config?: IndicatorConfig;
   syncBus?: ViewportSyncBus;
   onConfigChange?: (config: IndicatorConfig) => void;
+  timeZone?: string;
+  symbolFormat?: SymbolPriceFormat;
 }
 
 const PANE_DEFS: Array<{ id: WebGLIndicatorPaneId; label: string; showKey: keyof IndicatorConfig }> =
@@ -35,6 +43,7 @@ export class WebGLIndicatorStack {
   private readonly onConfigChange?: (config: IndicatorConfig) => void;
   private readonly theme?: Partial<ChartThemeColors>;
   private readonly debug: boolean;
+  private timeZone: string;
 
   constructor(
     private readonly root: HTMLElement,
@@ -45,6 +54,8 @@ export class WebGLIndicatorStack {
     this.onConfigChange = opts.onConfigChange;
     this.theme = opts.theme;
     this.debug = opts.debug ?? false;
+    this.timeZone =
+      opts.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
     this.root.style.display = 'flex';
     this.root.style.flexDirection = 'column';
     this.root.style.minHeight = '0';
@@ -89,6 +100,28 @@ export class WebGLIndicatorStack {
       pane.resize(w, paneH);
       pane.render();
     }
+  }
+
+  setTimezone(timeZone: string): void {
+    this.timeZone = timeZone;
+    for (const pane of this.panes.values()) pane.setTimezone(timeZone);
+  }
+
+  applyPriceScaleOptions(opts: Partial<PriceScaleOptions>): void {
+    for (const pane of this.panes.values()) pane.applyPriceScaleOptions(opts);
+  }
+
+  applyTimeScaleOptions(opts: Partial<TimeScaleOptions>): void {
+    for (const pane of this.panes.values()) pane.applyTimeScaleOptions(opts);
+  }
+
+  /** Ignored — indicator axes always use {@link DEFAULT_INDICATOR_PRICE_FORMAT}. */
+  setSymbolPriceFormat(_format: SymbolPriceFormat): void {
+    /* no-op: main chart symbol minMove must not affect MACD/RSI/KDJ ticks */
+  }
+
+  setCrosshairReadout(price: number | null, timeMs: number | null): void {
+    for (const pane of this.panes.values()) pane.setCrosshairReadout(price, timeMs);
   }
 
   /** Follower viewports (tests / debug). */
@@ -151,7 +184,9 @@ export class WebGLIndicatorStack {
           theme: this.theme,
           debug: this.debug,
           syncBus: this.syncBus,
+          timeZone: this.timeZone,
         });
+        pane.setSymbolPriceFormat(DEFAULT_INDICATOR_PRICE_FORMAT);
         this.panes.set(def.id, pane);
       }
       this.root.appendChild(wrap);

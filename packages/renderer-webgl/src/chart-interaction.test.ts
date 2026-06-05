@@ -33,4 +33,25 @@ describe('ChartInteraction', () => {
     expect(addSpy).toHaveBeenCalledWith('wheel', expect.any(Function), { passive: false });
     interaction.destroy();
   });
+
+  it('plot drag invokes onPricePan for vertical movement', () => {
+    const el = document.createElement('div');
+    el.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 800, height: 400, right: 800, bottom: 400 }) as DOMRect;
+    const vp = new ChartViewport({ rightPaddingPx: 56 });
+    const pricePan = vi.fn();
+    const interaction = new ChartInteraction(el, vp, () => vp.plotWidthPx(800), {
+      requestRender: vi.fn(),
+      getPlotHeight: () => 300,
+      onPricePan: pricePan,
+    });
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 200, clientY: 100, button: 0, bubbles: true }),
+    );
+    el.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 200, clientY: 130, button: 0, bubbles: true }),
+    );
+    expect(pricePan).toHaveBeenCalled();
+    interaction.destroy();
+  });
 });

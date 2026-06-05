@@ -11,6 +11,16 @@ import { LineSeriesRenderer } from './line-series-renderer.js';
 import { WebGL2Context } from './webgl2-context.js';
 import { mergeTheme, type ChartThemeColors } from './theme.js';
 import type { ViewportSyncBus } from './viewport-sync-bus.js';
+import { PaneScaleHost } from './scale/pane-scale-host.js';
+import { hitTestScaleRegion, type ScaleLayoutCss } from './scale/scale-interaction.js';
+import { ChartInteraction } from './chart-interaction.js';
+import {
+  DEFAULT_INDICATOR_PRICE_FORMAT,
+  type PriceScaleOptions,
+  type SymbolPriceFormat,
+  type TimeScaleOptions,
+} from './scale/scale-types.js';
+import type { PriceRange } from './price-scale.js';
 
 export type WebGLIndicatorPaneId = 'macd' | 'rsi' | 'kdj';
 
@@ -20,6 +30,7 @@ export interface WebGLIndicatorPaneOptions {
   theme?: Partial<ChartThemeColors>;
   debug?: boolean;
   syncBus?: ViewportSyncBus;
+  timeZone?: string;
 }
 
 function barsForSource(bars: Bar[], source: IndicatorSource): Bar[] {
@@ -27,8 +38,32 @@ function barsForSource(bars: Bar[], source: IndicatorSource): Bar[] {
   return bars.map((b) => ({ ...b, c: (b.h + b.l + b.c) / 3 }));
 }
 
+function valueRangeFromSeries(
+  series: Array<{ values: readonly (number | null)[] }>,
+  from: number,
+  to: number,
+): PriceRange {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const s of series) {
+    for (let i = from; i <= to; i++) {
+      const v = s.values[i];
+      if (v == null || !Number.isFinite(v)) continue;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return { min: 0, max: 1 };
+  if (min === max) {
+    const pad = Math.max(1, Math.abs(min) * 0.05);
+    return { min: min - pad, max: max + pad };
+  }
+  const pad = (max - min) * 0.08;
+  return { min: min - pad, max: max + pad };
+}
+
 /**
- * Single indicator sub-pane (MACD / RSI / KDJ) with its own WebGL canvas.
+ * Single indicator sub-pane (MACD / RSI / KDJ) with its own WebGL canvas + price axis.
  */
 export class WebGLIndicatorPane {
   readonly viewport: ChartViewport;
@@ -40,11 +75,18 @@ export class WebGLIndicatorPane {
   private readonly debug: boolean;
   private readonly syncBus: ViewportSyncBus | undefined;
   private readonly syncUnregister: (() => void) | null;
+  private readonly scaleHost: PaneScaleHost;
+  private interaction: ChartInteraction | null = null;
 
   private bars: Bar[] = [];
   private config: IndicatorConfig | null = null;
   private width = 0;
+  private height = 0;
   private disposed = false;
+  private rafId: number | null = null;
+  private crosshairPrice: number | null = null;
+  private crosshairTimeMs: number | null = null;
+  private lastAutoRange: PriceRange = { min: 0, max: 1 };
 
   constructor(
     private readonly container: HTMLElement,
@@ -58,6 +100,18 @@ export class WebGLIndicatorPane {
     this.lines = new LineSeriesRenderer(this.context.gl, this.debug);
     this.syncBus = opts.syncBus;
     this.syncUnregister = opts.syncBus?.register(this.viewport) ?? null;
+    const followsMaster = opts.syncBus != null;
+
+    this.scaleHost = new PaneScaleHost(container, {
+      interactionElement: this.context.canvas,
+      getAutoPriceRange: () => this.lastAutoRange,
+      requestRender: () => this.scheduleRender(),
+      getCssLayout: () => this.getScaleLayoutCss(),
+      enableTimeInteraction: !followsMaster,
+    });
+    this.scaleHost.bindViewport(this.viewport);
+    this.scaleHost.setSymbolPriceFormat(DEFAULT_INDICATOR_PRICE_FORMAT);
+    if (opts.timeZone) this.scaleHost.setTimezone(opts.timeZone);
 
     container.style.position = container.style.position || 'relative';
     container.style.overflow = 'hidden';
@@ -69,12 +123,55 @@ export class WebGLIndicatorPane {
       'position:absolute;left:6px;top:4px;z-index:2;font-size:10px;color:#8b949e;pointer-events:none;';
     container.appendChild(tag);
 
+    this.interaction = new ChartInteraction(
+      this.context.canvas,
+      this.viewport,
+      () => this.viewport.plotWidthPx(this.width),
+      {
+        requestRender: () => this.scheduleRender(),
+        shouldHandlePlotPointer: (e) => this.shouldHandlePlotPointer(e),
+        enableTimePan: () => !this.syncBus,
+        enablePricePan: () => true,
+        getPlotHeight: () => this.height || this.context.canvas.clientHeight || 72,
+        onPricePan: (dy, plotH) => {
+          this.scaleHost.panPriceRange('price', dy, plotH);
+        },
+      },
+    );
+
     this.context.setContextHandlers({
       onRestored: () => {
         this.lines.onContextRestored();
         this.scheduleRender();
       },
     });
+  }
+
+  applyPriceScaleOptions(opts: Partial<PriceScaleOptions>): void {
+    const { position: _position, ...rest } = opts;
+    this.scaleHost.applyPriceScaleOptions(rest);
+    this.scheduleRender();
+  }
+
+  applyTimeScaleOptions(opts: Partial<TimeScaleOptions>): void {
+    this.scaleHost.applyTimeScaleOptions(opts);
+    this.scheduleRender();
+  }
+
+  setSymbolPriceFormat(format: SymbolPriceFormat): void {
+    this.scaleHost.setSymbolPriceFormat(format);
+    this.scheduleRender();
+  }
+
+  setTimezone(timeZone: string): void {
+    this.scaleHost.setTimezone(timeZone);
+    this.scheduleRender();
+  }
+
+  setCrosshairReadout(price: number | null, timeMs: number | null): void {
+    this.crosshairPrice = price;
+    this.crosshairTimeMs = timeMs;
+    this.scheduleRender();
   }
 
   setBars(bars: readonly Bar[], config: IndicatorConfig): void {
@@ -87,7 +184,9 @@ export class WebGLIndicatorPane {
 
   resize(cssWidth: number, cssHeight: number): void {
     this.width = cssWidth;
-    this.context.resize(cssWidth, cssHeight);
+    this.height = cssHeight;
+    const size = this.context.resize(cssWidth, cssHeight);
+    this.scaleHost.resize(cssWidth, cssHeight, size.dpr);
     this.scheduleRender();
   }
 
@@ -98,7 +197,9 @@ export class WebGLIndicatorPane {
     const h = size.height;
     if (w <= 0 || h <= 0 || this.bars.length === 0) return;
 
-    const plotW = this.viewport.plotWidthPx(this.width || w);
+    const cssWidth = this.width || w / (globalThis.devicePixelRatio ?? 1);
+    const dpr = w / Math.max(1, cssWidth);
+    const plotW = this.viewport.plotWidthPx(cssWidth);
     const pane = { left: 0, top: 0, width: w, height: h };
     const resolution: [number, number] = [w, h];
 
@@ -106,22 +207,69 @@ export class WebGLIndicatorPane {
     const series = this.buildSeries(this.bars, this.config);
     if (!series) return;
 
+    const { from, to } = this.viewport.visibleBarIndexRange();
+    const allLines = [
+      ...series.lines,
+      ...(series.histogram ? [{ values: series.histogram.values }] : []),
+    ];
+    this.lastAutoRange = valueRangeFromSeries(allLines, from, to);
+    const priceRange = this.scaleHost.getEffectivePriceRange(this.lastAutoRange, 'price');
+
     this.lines.render({
       viewport: this.viewport,
       plotWidthPx: plotW,
+      cssWidth,
+      dpr,
       pane,
       resolution,
       ...series,
+      priceRange,
     });
     this.context.gl.flush();
+
+    this.scaleHost.draw({
+      deviceWidth: w,
+      deviceHeight: h,
+      cssWidth,
+      dpr,
+      viewport: this.viewport,
+      bars: this.bars,
+      showTimeAxis: false,
+      crosshairPrice: this.crosshairPrice,
+      crosshairTimeMs: this.crosshairTimeMs,
+      priceBands: [{ top: 0, bottom: h, range: this.lastAutoRange, kind: 'price' }],
+    });
   }
 
   destroy(): void {
     this.disposed = true;
+    if (this.rafId != null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.interaction?.destroy();
+    this.interaction = null;
     this.syncUnregister?.();
+    this.scaleHost.destroy();
     this.lines.dispose();
     this.context.destroy();
     this.container.replaceChildren();
+  }
+
+  private getScaleLayoutCss(): ScaleLayoutCss {
+    const cssWidth = this.width || this.context.canvas.clientWidth || 400;
+    const cssHeight = this.height || this.context.canvas.clientHeight || 72;
+    return { cssWidth, cssHeight, mainPaneHeight: cssHeight };
+  }
+
+  private shouldHandlePlotPointer(e: PointerEvent | WheelEvent): boolean {
+    const rect = this.context.canvas.getBoundingClientRect();
+    const region = hitTestScaleRegion(this.viewport, {
+      canvasX: e.clientX - rect.left,
+      canvasY: e.clientY - rect.top,
+      ...this.getScaleLayoutCss(),
+    });
+    return region === 'plot';
   }
 
   private buildSeries(
@@ -167,8 +315,6 @@ export class WebGLIndicatorPane {
         return null;
     }
   }
-
-  private rafId: number | null = null;
 
   private scheduleRender(): void {
     if (this.disposed || this.rafId != null) return;

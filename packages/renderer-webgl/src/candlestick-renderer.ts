@@ -25,6 +25,11 @@ export interface CandlestickRenderParams {
   resolution: [number, number];
   theme: ChartThemeColors;
   priceScaleMode?: PriceScaleMode;
+  /** When set, overrides auto range from visible bars (manual price scale). */
+  priceRange?: PriceRange;
+  /** CSS width for viewport plot math. */
+  cssWidth?: number;
+  dpr?: number;
 }
 
 /**
@@ -51,11 +56,14 @@ export class CandlestickRenderer {
 
   render(params: CandlestickRenderParams): void {
     const { bars, viewport, plotWidthPx, pane, resolution, theme } = params;
+    const cssW = params.cssWidth ?? plotWidthPx;
+    const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from || bars.length === 0) return;
 
     const mode = params.priceScaleMode ?? 'linear';
-    const range = priceRangeForBars(bars, from, to, mode);
+    const range =
+      params.priceRange ?? priceRangeForBars(bars, from, to, mode);
     const spacing = viewport.barSpacing;
     const bodyWidth = Math.max(1, spacing * 0.72);
     const wickWidth = Math.max(1, Math.min(2, spacing * 0.12));
@@ -65,7 +73,7 @@ export class CandlestickRenderer {
 
     for (let i = from; i <= to; i++) {
       const bar = bars[i]!;
-      const cx = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
+      const cx = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
       const bullish = bar.c >= bar.o;
       const color = bullish ? theme.bullish : theme.bearish;
 

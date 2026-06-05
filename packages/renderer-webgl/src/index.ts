@@ -15,7 +15,10 @@ export type { VolumeRenderParams } from './volume-renderer.js';
 export { WebGLChartPane } from './webgl-chart-pane.js';
 export type { WebGLChartPaneOptions } from './webgl-chart-pane.js';
 
-export { WebGLPaneOrchestrator } from './webgl-pane-orchestrator.js';
+export { WebGLVolumePane } from './webgl-volume-pane.js';
+export type { WebGLVolumePaneOptions } from './webgl-volume-pane.js';
+
+export { WebGLPaneOrchestrator, isLayeredPaneMount } from './webgl-pane-orchestrator.js';
 export type { WebGLPaneOrchestratorOptions } from './webgl-pane-orchestrator.js';
 
 export { LineSeriesRenderer } from './line-series-renderer.js';
@@ -45,7 +48,11 @@ export {
   createChartCoordinateMapper,
   timeMsAtBarIndex,
 } from './chart-coordinates.js';
-export type { ChartCoordinateMapper, MainPaneLayout } from './chart-coordinates.js';
+export type {
+  ChartCoordinateMapper,
+  ChartCoordinateMapperOptions,
+  MainPaneLayout,
+} from './chart-coordinates.js';
 
 export { DEFAULT_CHART_THEME, mergeTheme } from './theme.js';
 export type { ChartThemeColors } from './theme.js';
@@ -63,3 +70,18 @@ export {
   isWebGL2TestContextInstalled,
 } from './webgl2-test-context.js';
 export { pinePlotsToLineSpecs, type PinePlotLineInput } from './pine-overlay-lines.js';
+
+/** Scale styling helpers (freeze-friendly); tick engines are internal. */
+export {
+  DEFAULT_PRICE_SCALE_OPTIONS,
+  DEFAULT_TIME_SCALE_OPTIONS,
+  DEFAULT_INDICATOR_PRICE_FORMAT,
+  symbolFormatFromInfo,
+  mergePriceScaleOptions,
+  mergeTimeScaleOptions,
+} from './scale/scale-types.js';
+export type {
+  PriceScaleOptions,
+  TimeScaleOptions,
+  SymbolPriceFormat,
+} from './scale/scale-types.js';

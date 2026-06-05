@@ -1,6 +1,12 @@
 import type { Bar } from '@coderyo/data';
 import type { ChartViewport } from './chart-viewport.js';
-import { priceRangeForBars, priceToY as mapPriceToY } from './price-scale.js';
+import {
+  priceRangeForBars,
+  priceToY as mapPriceToY,
+  yToPrice as mapYToPrice,
+  type PriceRange,
+  type PriceScaleMode,
+} from './price-scale.js';
 
 /** Device-pixel layout for mapping price/time to the main chart pane. */
 export interface MainPaneLayout {
@@ -9,6 +15,11 @@ export interface MainPaneLayout {
   mainPaneHeight: number;
   /** CSS width used by {@link ChartViewport} plot math. */
   cssWidth: number;
+}
+
+export interface ChartCoordinateMapperOptions {
+  priceRange?: PriceRange;
+  priceScaleMode?: PriceScaleMode;
 }
 
 export interface ChartCoordinateMapper {
@@ -50,17 +61,19 @@ export function timeMsAtBarIndex(bars: readonly Bar[], index: number): number {
 
 /**
  * Map bar time/price ↔ overlay canvas pixels (device pixels, main pane only).
- * Matches `@coderyo/drawings` expectations (same scale as renderer-lite overlay).
  */
 export function createChartCoordinateMapper(
   viewport: ChartViewport,
   bars: readonly Bar[],
   layout: MainPaneLayout,
+  mapperOpts: ChartCoordinateMapperOptions = {},
 ): ChartCoordinateMapper {
-  const dpr = globalThis.devicePixelRatio ?? 1;
+  const dpr = layout.canvasWidth / Math.max(1, layout.cssWidth);
   const plotW = viewport.plotWidthPx(layout.cssWidth);
   const { from, to } = viewport.visibleBarIndexRange();
-  const priceRange = priceRangeForBars(bars, from, to);
+  const mode = mapperOpts.priceScaleMode ?? 'linear';
+  const priceRange =
+    mapperOpts.priceRange ?? priceRangeForBars(bars, from, to, mode);
   const mainTop = 0;
   const mainBottom = layout.mainPaneHeight;
 
@@ -68,25 +81,20 @@ export function createChartCoordinateMapper(
     timeToX(tMs: number) {
       if (bars.length === 0 || plotW <= 0) return null;
       const idx = barIndexForTimeMs(bars, tMs);
-      const plotX = viewport.plotXForBarIndex(idx, plotW);
-      return plotX * dpr;
+      return viewport.barCenterDeviceX(idx, layout.cssWidth, dpr, 0);
     },
     priceToY(price: number) {
       if (layout.mainPaneHeight <= 0) return null;
-      const y = mapPriceToY(price, priceRange, mainTop, mainBottom);
-      return y;
+      return mapPriceToY(price, priceRange, mainTop, mainBottom, mode);
     },
     xToTime(x: number) {
       if (bars.length === 0 || plotW <= 0) return null;
-      const plotX = x / dpr;
+      const plotX = x / dpr - viewport.plotOffsetPx();
       const idx = viewport.barIndexAtPlotX(plotX, plotW);
       return timeMsAtBarIndex(bars, idx);
     },
     yToPrice(y: number) {
-      const span = priceRange.max - priceRange.min;
-      if (span <= 0 || layout.mainPaneHeight <= 0) return null;
-      const t = (mainBottom - y) / (mainBottom - mainTop);
-      return priceRange.min + t * span;
+      return mapYToPrice(y, priceRange, mainTop, mainBottom, mode);
     },
   };
 }

@@ -163,8 +163,12 @@ export function wireChartBridge(opts: WireChartBridgeOptions): () => void {
     post('chart.connectionChange', { chartId, state });
   });
   handlers.set('visibleRangeChange', (range) => {
-    const r = range as { from?: number; to?: number };
-    post('chart.visibleRange', { chartId, from: r.from, to: r.to });
+    const r = range as { fromMs?: number; toMs?: number; from?: number; to?: number };
+    post('chart.visibleRange', {
+      chartId,
+      from: r.fromMs ?? r.from,
+      to: r.toMs ?? r.to,
+    });
   });
   handlers.set('error', (err) => {
     const e = err as { code?: string; message?: string };

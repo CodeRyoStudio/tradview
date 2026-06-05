@@ -38,6 +38,12 @@ export interface IChart {
   setTheme(theme: 'dark' | 'light'): IChart;
   setShowGrid(show: boolean): IChart;
   setLogScale(enabled: boolean): IChart;
+  /** IANA timezone for WebGL time-axis labels (no-op on LWC path). */
+  setTimezone(timeZone: string): IChart;
+  /** WebGL price-axis colors/fonts/position only. */
+  applyPriceScaleOptions(opts: import('@coderyo/renderer-webgl').PriceScaleOptions): IChart;
+  /** WebGL time-axis colors/fonts only. */
+  applyTimeScaleOptions(opts: import('@coderyo/renderer-webgl').TimeScaleOptions): IChart;
   fitContent(): IChart;
   scrollToRealtime(): IChart;
   /** Visible time range in ms (`fromMs` / `toMs`), or `null` if unknown. */
@@ -114,6 +120,18 @@ function wrap(controller: ChartController, beforeDestroy?: () => void): IChart {
     },
     setLogScale: (enabled) => {
       controller.setLogScale(enabled);
+      return wrap(controller, beforeDestroy);
+    },
+    setTimezone: (timeZone) => {
+      controller.setTimezone(timeZone);
+      return wrap(controller, beforeDestroy);
+    },
+    applyPriceScaleOptions: (opts) => {
+      controller.applyPriceScaleOptions(opts);
+      return wrap(controller, beforeDestroy);
+    },
+    applyTimeScaleOptions: (opts) => {
+      controller.applyTimeScaleOptions(opts);
       return wrap(controller, beforeDestroy);
     },
     fitContent: () => {

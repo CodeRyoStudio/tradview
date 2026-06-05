@@ -14,7 +14,9 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'CandlestickRenderer',
   'VolumeRenderer',
   'WebGLChartPane',
+  'WebGLVolumePane',
   'WebGLPaneOrchestrator',
+  'isLayeredPaneMount',
   'LineSeriesRenderer',
   'WebGLIndicatorStack',
   'WebGLIndicatorPane',
@@ -34,6 +36,12 @@ const PUBLIC_RENDERER_WEBGL_VALUE_EXPORTS = [
   'installWebGL2TestHarness',
   'isWebGL2TestContextInstalled',
   'pinePlotsToLineSpecs',
+  'DEFAULT_PRICE_SCALE_OPTIONS',
+  'DEFAULT_TIME_SCALE_OPTIONS',
+  'DEFAULT_INDICATOR_PRICE_FORMAT',
+  'symbolFormatFromInfo',
+  'mergePriceScaleOptions',
+  'mergeTimeScaleOptions',
 ] as const;
 
 describe('@coderyo/renderer-webgl public exports', () => {

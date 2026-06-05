@@ -1,7 +1,7 @@
 import type { Bar } from '@coderyo/data';
 import type { ChartViewport } from './chart-viewport.js';
 import { pushQuad, SolidBatchRenderer } from './solid-batch.js';
-import { maxVolumeForBars } from './price-scale.js';
+import { maxVolumeForBars, type PriceRange } from './price-scale.js';
 import type { ChartThemeColors } from './theme.js';
 import type { PaneRect } from './candlestick-renderer.js';
 
@@ -12,6 +12,10 @@ export interface VolumeRenderParams {
   pane: PaneRect;
   resolution: [number, number];
   theme: ChartThemeColors;
+  cssWidth?: number;
+  dpr?: number;
+  /** Effective volume scale (manual override or auto max). */
+  volumeRange?: PriceRange;
 }
 
 /**
@@ -38,10 +42,14 @@ export class VolumeRenderer {
 
   render(params: VolumeRenderParams): void {
     const { bars, viewport, plotWidthPx, pane, resolution, theme } = params;
+    const cssW = params.cssWidth ?? plotWidthPx;
+    const dpr = params.dpr ?? resolution[0] / Math.max(1, pane.width);
     const { from, to } = viewport.visibleBarIndexRange();
     if (to < from || bars.length === 0) return;
 
-    const maxVol = maxVolumeForBars(bars, from, to);
+    const autoMax = maxVolumeForBars(bars, from, to);
+    const maxVol = params.volumeRange?.max ?? autoMax;
+    if (maxVol <= 0) return;
     const spacing = viewport.barSpacing;
     const barWidth = Math.max(1, spacing * 0.82);
     const baseline = pane.top + pane.height;
@@ -54,7 +62,7 @@ export class VolumeRenderer {
       const vol = bar.v ?? 0;
       if (vol <= 0) continue;
 
-      const cx = pane.left + viewport.plotXForBarIndex(i + 0.5, plotWidthPx);
+      const cx = viewport.barCenterDeviceX(i + 0.5, cssW, dpr, pane.left);
       const h = (vol / maxVol) * pane.height;
       const bullish = bar.c >= bar.o;
       const color = bullish ? theme.volumeBullish : theme.volumeBearish;

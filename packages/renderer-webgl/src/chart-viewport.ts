@@ -4,15 +4,18 @@ export const DEFAULT_BAR_SPACING = 8;
 export const MIN_BAR_SPACING = 2;
 export const MAX_BAR_SPACING = 48;
 export const DEFAULT_RIGHT_PADDING_PX = 56;
+export const DEFAULT_GUTTER_PX = 56;
 
 export interface ChartViewportOptions {
   barSpacing?: number;
+  leftPaddingPx?: number;
   rightPaddingPx?: number;
 }
 
 export class ChartViewport {
   barSpacing: number;
-  readonly rightPaddingPx: number;
+  leftPaddingPx: number;
+  rightPaddingPx: number;
 
   private _barCount = 0;
   private _visibleFrom = 0;
@@ -20,7 +23,19 @@ export class ChartViewport {
 
   constructor(opts: ChartViewportOptions = {}) {
     this.barSpacing = clampBarSpacing(opts.barSpacing ?? DEFAULT_BAR_SPACING);
+    this.leftPaddingPx = opts.leftPaddingPx ?? 0;
     this.rightPaddingPx = opts.rightPaddingPx ?? DEFAULT_RIGHT_PADDING_PX;
+  }
+
+  /** Place price gutter on left or right (main chart only). */
+  setPriceAxisPosition(position: 'left' | 'right', gutterPx = DEFAULT_GUTTER_PX): void {
+    if (position === 'left') {
+      this.leftPaddingPx = gutterPx;
+      this.rightPaddingPx = 0;
+    } else {
+      this.leftPaddingPx = 0;
+      this.rightPaddingPx = gutterPx;
+    }
   }
 
   get barCount(): number {
@@ -40,6 +55,11 @@ export class ChartViewport {
     return this._visibleTo - this._visibleFrom;
   }
 
+  /** CSS offset where the plot area begins. */
+  plotOffsetPx(): number {
+    return this.leftPaddingPx;
+  }
+
   /** Update bar count only; does not change pan/zoom (use {@link fitLatest} or {@link syncFrom}). */
   setBarCount(count: number): void {
     this._barCount = Math.max(0, count);
@@ -56,20 +76,22 @@ export class ChartViewport {
     this.clampRange();
   }
 
-  /** Plot width excluding right padding (price axis gutter). */
+  /** Plot width excluding left/right price gutters (CSS pixels). */
   plotWidthPx(totalWidthPx: number): number {
-    return Math.max(1, totalWidthPx - this.rightPaddingPx);
+    return Math.max(1, totalWidthPx - this.leftPaddingPx - this.rightPaddingPx);
   }
 
-  /** Whether canvas-local x lies in the plot area (left of the price gutter). */
+  /** Whether canvas-local x (CSS) lies in the plot area. */
   isPlotCanvasX(canvasX: number, totalWidthPx: number): boolean {
-    return canvasX >= 0 && canvasX < this.plotWidthPx(totalWidthPx);
+    return (
+      canvasX >= this.leftPaddingPx && canvasX < totalWidthPx - this.rightPaddingPx
+    );
   }
 
-  /** Map canvas-local x to plot coordinates, clamped to the plot band. */
+  /** Map canvas-local x (CSS) to plot coordinates. */
   plotXFromCanvasX(canvasX: number, totalWidthPx: number): number {
     const plotW = this.plotWidthPx(totalWidthPx);
-    return Math.min(plotW, Math.max(0, canvasX));
+    return Math.min(plotW, Math.max(0, canvasX - this.leftPaddingPx));
   }
 
   /** Bars that fit at current spacing in the plot area. */
@@ -141,11 +163,26 @@ export class ChartViewport {
     return t;
   }
 
-  /** Plot x for bar index (bar center). */
+  /** Plot x for bar index (bar center), relative to plot area origin (CSS px). */
   plotXForBarIndex(barIndex: number, plotWidthPx: number): number {
     const span = this.visibleSpan;
     if (span <= 0) return 0;
     return ((barIndex - this._visibleFrom) / span) * plotWidthPx;
+  }
+
+  /** Canvas X (CSS) for bar center. */
+  canvasXForBarIndex(barIndex: number, totalWidthCss: number): number {
+    return this.plotOffsetPx() + this.plotXForBarIndex(barIndex, this.plotWidthPx(totalWidthCss));
+  }
+
+  /** Device-pixel X for bar center on canvas. */
+  barCenterDeviceX(
+    barIndex: number,
+    totalWidthCss: number,
+    dpr: number,
+    paneLeftDevice = 0,
+  ): number {
+    return paneLeftDevice + this.canvasXForBarIndex(barIndex, totalWidthCss) * dpr;
   }
 
   /** Inclusive integer bar index range intersecting the viewport. */
@@ -176,7 +213,6 @@ export class ChartViewport {
       to = from + maxSpan;
     }
 
-    // Allow slight overscroll past edges for UX
     const overscroll = span * 0.15;
     const minFrom = -overscroll;
     const maxFrom = Math.max(0, this._barCount - span * 0.25) + overscroll;

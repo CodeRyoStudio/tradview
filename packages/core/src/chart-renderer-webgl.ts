@@ -19,7 +19,10 @@ import {
 import {
   WebGLPaneOrchestrator,
   barIndexForTimeMs,
+  symbolFormatFromInfo,
   timeMsAtBarIndex,
+  type PriceScaleOptions,
+  type TimeScaleOptions,
   type WebGLPaneOrchestratorOptions,
 } from '@coderyo/renderer-webgl';
 import type { ChartPaneId } from '@coderyo/renderer-lite';
@@ -29,9 +32,13 @@ import type { LayerSyncInput } from './resolve-pane-sync-groups.js';
 import type { PaneSyncGroupPatch } from './resolve-pane-sync-groups.js';
 
 export interface WebGLChartRenderOptions extends Omit<WebGLPaneOrchestratorOptions, 'theme'> {
+  /** P2: separate volume pane mount (layer compositor). */
+  volumeMount?: HTMLElement;
   chartId?: string;
   showGrid?: boolean;
   drawingsLayer?: boolean;
+  /** Fired after pan/zoom so workspace can fan out {@link ChartVisibleRange}. */
+  onVisibleRangeChange?: (range: ChartVisibleRange) => void;
 }
 
 /**
@@ -46,19 +53,23 @@ export class WebGLChartRenderBackend {
   private readonly crosshairListeners = new Set<(payload: CrosshairPayload | null) => void>();
   private programmaticCrosshair: CrosshairPayload | null = null;
   private logScaleEnabled = false;
+  private showGrid = false;
   private syncingBusFromViewport = false;
   private smoothPriceUpdate = false;
   private smoothPriceDurationMs = 150;
   private barAnimator: BarSmoothAnimator | null = null;
   private readonly crosshairOverlay: WebGLCrosshairOverlay;
+  private readonly onVisibleRangeChange?: (range: ChartVisibleRange) => void;
   constructor(
     private readonly container: HTMLElement,
     options: WebGLChartRenderOptions = {},
   ) {
     const drawingsEnabled = options.drawingsLayer ?? false;
+    this.onVisibleRangeChange = options.onVisibleRangeChange;
     this.orchestrator = new WebGLPaneOrchestrator({
       ...options,
       debug: options.debug ?? false,
+      onViewportChange: () => this.syncBusFromViewport(),
       drawings: drawingsEnabled
         ? {
             enabled: true,
@@ -66,7 +77,9 @@ export class WebGLChartRenderBackend {
           }
         : undefined,
     });
+    this.showGrid = options.showGrid ?? false;
     this.orchestrator.mount(container);
+    this.orchestrator.setShowGrid(this.showGrid);
     this.crosshairOverlay = new WebGLCrosshairOverlay(container);
     this.offBusTransform = this.busRegistry.getOrCreateBus('main').subscribeTransform(() => {
       this.syncBusFromViewport();
@@ -97,8 +110,7 @@ export class WebGLChartRenderBackend {
   }
 
   resetViewState(): void {
-    const vp = this.orchestrator.getViewport();
-    if (vp) vp.setBarCount(0);
+    this.orchestrator.resetViewState();
   }
 
   resize(): void {
@@ -110,6 +122,7 @@ export class WebGLChartRenderBackend {
   }
 
   destroy(): void {
+    this.detachPointerCrosshair();
     this.offBusTransform?.();
     this.offBusTransform = null;
     this.barAnimator?.cancel();
@@ -134,8 +147,9 @@ export class WebGLChartRenderBackend {
     this.orchestrator.render();
   }
 
-  setShowGrid(_show: boolean): void {
-    this.orchestrator.render();
+  setShowGrid(show: boolean): void {
+    this.showGrid = show;
+    this.orchestrator.setShowGrid(show);
   }
 
   setBarSpacingPolicy(_opts: {
@@ -181,7 +195,7 @@ export class WebGLChartRenderBackend {
   }
 
   preserveViewportOnNextSetBars(): void {
-    /* viewport kept via WebGL orchestrator state */
+    this.orchestrator.preserveViewportOnNextSetBars();
   }
 
   compensatePrependForBuses(
@@ -283,6 +297,26 @@ export class WebGLChartRenderBackend {
     this.orchestrator.setLogScale(enabled);
   }
 
+  setTimezone(timeZone: string): void {
+    this.orchestrator.setTimezone(timeZone);
+  }
+
+  applyPriceScaleOptions(opts: Partial<PriceScaleOptions>): void {
+    this.orchestrator.applyPriceScaleOptions(opts);
+  }
+
+  applyTimeScaleOptions(opts: Partial<TimeScaleOptions>): void {
+    this.orchestrator.applyTimeScaleOptions(opts);
+  }
+
+  setSymbolPriceFormat(info: { priceScale?: number; minMove?: number } | null): void {
+    this.orchestrator.setSymbolPriceFormat(symbolFormatFromInfo(info ?? undefined));
+  }
+
+  getScaleOverlayCanvas(): HTMLCanvasElement | null {
+    return this.orchestrator.getScaleOverlayCanvas?.() ?? null;
+  }
+
   getOverlayCanvas(): HTMLCanvasElement | null {
     return (
       this.orchestrator.getDrawingOverlayCanvas() ??
@@ -351,6 +385,7 @@ export class WebGLChartRenderBackend {
     this.programmaticCrosshair = null;
     this.crosshairActive = false;
     this.crosshairOverlay.hide();
+    this.orchestrator.setCrosshairReadout?.(null, null);
     this.notifyCrosshairListeners(null);
   }
 
@@ -373,6 +408,7 @@ export class WebGLChartRenderBackend {
     this.programmaticCrosshair = null;
     this.crosshairActive = false;
     this.crosshairOverlay.hide();
+    this.orchestrator.setCrosshairReadout?.(null, null);
     this.notifyCrosshairListeners(null);
   }
 
@@ -387,6 +423,7 @@ export class WebGLChartRenderBackend {
       this.crosshairActive = false;
       this.programmaticCrosshair = null;
       this.crosshairOverlay.hide();
+      this.orchestrator.setCrosshairReadout?.(null, null);
       this.notifyCrosshairListeners(null);
     };
     this.pointerMove = (e: PointerEvent) => {
@@ -432,6 +469,8 @@ export class WebGLChartRenderBackend {
   }
 
   private visiblePriceRange(): PriceRange | null {
+    const effective = this.orchestrator.getEffectiveMainPriceRange?.();
+    if (effective) return effective;
     const vp = this.orchestrator.getViewport();
     if (!vp || this.bars.length === 0) return null;
     const { from, to } = vp.visibleBarIndexRange();
@@ -442,26 +481,38 @@ export class WebGLChartRenderBackend {
     return this.logScaleEnabled ? 'log' : 'linear';
   }
 
+  /** Device layout metrics → CSS main-pane height (overlay + scale tags use CSS). */
+  private mainPaneHeightCss(metrics: {
+    canvasWidth: number;
+    cssWidth: number;
+    mainPaneHeight: number;
+  }): number {
+    const dpr = metrics.canvasWidth / Math.max(1, metrics.cssWidth);
+    return metrics.mainPaneHeight / dpr;
+  }
+
   private updateCrosshairVisual(payload: CrosshairPayload | null): void {
     if (!payload?.time) {
       this.crosshairOverlay.hide();
+      this.orchestrator.setCrosshairReadout?.(null, null);
       return;
     }
     const metrics = this.orchestrator.getMainPaneLayoutMetrics();
     const vp = this.orchestrator.getViewport();
     if (!metrics || !vp || this.bars.length === 0) return;
-    const w = this.container.clientWidth || 800;
-    const plotW = vp.plotWidthPx(w);
+    const w = metrics.cssWidth || this.container.clientWidth || 800;
+    const mainPaneCss = this.mainPaneHeightCss(metrics);
     const idx = barIndexForTimeMs(this.bars, payload.time);
-    const xCss = vp.plotXForBarIndex(idx, plotW);
-    let yCss = metrics.mainPaneHeight / 2;
+    const xCss = vp.canvasXForBarIndex(idx, w);
+    let yCss = mainPaneCss / 2;
     if (payload.price != null && Number.isFinite(payload.price)) {
       const range = this.visiblePriceRange();
       if (range) {
-        yCss = mapPriceToY(payload.price, range, 0, metrics.mainPaneHeight, this.priceScaleMode());
+        yCss = mapPriceToY(payload.price, range, 0, mainPaneCss, this.priceScaleMode());
       }
     }
-    this.crosshairOverlay.show(xCss, yCss, metrics.mainPaneHeight, w);
+    this.crosshairOverlay.show(xCss, yCss, mainPaneCss, w);
+    this.orchestrator.setCrosshairReadout?.(payload.price ?? null, payload.time);
   }
 
   private nearestBar(tMs: number): Bar | undefined {
@@ -490,6 +541,9 @@ export class WebGLChartRenderBackend {
       const fromMs = timeMsAtBarIndex(this.bars, vp.visibleFrom);
       const toMs = timeMsAtBarIndex(this.bars, vp.visibleTo);
       this.busRegistry.getOrCreateBus('main').setBarsTimeRange(fromMs, toMs);
+      if (toMs > fromMs) {
+        this.onVisibleRangeChange?.({ fromMs, toMs });
+      }
     } finally {
       this.syncingBusFromViewport = false;
     }

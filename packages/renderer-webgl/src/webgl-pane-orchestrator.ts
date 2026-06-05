@@ -2,15 +2,24 @@ import type { Bar } from '@coderyo/data';
 import {
   DEFAULT_INDICATOR_CONFIG,
   hasVisibleIndicatorPanes,
+  isVolumePaneVisible,
   type IndicatorConfig,
 } from '@coderyo/indicators';
 import { lodDecimateBars } from '@coderyo/series';
 import { WebGLChartPane, type WebGLChartPaneOptions } from './webgl-chart-pane.js';
+import { WebGLVolumePane } from './webgl-volume-pane.js';
 import { WebGLIndicatorStack } from './webgl-indicator-stack.js';
 import { ViewportSyncBus } from './viewport-sync-bus.js';
 import { WebGLDrawingLayer } from './webgl-drawing-layer.js';
 import type { DrawingTool } from '@coderyo/drawings';
 import { pinePlotsToLineSpecs, type PinePlotLineInput } from './pine-overlay-lines.js';
+import type { PriceRange, PriceScaleMode } from './price-scale.js';
+import type {
+  PriceScaleOptions,
+  SymbolPriceFormat,
+  TimeScaleOptions,
+} from './scale/scale-types.js';
+import { DEFAULT_INDICATOR_PRICE_FORMAT } from './scale/scale-types.js';
 
 /** Layout: main candles ~60%, volume ~15%, indicators ~25% when indicator panes visible. */
 const CHART_SECTION_RATIO_WITH_INDICATORS = 0.75;
@@ -42,7 +51,16 @@ export type WebGLPaneSyncGroupPatch = {
   indicator?: string | null;
 };
 
+/** Layer compositor: volume renders in `volumeMount`, not embedded in main canvas. */
+export function isLayeredPaneMount(
+  opts: Pick<WebGLPaneOrchestratorOptions, 'volumeMount'>,
+): boolean {
+  return !!opts.volumeMount;
+}
+
 export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
+  /** P2: separate volume layer host (independent resize; optional time sync). */
+  volumeMount?: HTMLElement;
   /** Initial CSS size when mount container has zero layout. */
   initialWidth?: number;
   initialHeight?: number;
@@ -52,16 +70,21 @@ export interface WebGLPaneOrchestratorOptions extends WebGLChartPaneOptions {
   maxRenderPoints?: number;
   /** Drawing overlay (V2-R9–R11, phase_gamma). */
   drawings?: WebGLDrawingsOptions;
+  timeZone?: string;
+  /** Fired when main pane viewport changes (pan/zoom / time-axis). */
+  onViewportChange?: () => void;
 }
 
 /**
- * Beta-scope orchestrator: main + volume (WebGLChartPane) + optional MACD/RSI/KDJ stack (V2-R5).
- * API shaped for future core adapter wiring (V2-R12).
+ * WebGL orchestrator: main chart + volume (embedded or `volumeMount`) + indicator stack.
  */
 export class WebGLPaneOrchestrator {
+  private readonly layeredVolume: boolean;
   private chartHost: HTMLElement | null = null;
+  private volumeHost: HTMLElement | null = null;
   private indicatorRoot: HTMLElement | null = null;
   private pane: WebGLChartPane | null = null;
+  private volumePane: WebGLVolumePane | null = null;
   private indicators: WebGLIndicatorStack | null = null;
   private syncBus: ViewportSyncBus | null = null;
   private container: HTMLElement | null = null;
@@ -75,8 +98,16 @@ export class WebGLPaneOrchestrator {
   private drawingLayer: WebGLDrawingLayer | null = null;
   private paneSyncPatch: WebGLPaneSyncGroupPatch = {};
   private indicatorFollowsMain = true;
+  private volumeFollowsMain = true;
+  private timeZone: string;
+  private symbolFormat: SymbolPriceFormat = {};
+  private didInitialFit = false;
+  private skipNextInitialFit = false;
 
   constructor(private readonly options: WebGLPaneOrchestratorOptions = {}) {
+    this.layeredVolume = isLayeredPaneMount(options);
+    this.timeZone =
+      options.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
     this.maxRenderPoints = options.maxRenderPoints ?? 4000;
     this.indicatorConfig = options.indicatorConfig ?? DEFAULT_INDICATOR_CONFIG;
     this.onIndicatorConfigChange = options.onIndicatorConfigChange;
@@ -103,9 +134,16 @@ export class WebGLPaneOrchestrator {
     this.pane = new WebGLChartPane(this.chartHost, {
       ...this.options,
       volumeHeightRatio: this.volumeRatioForLayout(),
+      timeZone: this.timeZone,
+      onViewportChange: () => this.onMainViewportChange(),
     });
+    this.pane.setSymbolPriceFormat(this.symbolFormat);
     this.syncBus = new ViewportSyncBus(this.pane.viewport);
     this.pane.attachSyncBus(this.syncBus);
+
+    if (this.layeredVolume) {
+      this.mountLayeredVolume();
+    }
 
     if (this.options.drawings?.enabled) {
       this.drawingLayer = new WebGLDrawingLayer({
@@ -117,6 +155,14 @@ export class WebGLPaneOrchestrator {
         getViewport: () => this.pane?.viewport ?? null,
         getBars: () => this.lastBars,
         getLayout: () => this.pane?.getLayoutMetrics() ?? null,
+        getCoordinateContext: () => {
+          const p = this.pane;
+          if (!p) return null;
+          return {
+            priceRange: p.getEffectiveMainPriceRange(),
+            priceScaleMode: p.getPriceScaleMode(),
+          };
+        },
       });
     }
 
@@ -130,12 +176,38 @@ export class WebGLPaneOrchestrator {
     const renderBars = lodDecimateBars(bars as Bar[], this.maxRenderPoints);
     this.lodStats = { inputCount, outputCount: renderBars.length };
     this.lastBars = renderBars;
-    this.pane?.setData(this.lastBars);
+    const fitViewport =
+      this.lastBars.length > 0 && !this.didInitialFit && !this.skipNextInitialFit;
+    this.pane?.setData(this.lastBars, { fitViewport });
+    if (fitViewport) {
+      this.didInitialFit = true;
+    }
+    this.skipNextInitialFit = false;
+    if (this.volumePane && isVolumePaneVisible(this.indicatorConfig)) {
+      this.volumePane.setData(this.lastBars, this.indicatorConfig);
+      if (fitViewport && this.volumeFollowsMain) {
+        this.syncBus?.propagate();
+      }
+      this.volumePane.render();
+    }
     this.drawingLayer?.redraw();
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.setBars(this.lastBars);
       this.syncBus?.propagate();
     }
+  }
+
+  /** Skip automatic fit-to-latest on the next {@link setBars} (reload / live updates). */
+  preserveViewportOnNextSetBars(): void {
+    this.skipNextInitialFit = true;
+    this.didInitialFit = true;
+  }
+
+  resetViewState(): void {
+    this.didInitialFit = false;
+    this.skipNextInitialFit = false;
+    const vp = this.pane?.viewport;
+    if (vp) vp.setBarCount(0);
   }
 
   getLodStats(): LodStats {
@@ -163,6 +235,7 @@ export class WebGLPaneOrchestrator {
   setIndicatorConfig(config: IndicatorConfig): void {
     this.indicatorConfig = config;
     this.pane?.setIndicatorConfig(config);
+    this.applyVolumeVisibility();
     this.applyIndicatorLayout();
     this.onIndicatorConfigChange?.(config);
     if (!this.indicators && hasVisibleIndicatorPanes(config)) {
@@ -200,6 +273,7 @@ export class WebGLPaneOrchestrator {
   render(): void {
     const t0 = performance.now();
     this.pane?.render();
+    this.volumePane?.render();
     if (hasVisibleIndicatorPanes(this.indicatorConfig)) {
       this.indicators?.resize();
     }
@@ -234,6 +308,7 @@ export class WebGLPaneOrchestrator {
     this.drawingLayer = null;
     this.indicators?.destroy();
     this.indicators = null;
+    this.teardownLayeredVolume();
     this.pane?.destroy();
     this.pane = null;
     this.syncBus = null;
@@ -256,15 +331,86 @@ export class WebGLPaneOrchestrator {
     this.pane?.setLogScale(enabled);
   }
 
+  setShowGrid(show: boolean): void {
+    this.pane?.setShowGrid(show);
+    this.render();
+  }
+
   setPineOverlayLines(plots: readonly PinePlotLineInput[] | null): void {
     this.pane?.setPineOverlayLines(pinePlotsToLineSpecs(plots));
     this.render();
   }
 
+  setTimezone(timeZone: string): void {
+    this.timeZone = timeZone || 'UTC';
+    this.pane?.setTimezone(this.timeZone);
+    this.volumePane?.setTimezone(this.timeZone);
+    this.indicators?.setTimezone(this.timeZone);
+    this.render();
+  }
+
+  applyPriceScaleOptions(opts: Partial<PriceScaleOptions>): void {
+    this.pane?.applyPriceScaleOptions(opts);
+    if (opts.textColor != null || opts.borderColor != null || opts.font != null) {
+      const { position: _p, ...shared } = opts;
+      this.volumePane?.applyPriceScaleOptions(shared);
+      this.indicators?.applyPriceScaleOptions(shared);
+    }
+    this.render();
+  }
+
+  getEffectiveMainPriceRange(): PriceRange | null {
+    return this.pane?.getEffectiveMainPriceRange() ?? null;
+  }
+
+  getPriceScaleMode(): PriceScaleMode {
+    return this.pane?.getPriceScaleMode() ?? 'linear';
+  }
+
+  getScaleOverlayCanvas(): HTMLCanvasElement | null {
+    return this.pane?.getScaleOverlayCanvas() ?? null;
+  }
+
+  applyTimeScaleOptions(opts: Partial<TimeScaleOptions>): void {
+    this.pane?.applyTimeScaleOptions(opts);
+    this.volumePane?.applyTimeScaleOptions(opts);
+    this.indicators?.applyTimeScaleOptions(opts);
+    this.render();
+  }
+
+  setSymbolPriceFormat(format: SymbolPriceFormat): void {
+    this.symbolFormat = format;
+    this.pane?.setSymbolPriceFormat(format);
+    this.render();
+  }
+
+  /** Indicator panes use neutral formatting; symbol OHLC format is main pane only. */
+  private indicatorPriceFormat(): SymbolPriceFormat {
+    return DEFAULT_INDICATOR_PRICE_FORMAT;
+  }
+
+  setCrosshairReadout(price: number | null, timeMs: number | null): void {
+    this.pane?.setCrosshairReadout(price, timeMs);
+    this.volumePane?.setCrosshairReadout(price, timeMs);
+    this.indicators?.setCrosshairReadout(price, timeMs);
+  }
+
   /** Layer compositor pane sync groups (main/volume share viewport; indicator optional follower). */
   setPaneSyncGroups(patch: WebGLPaneSyncGroupPatch): void {
     if (patch.main !== undefined) this.paneSyncPatch.main = patch.main;
-    if (patch.volume !== undefined) this.paneSyncPatch.volume = patch.volume;
+    if (patch.volume !== undefined) {
+      this.paneSyncPatch.volume = patch.volume;
+      const mainG = this.paneSyncPatch.main ?? 'prices';
+      const volG = patch.volume;
+      const follow =
+        volG != null && String(volG).length > 0 && String(volG) === String(mainG);
+      if (follow !== this.volumeFollowsMain) {
+        this.volumeFollowsMain = follow;
+        if (this.layeredVolume) {
+          this.recreateVolumePane();
+        }
+      }
+    }
     if (patch.indicator !== undefined) {
       this.paneSyncPatch.indicator = patch.indicator;
       const mainG = this.paneSyncPatch.main ?? 'prices';
@@ -301,7 +447,14 @@ export class WebGLPaneOrchestrator {
     return this.indicators?.getPaneViewports() ?? [];
   }
 
+  /** Layered volume pane viewport (tests). */
+  getVolumeViewport(): import('./chart-viewport.js').ChartViewport | null {
+    return this.volumePane?.viewport ?? null;
+  }
+
   private volumeRatioForLayout(): number {
+    if (this.layeredVolume) return 0;
+    if (!isVolumePaneVisible(this.indicatorConfig)) return 0;
     return hasVisibleIndicatorPanes(this.indicatorConfig)
       ? VOLUME_RATIO_IN_CHART_SECTION
       : (this.options.volumeHeightRatio ?? DEFAULT_VOLUME_RATIO_SOLO);
@@ -312,6 +465,7 @@ export class WebGLPaneOrchestrator {
     const visible = hasVisibleIndicatorPanes(this.indicatorConfig);
     this.indicatorRoot.style.display = visible ? 'flex' : 'none';
     this.pane.setVolumeHeightRatio(this.volumeRatioForLayout());
+    this.applyVolumeVisibility();
     if (visible && !this.indicators) {
       this.createIndicatorStack();
     }
@@ -330,6 +484,8 @@ export class WebGLPaneOrchestrator {
       theme: this.options.theme,
       debug: this.options.debug,
       config: this.indicatorConfig,
+      timeZone: this.timeZone,
+      symbolFormat: this.indicatorPriceFormat(),
       syncBus: bus,
       onConfigChange: (config) => {
         this.indicatorConfig = config;
@@ -342,9 +498,10 @@ export class WebGLPaneOrchestrator {
   }
 
   private observeResize(): void {
-    if (!this.container || typeof ResizeObserver === 'undefined') return;
+    if (typeof ResizeObserver === 'undefined') return;
     this.resizeObserver = new ResizeObserver(() => this.syncSize());
-    this.resizeObserver.observe(this.container);
+    if (this.container) this.resizeObserver.observe(this.container);
+    if (this.options.volumeMount) this.resizeObserver.observe(this.options.volumeMount);
   }
 
   private syncSize(): void {
@@ -353,5 +510,88 @@ export class WebGLPaneOrchestrator {
     const w = rect.width > 0 ? rect.width : (this.options.initialWidth ?? 800);
     const h = rect.height > 0 ? rect.height : (this.options.initialHeight ?? 480);
     this.resize(w, h);
+    this.syncVolumeSize();
+  }
+
+  private syncVolumeSize(): void {
+    if (!this.volumePane || !this.options.volumeMount) return;
+    const rect = this.options.volumeMount.getBoundingClientRect();
+    const vw = rect.width > 0 ? rect.width : (this.options.initialWidth ?? 800);
+    const vh = rect.height > 0 ? rect.height : 120;
+    this.volumePane.resize(vw, vh);
+  }
+
+  /** Main pan/zoom: repaint synced layered volume without full orchestrator render. */
+  private onMainViewportChange(): void {
+    this.options.onViewportChange?.();
+    if (
+      this.layeredVolume &&
+      this.volumeFollowsMain &&
+      this.volumePane &&
+      isVolumePaneVisible(this.indicatorConfig)
+    ) {
+      this.volumePane.render();
+    }
+  }
+
+  private mountLayeredVolume(): void {
+    const mount = this.options.volumeMount;
+    if (!mount || this.volumePane) return;
+    if (!mount.dataset.paneId) mount.dataset.paneId = 'volume';
+    mount.style.position = mount.style.position || 'relative';
+    mount.style.overflow = mount.style.overflow || 'hidden';
+    mount.querySelectorAll('[data-webgl-volume-host]').forEach((el) => el.remove());
+    this.volumeHost = document.createElement('div');
+    this.volumeHost.dataset.webglVolumeHost = '1';
+    this.volumeHost.style.cssText = 'width:100%;height:100%;min-height:48px;position:relative;';
+    mount.appendChild(this.volumeHost);
+    this.createVolumePane();
+    this.applyVolumeVisibility();
+  }
+
+  private createVolumePane(): void {
+    if (!this.volumeHost) return;
+    this.volumePane?.destroy();
+    const bus = this.volumeFollowsMain ? (this.syncBus ?? undefined) : undefined;
+    this.volumePane = new WebGLVolumePane(this.volumeHost, {
+      theme: this.options.theme,
+      debug: this.options.debug,
+      syncBus: bus,
+      timeZone: this.timeZone,
+    });
+    if (this.lastBars.length > 0) {
+      this.volumePane.setData(this.lastBars, this.indicatorConfig);
+      if (this.volumeFollowsMain) this.syncBus?.propagate();
+    }
+    this.syncVolumeSize();
+  }
+
+  private recreateVolumePane(): void {
+    if (!this.layeredVolume || !this.volumeHost) return;
+    this.createVolumePane();
+    this.volumePane?.render();
+  }
+
+  private applyVolumeVisibility(): void {
+    if (!this.layeredVolume || !this.options.volumeMount) return;
+    const show = isVolumePaneVisible(this.indicatorConfig);
+    this.options.volumeMount.style.display = show ? '' : 'none';
+    if (!show) {
+      this.volumePane?.destroy();
+      this.volumePane = null;
+      return;
+    }
+    if (!this.volumePane && this.volumeHost) {
+      this.createVolumePane();
+    } else if (this.volumePane && this.lastBars.length > 0) {
+      this.volumePane.setData(this.lastBars, this.indicatorConfig);
+    }
+  }
+
+  private teardownLayeredVolume(): void {
+    this.volumePane?.destroy();
+    this.volumePane = null;
+    this.volumeHost?.remove();
+    this.volumeHost = null;
   }
 }
