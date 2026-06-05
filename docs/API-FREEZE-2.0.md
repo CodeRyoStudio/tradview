@@ -54,6 +54,12 @@
 | `getVisibleRange` / `setVisibleRange` | `core` | Retained from 1.x |
 | `setCrosshair` / `clearCrosshair` | `core` | Workspace `sync.crosshair`; WebGL DOM overlay |
 | Link sync | `core` | Via workspace + bridge events |
+| `applyPriceScaleOptions` | `core` → WebGL | `position`, colors, fonts; main pane only for `position` |
+| `applyTimeScaleOptions` | `core` → WebGL | Time-axis colors/fonts |
+| `setTimezone` | `core` | IANA TZ for WebGL time-axis labels |
+| `setLogScale` | `core` | Log price scale on main pane (WebGL) |
+| `ChartWorkspace.setLinkChartsTimeScale` | `core` | Toggle `sync.visibleRange` on workspace link group |
+| `exportImage` | `core` | Composites WebGL + scale overlay (+ drawing) canvases |
 
 ### Removed @ 2.0.0-rc.2 (PR-L7b landed)
 

@@ -10,8 +10,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv.find((a) => a.startsWith('--mode='))?.split('=')[1] ?? 'dev';
 const isWin = process.platform === 'win32';
 const pnpm = isWin ? 'pnpm.cmd' : 'pnpm';
+const MOCK_PORT = Number(process.env.MOCK_PORT ?? '4010');
+const MOCK_HOST = process.env.MOCK_HOST ?? '127.0.0.1';
+const MOCK_BASE = `http://${MOCK_HOST}:${MOCK_PORT}`;
 
 const children = [];
+
+async function mockGatewayReady() {
+  try {
+    const res = await fetch(`${MOCK_BASE}/api/v1/capabilities`, {
+      signal: AbortSignal.timeout(2500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 function run(label, args, extraEnv = {}) {
   const child = spawn(pnpm, args, {
@@ -35,8 +49,12 @@ function shutdown(code = 0) {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-console.log('[demo] Starting mock gateway on http://127.0.0.1:4010 …');
-run('mock', ['dev:mock']);
+if (await mockGatewayReady()) {
+  console.log(`[demo] Mock gateway already running → ${MOCK_BASE}`);
+} else {
+  console.log(`[demo] Starting mock gateway → ${MOCK_BASE} …`);
+  run('mock', ['dev:mock']);
+}
 
 if (mode === 'preview') {
   console.log('[demo] Building packages + playground …');

@@ -22,7 +22,33 @@ export async function startMockGateway(opts: StartMockGatewayOptions = {}): Prom
 
   const httpServer = createMockHttpServer({ port, host });
   const wss = attachMockWebSocket(httpServer);
-  await listenMockHttp(httpServer, port, host);
+
+  const bind = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const onError = (err: Error) => {
+        httpServer.off('error', onError);
+        wss.off('error', onError);
+        reject(err);
+      };
+      httpServer.once('error', onError);
+      wss.once('error', onError);
+      void listenMockHttp(httpServer, port, host)
+        .then(() => {
+          httpServer.off('error', onError);
+          wss.off('error', onError);
+          resolve();
+        })
+        .catch(onError);
+    });
+
+  try {
+    await bind();
+  } catch (err) {
+    await new Promise<void>((resolve) => {
+      wss.close(() => resolve());
+    });
+    throw err;
+  }
 
   const address = httpServer.address();
   if (!address || typeof address === 'string') {

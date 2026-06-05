@@ -12,8 +12,10 @@ import { bindChartKeyboard } from '@coderyo/interaction';
 import { t } from '@coderyo/i18n';
 import {
   loadIndicatorConfig,
+  loadLinkChartsPreference,
   loadReturnToCursorPreference,
   loadShowGridPreference,
+  loadTimezonePreference,
   createDemoLayoutOptions,
   createI18nProvider,
   createThemeProvider,
@@ -53,6 +55,8 @@ const chartRef: { current: IChart | null } = { current: null };
 
 let drawingTool: DrawingToolId = 'cursor';
 let showGrid = loadShowGridPreference();
+let chartTimeZone = loadTimezonePreference();
+let linkCharts = loadLinkChartsPreference();
 let returnToCursor = loadReturnToCursorPreference();
 const themeProvider = createThemeProvider(loadTheme());
 const i18n = createI18nProvider('zh-TW');
@@ -84,11 +88,20 @@ const shellOpts = createDemoLayoutOptions({
   },
   settings: {
     showGrid,
+    timeZone: chartTimeZone,
+    linkCharts,
     returnToCursorAfterDraw: returnToCursor,
     indicatorConfig,
     onShowGridChange: (next) => {
       showGrid = next;
       chartRef.current?.setShowGrid(next);
+    },
+    onTimezoneChange: (tz) => {
+      chartTimeZone = tz;
+      chartRef.current?.setTimezone(tz);
+    },
+    onLinkChartsChange: (link) => {
+      linkCharts = link;
     },
     onReturnToCursorChange: (v) => {
       returnToCursor = v;
@@ -176,6 +189,7 @@ const chart = createChart(
   }),
 );
 chartRef.current = chart;
+chart.setTimezone(chartTimeZone);
 const syncChartLayout = () => {
   chart.setChartPaneResizeFocus('all');
   chart.resize();

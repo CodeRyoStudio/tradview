@@ -1,7 +1,7 @@
 import { ChartWorkspace, createDemoChartOptions } from '@coderyo/core';
 import { createDefaultBridge } from '@coderyo/bridge';
 import { createGatewayDataProvider } from '@coderyo/data/client';
-import { createWorkspaceChartSlots } from '@coderyo/ui-shell';
+import { createWorkspaceChartSlots, loadLinkChartsPreference } from '@coderyo/ui-shell';
 import type { Interval } from '@coderyo/data';
 
 const workspaceEl = document.getElementById('workspace')!;
@@ -21,16 +21,20 @@ const { slots } = createWorkspaceChartSlots(workspaceEl, {
   slotIds: ['chart-a', 'chart-b'],
 });
 
+const linkChartsTimeScale = loadLinkChartsPreference();
+
 const ws = new ChartWorkspace({
   workspaceId: 'playground-workspace',
   dataProvider: provider,
   bridge,
   defaultLinkGroupId: 'default',
+  linkChartsTimeScale,
 });
 
 const readSync = () => ({
   interval: (document.getElementById('sync-interval') as HTMLInputElement).checked,
   crosshair: (document.getElementById('sync-crosshair') as HTMLInputElement).checked,
+  visibleRange: linkChartsTimeScale,
 });
 
 const applyLink = () => {

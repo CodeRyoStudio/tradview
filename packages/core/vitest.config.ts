@@ -11,6 +11,7 @@ export default defineConfig({
       ['tests/chart-renderer-webgl.crosshair.test.ts', 'happy-dom'],
       ['tests/chart-renderer-webgl.setcrosshair-clear.test.ts', 'happy-dom'],
       ['tests/chart-controller.webgl.test.ts', 'happy-dom'],
+      ['tests/chart-controller.volume-data.test.ts', 'happy-dom'],
     ],
   },
 });

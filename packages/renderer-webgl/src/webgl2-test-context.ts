@@ -65,6 +65,26 @@ function createMockWebGL2(canvas: HTMLCanvasElement): WebGL2RenderingContext {
   return gl as unknown as WebGL2RenderingContext;
 }
 
+function createMockCanvas2D(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const noop = () => undefined;
+  const ctx: Record<string, unknown> = {
+    canvas,
+    clearRect: noop,
+    fillText: noop,
+    stroke: noop,
+    beginPath: noop,
+    moveTo: noop,
+    lineTo: noop,
+    fillStyle: '#8b949e',
+    strokeStyle: '#30363d',
+    font: '11px monospace',
+    textAlign: 'left',
+    textBaseline: 'middle',
+    lineWidth: 1,
+  };
+  return ctx as unknown as CanvasRenderingContext2D;
+}
+
 /** Install fake `webgl2` on all canvases (idempotent). */
 export function installWebGL2TestContext(): void {
   if (installed || typeof HTMLCanvasElement === 'undefined') return;
@@ -78,6 +98,10 @@ export function installWebGL2TestContext(): void {
   ): RenderingContext | null {
     if (type === 'webgl2' || type === 'experimental-webgl2') {
       return createMockWebGL2(this);
+    }
+    if (type === '2d') {
+      const fromOrig = orig.call(this, type, _options as never) as CanvasRenderingContext2D | null;
+      return fromOrig ?? createMockCanvas2D(this);
     }
     return orig.call(this, type, _options as never);
   } as typeof proto.getContext;

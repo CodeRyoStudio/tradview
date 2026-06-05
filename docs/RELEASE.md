@@ -2,8 +2,8 @@
 
 ## 目前版本
 
-- **RC**：**`2.0.0-rc.2`**（`VERSION` 檔為單一真相來源；`@coderyo/bridge` 獨立為 `2.0.0`）
-- **正式**：`1.1.1`（上一 GA 線）
+- **GA**：**`2.0.1`**（`VERSION` 檔為單一真相來源；`@coderyo/bridge` 獨立為 `3.0.0`）
+- **上一 GA**：`2.0.0` / `1.1.1`（1.x 線）
 - **API**：`apiVersion: 1` @ 1.1.x；V2 目標 `apiVersion: 2` @ GA（見 [API-FREEZE-2.0.md](./API-FREEZE-2.0.md) draft）
 - **V2 規劃**：[DESIGN-v2.md](./DESIGN-v2.md)
 

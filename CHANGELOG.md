@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-06-05
+
+### Added
+
+- **R15 scale parity (WebGL)**: price/time axis engines, gutter interaction (drag scale, dbl-click reset, wheel zoom), crosshair labels on axes, last-price tag, timezone labels, workspace link-chart time sync
+- **WebGL volume pane**: `volumeMount` layered pane with independent volume axis; embedded volume band; default `showVolume: true` (explicit `false` / `disableIndicatorLayer('volume')` to hide)
+- **Vol MA on volume pane**: WebGL line overlay aligned with lite (`showVolMa`, `#58a6ff`); embedded band + `WebGLVolumePane`
+- **Scale/workspace APIs**: `applyPriceScaleOptions`, `applyTimeScaleOptions`, `setTimezone`, `setLogScale`, `ChartWorkspace.setLinkChartsTimeScale`, `exportImage` (documented in `API-FREEZE-2.0.md`)
+
+### Fixed
+
+- **Viewport**: preserve pan/zoom on `setData` / tick updates (no unconditional `fitLatest`)
+- **Chart pan**: vertical price pan in main plot area (TradingView-style)
+- **Volume**: missing `v` warns (`VOLUME_DATA_MISSING`) without hiding main chart; linked volume pane repaints on main viewport sync
+- **Demo/dev**: `pnpm demo` skips duplicate mock when port 4010 already up; clearer `EADDRINUSE` errors in mock gateway
+
+### Tests
+
+- R15 UAT checklist items covered in `docs/DESIGN-v2-scale.md` (unit + port-parity); 116 `@coderyo/renderer-webgl`, 94 `@coderyo/core`
+
 ## [2.0.0] - 2026-06-04
 
 ### Added
