@@ -400,9 +400,6 @@ importers:
         specifier: workspace:*
         version: link:../series
     devDependencies:
-      '@coderyo/core':
-        specifier: workspace:*
-        version: link:../core
       '@coderyo/eslint-config':
         specifier: workspace:*
         version: link:../../tools/eslint-config
