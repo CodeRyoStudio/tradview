@@ -40,7 +40,6 @@ export function hitTestScaleRegion(
     volumeBandTop,
     volumeBandBottom,
   } = input;
-  const plotW = viewport.plotWidthPx(cssWidth);
   const timeAxisH = TIME_AXIS_CSS_PX;
   const position = input.priceAxisPosition ?? 'right';
 

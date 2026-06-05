@@ -23,11 +23,11 @@ describe('chart-axis-format', () => {
 
   it('formatTimeAxisLabel adapts to bar interval', () => {
     const ms = Date.UTC(2024, 5, 1, 14, 30);
-    const daily = formatTimeAxisLabel(ms, 86_400_000);
-    const hourly = formatTimeAxisLabel(ms, 3_600_000);
+    const daily = formatTimeAxisLabel(ms, 86_400_000, 'UTC');
+    const hourly = formatTimeAxisLabel(ms, 3_600_000, 'UTC');
     expect(daily.length).toBeGreaterThan(4);
     expect(hourly).toContain('30');
     expect(hourly).not.toBe(daily);
-    expect(formatTimeAxisLabel(ms, 60_000).length).toBeGreaterThan(4);
+    expect(formatTimeAxisLabel(ms, 60_000, 'UTC').length).toBeGreaterThan(4);
   });
 });

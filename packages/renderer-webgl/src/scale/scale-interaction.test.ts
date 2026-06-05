@@ -8,7 +8,7 @@ describe('ScaleInteraction handlers', () => {
     el.getBoundingClientRect = () =>
       ({ left: 0, top: 0, width: 800, height: 400, right: 800, bottom: 400 }) as DOMRect;
     const vp = new ChartViewport({ rightPaddingPx: 56 });
-    const cleared: Array<'price' | 'volume' | null> = [];
+    const cleared: Array<{ min: number; max: number } | null> = [];
     const interaction = new ScaleInteraction(el, {
       viewport: vp,
       getLayout: () => ({ cssWidth: 800, cssHeight: 400, mainPaneHeight: 300 }),
