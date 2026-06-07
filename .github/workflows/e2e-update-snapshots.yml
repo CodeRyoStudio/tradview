@@ -1,0 +1,29 @@
+name: Update E2E snapshots
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:e2e-visual:update
+        env:
+          CI: '1'
+
+      - name: Upload snapshot baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-snapshots
+          path: tests/e2e-visual/specs/**/*-snapshots/**
+          if-no-files-found: error

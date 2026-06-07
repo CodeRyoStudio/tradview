@@ -29,8 +29,8 @@ test.describe('chart chrome (playground)', () => {
   });
 
   test('workspace layout snapshot', async ({ page }) => {
-    await expect(page).toHaveScreenshot('workspace-layout.png', {
-      fullPage: false,
+    const workspace = page.locator('#workspace');
+    await expect(workspace).toHaveScreenshot('workspace-layout.png', {
       animations: 'disabled',
     });
   });
