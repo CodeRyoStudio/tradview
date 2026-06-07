@@ -30,8 +30,10 @@ test.describe('chart chrome (playground)', () => {
 
   test('workspace layout snapshot', async ({ page }) => {
     const workspace = page.locator('#workspace');
+    // Mask WebGL canvases — candle pixels vary slightly across runs/OS; chrome grid is stable.
     await expect(workspace).toHaveScreenshot('workspace-layout.png', {
       animations: 'disabled',
+      mask: [workspace.locator('canvas')],
     });
   });
 });
