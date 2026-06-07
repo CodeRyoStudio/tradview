@@ -23,7 +23,7 @@
     "arch:boundary": "pnpm --filter @coderyo/core exec vitest run tests/arch-boundary.test.ts",
     "test:scripts": "vitest run scripts/check-rc.test.mjs",
     "test:e2e-visual": "pnpm --filter @tradview/e2e-visual exec playwright test",
-    "test:e2e-visual:update": "pnpm build && pnpm --filter @coderyo/playground build && pnpm --filter @tradview/e2e-visual exec playwright test --update-snapshots",
+    "test:e2e-visual:update": "pnpm build && pnpm --filter @coderyo/playground build && pnpm --filter @tradview/e2e-visual exec playwright install chromium && pnpm --filter @tradview/e2e-visual exec playwright test --update-snapshots",
     "check:rc": "node scripts/check-rc.mjs",
     "publish:rc": "pnpm check:rc && pnpm -r publish --access public --tag rc --no-git-checks"
   },

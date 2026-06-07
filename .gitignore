@@ -12,5 +12,6 @@ mcps/
 agent-tools/
 terminals/
 tests/e2e-visual/test-results/
+.tmp-e2e-snapshots/
 .grok-impl-*
 .grok-review-*
